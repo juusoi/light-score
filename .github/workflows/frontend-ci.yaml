@@ -22,11 +22,11 @@ jobs:
         with:
           src: "./frontend"
           args: --fix
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "style fixes by ruff"
 
-  backend-tests:
+  frontend-tests:
     runs-on: ubuntu-latest
     needs: [lint]
     steps:
