@@ -15,7 +15,7 @@ on:
 
 jobs:
   lint:
-    uses: ./.github/workflows/ruff.yaml@main
+    uses: ./.github/workflows/ruff.yaml
 
   backend-tests:
     runs-on: ubuntu-latest
