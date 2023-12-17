@@ -6,7 +6,7 @@ app = Flask(__name__)
 BACKEND_URL = "http://localhost:8000"
 
 
-@app.route("/")
+@app.route("/foo")
 def home():
     try:
         games_response = requests.get(f"{BACKEND_URL}/games")
