@@ -21,8 +21,8 @@ jobs:
       - uses: chartboost/ruff-action@v1
         with:
           src: "./backend"
-          args: --check .
-          fix_args: --fix .
+          args: --check
+          fix_args: --fix
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "style fixes by ruff"
