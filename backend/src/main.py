@@ -25,7 +25,7 @@ def read_root():
     return {"Hello": "World"}
 
 
-@app.get("/api")
+@app.get("/foo")
 def read_root():
     return {"version": "1"}
 
