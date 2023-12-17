@@ -4,7 +4,24 @@
     <title>NFL Scores and Standings</title>
   </head>
   <body>
-    <h1>Welcome to NFL Scores and Standings</h1>
-    <p>This is a placeholder for NFL scores and standings.</p>
+    <h1>NFL Scores and Standings</h1>
+    <h2>Games</h2>
+    <ul>
+      {% for game in games %}
+      <li>
+        {{ game.team_a }} vs {{ game.team_b }}: {{ game.score_a }} - {{
+        game.score_b }}
+      </li>
+      {% endfor %}
+    </ul>
+    <h2>Standings</h2>
+    <ul>
+      {% for standing in standings %}
+      <li>
+        {{ standing.team }}: {{ standing.wins }} wins, {{ standing.losses }}
+        losses
+      </li>
+      {% endfor %}
+    </ul>
   </body>
 </html>
