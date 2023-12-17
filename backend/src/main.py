@@ -25,11 +25,6 @@ def read_root():
     return {"Hello": "World"}
 
 
-@app.get("/foo")
-def read_root():
-    return {"version": "1"}
-
-
 @app.get("/games", response_model=List[Game])
 def get_games():
     return example_data["games"]
