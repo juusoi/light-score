@@ -20,7 +20,7 @@ class Standings(BaseModel):
     losses: int
 
 
-@app.get("/")
+@app.get("/foo")
 def read_root():
     return {"Hello": "World"}
 
