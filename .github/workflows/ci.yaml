@@ -11,4 +11,7 @@ on:
 
 jobs:
   lint:
-    uses: ./.github/actions/ruff.yaml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: chartboost/ruff-action@v1
