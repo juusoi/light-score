@@ -4,8 +4,8 @@ This project aims to provide real-time NFL scores and standings through a user-f
 
 ## Technology Stack
 
-- **Frontend**: Django
-- **Backend**: FastAPI
+- **Frontend**: Flask (/frontend)[./frontend/README.md]
+- **Backend**: FastAPI (/backend)[./backend/README.md]
 - **Database**: Firestore (Google Cloud Firestore)
 - **Serverless Function**: Google Cloud Functions
 - **CI/CD**: GitHub Actions
@@ -19,14 +19,14 @@ The project consists of a Django application for the frontend, communicating wit
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.12+
 - Docker (for containerization)
 - GCP Account
 
 ## Installation
 
 1. Clone the repository: git clone https://github.com/juusoi/light-score
-2. Follow the setup instructions in each component's directory (frontend, backend, serverless).
+2. Follow the setup instructions in each component's directory (frontend, backend, functions).
 
 ## Development Guidelines
 
@@ -55,7 +55,8 @@ We use [SemVer](https://semver.org) for versioning. For the versions available, 
 
 ## Authors and Acknowledgment
 
-- Juuso, Tero - Initial work
+- juusoi, firekki - Initial work
+- Lemminkyinen - Collaborator
 - Acknowledgments to YLE text-tv page 235.
 
 ## License
