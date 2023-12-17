@@ -25,7 +25,7 @@ The project consists of a Django application for the frontend, communicating wit
 
 ## Installation
 
-1. Clone the repository: git clone [repository-url]
+1. Clone the repository: git clone https://github.com/juusoi/light-score
 2. Follow the setup instructions in each component's directory (frontend, backend, serverless).
 
 ## Development Guidelines
