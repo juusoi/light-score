@@ -15,16 +15,7 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: chartboost/ruff-action@v1
-        with:
-          src: "./backend"
-          args: --fix
-      - uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "style fixes by ruff"
+    uses: ./.github/actions/ruff.yaml
 
   backend-tests:
     runs-on: ubuntu-latest
