@@ -1,0 +1,48 @@
+name: Frontend CI
+
+on:
+  push:
+    branches:
+      - main
+      - feature/*
+    paths:
+      - "frontend/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chartboost/ruff-action@v1
+        with:
+          src: "./frontend"
+          args: --fix
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "style fixes by ruff"
+
+  backend-tests:
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r frontend/requirements.txt
+
+      - name: Run pytest
+        working-directory: ./frontend/src
+        run: |
+          python -m pytest
