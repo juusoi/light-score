@@ -2,10 +2,6 @@ name: Lint and format with Ruff
 on:
   workflow_call:
 
-concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
-
 jobs:
   ruff:
     runs-on: ubuntu-latest
