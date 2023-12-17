@@ -15,7 +15,7 @@ on:
 
 jobs:
   lint:
-    uses: ./.github/actions/ruff.yaml
+    uses: ./.github/actions/ruff.yaml@main
 
   backend-tests:
     runs-on: ubuntu-latest
