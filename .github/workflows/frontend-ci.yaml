@@ -13,18 +13,13 @@ on:
     paths:
       - "frontend/**"
 
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
   lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: chartboost/ruff-action@v1
-        with:
-          src: "./frontend"
-          args: --fix
-      - uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "style fixes by ruff"
+    uses: ./.github/workflows/ruff.yaml
 
   frontend-tests:
     runs-on: ubuntu-latest
