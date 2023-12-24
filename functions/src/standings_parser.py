@@ -1,11 +1,7 @@
-import asyncio
-import json
 import logging
-import time
 from operator import itemgetter
 from typing import Any, Callable, Dict, List, Tuple
 
-import httpx
 from pydantic import BaseModel, computed_field
 
 logging.basicConfig(
@@ -14,6 +10,8 @@ logging.basicConfig(
 
 
 class TeamStandingInfo(BaseModel):
+    """Represents the standing information for a team."""
+
     name: str
     abbreviation_name: str
     wins: int
@@ -35,14 +33,21 @@ class TeamStandingInfo(BaseModel):
 
 
 class ConferenceGroup(BaseModel):
+    """Represents a group of teams within a conference."""
+
     name: str
-    teams: List[TeamStandingInfo]
+    teams: List[TeamStandingInfo] = []
 
     def add_team(self, team: TeamStandingInfo):
         self.teams.append(team)
 
 
 class Conditions:
+    """Provides conditions for filtering NFL team standing information.
+
+    This class defines static methods, each representing a specific condition
+    used for filtering team standing information based on different attributes."""
+
     _get_name = itemgetter("name")
     _get_abbreviation = itemgetter("abbreviation")
 
@@ -100,6 +105,7 @@ class Conditions:
 
 
 def find_first(list_of_items: List[Dict], condition: Callable[[Dict], bool]) -> Any:
+    """Find the first item in a list that satisfies the given condition."""
     try:
         return next(filter(condition, list_of_items))
     except StopIteration as e:
@@ -108,6 +114,10 @@ def find_first(list_of_items: List[Dict], condition: Callable[[Dict], bool]) -> 
 
 
 class Parse:
+    """A utility class for parsing values from dictionaries.
+
+    This class provides static methods for parsing specific types of values from dictionary objects."""
+
     @staticmethod
     def int_value(obj: dict) -> int:
         return int(float(obj["value"]))
@@ -166,72 +176,3 @@ def parse_team_standing_info(team: dict) -> TeamStandingInfo:
         points_against=Parse.int_value(points_against),
         streak=Parse.int_value(streak),
     )
-
-
-async def main():
-    start_api = time.time_ns()
-    espn_standings_url = "https://cdn.espn.com/core/nfl/standings?xhr=1"
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(espn_standings_url)
-
-        if response.is_error:
-            logging.error(
-                f"Request failed: {response.url}, {response.status_code}, {response.text}"
-            )
-            response.close()
-            return
-
-        content = await response.aread()
-
-    elapsed_time_seconds = (time.time_ns() - start_api) / 1e9
-    print(f"Request time: {elapsed_time_seconds} seconds")
-    start = time.time_ns()
-
-    response_object = json.loads(content)
-    conferences = response_object["content"]["standings"]["groups"]
-
-    afc = find_first(conferences, Conditions.american_football_conference)
-    nfc = find_first(conferences, Conditions.national_football_conference)
-
-    afc_groups = afc["groups"]
-    nfc_groups = nfc["groups"]
-
-    parsed_afc: List[ConferenceGroup] = list()
-    parsed_nfc: List[ConferenceGroup] = list()
-
-    for afc_group, nfc_group in zip(afc_groups, nfc_groups, strict=True):
-        afc_group_parsed = ConferenceGroup(name=afc_group["name"], teams=list())
-        nfc_group_parsed = ConferenceGroup(name=nfc_group["name"], teams=list())
-
-        afc_entries = afc_group["standings"]["entries"]
-        nfc_entries = nfc_group["standings"]["entries"]
-
-        for afc_team, nfc_team in zip(afc_entries, nfc_entries, strict=True):
-            parsed_afc_team = parse_team_standing_info(afc_team)
-            parsed_nfc_team = parse_team_standing_info(nfc_team)
-
-            afc_group_parsed.add_team(parsed_afc_team)
-            nfc_group_parsed.add_team(parsed_nfc_team)
-
-        parsed_afc.append(afc_group_parsed)
-        parsed_nfc.append(nfc_group_parsed)
-
-    elapsed_time_seconds = (time.time_ns() - start) / 1e9
-    print(f"Parser time: {elapsed_time_seconds} seconds")
-
-    def convert_to_dict(obj: Any) -> dict:
-        if isinstance(obj, (TeamStandingInfo, ConferenceGroup)):
-            model = obj.model_dump()
-            return model
-        return obj
-
-    with open("afc.json", "w", encoding="utf-8") as file:
-        json.dump(parsed_afc, file, indent=4, default=convert_to_dict)
-
-    with open("nfc.json", "w", encoding="utf-8") as file:
-        json.dump(parsed_nfc, file, indent=4, default=convert_to_dict)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
