@@ -3,14 +3,17 @@ import logging
 import httpx
 
 
-class ESPN_API:
+class EspnClient:
     standings_url = "https://cdn.espn.com/core/nfl/standings?xhr=1"
     client: httpx.AsyncClient
 
     def __init__(self):
         self.client = httpx.AsyncClient()
 
-    async def close(self):
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exception_type, exception_value, exception_traceback):
         await self.client.aclose()
 
     async def get_standings(self) -> bytes:

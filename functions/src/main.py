@@ -3,7 +3,7 @@ import json
 import time
 from typing import Any, List
 
-from functions.src.espn_integration import ESPN_API
+from functions.src.espn_integration import EspnClient
 from functions.src.standings_parser import (
     Conditions,
     ConferenceGroup,
@@ -27,13 +27,14 @@ def save_on_disk(conference: List[ConferenceGroup], name: str):
 
 async def main():
     start_api = time.time_ns()
-    espn_api = ESPN_API()
-    content = await espn_api.get_standings()
+
+    async with EspnClient() as client:
+        content = await client.get_standings()
 
     elapsed_time_seconds = (time.time_ns() - start_api) / 1e9
     print(f"Request time: {elapsed_time_seconds} seconds")
+
     start = time.time_ns()
-    await espn_api.close()
 
     response_object = json.loads(content)
     conferences = response_object["content"]["standings"]["groups"]
