@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint and format
+    uses: ./.github/workflows/ruff.yaml
+
+  backend-ci:
+    name: Backend CI
+    uses: ./.github/workflows/backend-ci.yaml
+
+  frontend-ci:
+    name: Frontend CI
+    uses: ./.github/workflows/frontend-ci.yaml

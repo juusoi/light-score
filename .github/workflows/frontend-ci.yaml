@@ -1,17 +1,18 @@
 name: Frontend CI
 
 on:
+  workflow_call:
   push:
     branches:
       - main
       - feature/*
     paths:
-      - "frontend/**"
+      - 'frontend/**'
   pull_request:
     branches:
       - main
     paths:
-      - "frontend/**"
+      - 'frontend/**'
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -30,7 +31,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
       - name: Install dependencies
         run: |
