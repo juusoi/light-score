@@ -1,27 +1,27 @@
 # NFL Scores and Standings
 
-This project aims to provide real-time NFL scores and standings through a user-friendly interface. It utilizes a Python-centric technology stack, featuring a Django frontend, FastAPI backend, and Firestore database, all hosted on Google Cloud Platform.
+This project aims to provide real-time NFL scores and standings through a user-friendly interface. It utilizes a Python-centric technology stack, featuring a Flask frontend, FastAPI backend, and DynamoDB database, all hosted on Amazon Web Services.
 
 ## Technology Stack
 
-- **Frontend**: Flask (/frontend)[./frontend/README.md]
-- **Backend**: FastAPI (/backend)[./backend/README.md]
-- **Database**: Firestore (Google Cloud Firestore)
-- **Serverless Function**: Google Cloud Functions
+- **Frontend**: Flask - see [frontend/README.md](./frontend/README.md)
+- **Backend**: FastAPI - see [backend/README.md](./backend/README.md)
+- **Database**: DynamoDB (Amazon DynamoDB)
+- **Serverless Function**: AWS Lambda
 - **CI/CD**: GitHub Actions
-- **Cloud Services**: Google Cloud Platform (GCP) - including Compute Engine, Cloud Run, App Engine, and Stackdriver
+- **Cloud Services**: Amazon Web Services (AWS) - including EC2, ECS, Lambda, and CloudWatch
 
 ## Architecture Overview
 
-The project consists of a Django application for the frontend, communicating with a FastAPI backend. Firestore serves as the database, storing NFL scores and standings. Google Cloud Functions are used to fetch data from an external NFL API. The architecture is designed for scalability and efficiency, leveraging GCP's robust cloud infrastructure.
+The project consists of a Flask application for the frontend, communicating with a FastAPI backend. DynamoDB serves as the database, storing NFL scores and standings. AWS Lambda functions are used to fetch data from an external NFL API. The architecture is designed for scalability and efficiency, leveraging AWS's robust cloud infrastructure.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.13+
 - Docker (for containerization)
-- GCP Account
+- AWS Account
 
 ## Installation
 
