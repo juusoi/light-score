@@ -8,7 +8,7 @@ This document provides information about the backend service of the NFL Scores a
 
 ### Prerequisites
 
-- Python 3.12 or higher
+- Python 3.13 or higher
 - pip (Python package manager)
 
 ### Installation
