@@ -9,7 +9,7 @@ on:
       - main
 
 concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
+  group: ${{ github.ref }}-main-ci
   cancel-in-progress: true
 
 jobs:

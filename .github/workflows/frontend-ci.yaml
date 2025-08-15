@@ -15,7 +15,7 @@ on:
       - 'frontend/**'
 
 concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
+  group: ${{ github.ref }}-frontend-ci
   cancel-in-progress: true
 
 jobs:
