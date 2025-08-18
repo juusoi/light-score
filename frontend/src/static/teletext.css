@@ -106,5 +106,12 @@ body {
 .muted {
     color: #888;
 }
-.ttx-link { color: var(--info); text-decoration: none; }
-.ttx-link:hover { text-decoration: underline; }
+
+.ttx-link {
+    color: var(--info);
+    text-decoration: none;
+}
+
+.ttx-link:hover {
+    text-decoration: underline;
+}

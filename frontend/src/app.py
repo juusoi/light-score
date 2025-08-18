@@ -40,6 +40,7 @@ def home():
         upcoming = [g for g in games if g.get("status") == "upcoming"]
         standings_data = standings_response.json()
         ctx = ctx_resp.json() or {}
+
         # Compute navigation targets
         def to_int(v, default):
             try:
@@ -51,10 +52,26 @@ def home():
         cur_week = to_int(ctx.get("week"), 1)
         cur_type = to_int(ctx.get("seasonType"), 2)
 
-        prev_week_params = {"year": cur_year, "seasonType": cur_type, "week": max(1, cur_week - 1)}
-        next_week_params = {"year": cur_year, "seasonType": cur_type, "week": cur_week + 1}
-        prev_season_params = {"year": cur_year - 1, "seasonType": cur_type, "week": cur_week}
-        next_season_params = {"year": cur_year + 1, "seasonType": cur_type, "week": cur_week}
+        prev_week_params = {
+            "year": cur_year,
+            "seasonType": cur_type,
+            "week": max(1, cur_week - 1),
+        }
+        next_week_params = {
+            "year": cur_year,
+            "seasonType": cur_type,
+            "week": cur_week + 1,
+        }
+        prev_season_params = {
+            "year": cur_year - 1,
+            "seasonType": cur_type,
+            "week": cur_week,
+        }
+        next_season_params = {
+            "year": cur_year + 1,
+            "seasonType": cur_type,
+            "week": cur_week,
+        }
 
         return render_template(
             "home.html",

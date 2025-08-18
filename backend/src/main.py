@@ -67,14 +67,13 @@ def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:
     result: list[dict] = []
     for ev in events:
         date = ev.get("date")
-        comps = (ev.get("competitions") or [])
+        comps = ev.get("competitions") or []
         if not comps:
             continue
         comp = comps[0] or {}
-        status_state = (
-            comp.get("status", {}).get("type", {}).get("state")
-            or ev.get("status", {}).get("type", {}).get("state")
-        )
+        status_state = comp.get("status", {}).get("type", {}).get("state") or ev.get(
+            "status", {}
+        ).get("type", {}).get("state")
         state = (status_state or "").lower()
         if state == "in":
             status = "live"
@@ -87,12 +86,21 @@ def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:
         if len(competitors) < 2:
             continue
         # Ensure away as team_a and home as team_b for consistent ordering
-        away = next((c for c in competitors if c.get("homeAway") == "away"), competitors[0])
-        home = next((c for c in competitors if c.get("homeAway") == "home"), competitors[1])
+        away = next(
+            (c for c in competitors if c.get("homeAway") == "away"), competitors[0]
+        )
+        home = next(
+            (c for c in competitors if c.get("homeAway") == "home"), competitors[1]
+        )
 
         def name_from(c: dict) -> str:
             t = c.get("team", {})
-            return t.get("displayName") or t.get("shortDisplayName") or t.get("name") or "Unknown"
+            return (
+                t.get("displayName")
+                or t.get("shortDisplayName")
+                or t.get("name")
+                or "Unknown"
+            )
 
         def score_from(c: dict) -> int | None:
             s = c.get("score")
@@ -117,7 +125,11 @@ def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:
 
 
 def _get_weekly_games(
-    *, year: int | None, week: int | None, season_type: int | None, force_refresh: bool = False
+    *,
+    year: int | None,
+    week: int | None,
+    season_type: int | None,
+    force_refresh: bool = False,
 ) -> list[dict]:
     now = time.monotonic()
     base_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
@@ -141,6 +153,7 @@ def _get_weekly_games(
         resp = httpx.get(url, timeout=20)
         resp.raise_for_status()
         from typing import cast
+
         data = cast(dict, resp.json())
         games = _extract_weekly_games_from_scoreboard(data)
         if games:
@@ -186,7 +199,7 @@ class WeeklyContext(BaseModel):
 
 
 def _extract_weekly_context(payload: dict) -> dict:
-    season = (payload.get("season") or {})
+    season = payload.get("season") or {}
     year = season.get("year")
     s_type = season.get("type")
     week = (payload.get("week") or {}).get("number")
@@ -226,7 +239,9 @@ def get_weekly_context(
         raise HTTPException(status_code=504, detail="Upstream timeout") from None
     except httpx.HTTPStatusError as exc:
         status = exc.response.status_code if exc.response is not None else 502
-        raise HTTPException(status_code=502, detail=f"Upstream error: {status}") from None
+        raise HTTPException(
+            status_code=502, detail=f"Upstream error: {status}"
+        ) from None
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="Upstream request failed") from None
 
