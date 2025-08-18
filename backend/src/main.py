@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
 from data.example import example_data
@@ -58,8 +58,8 @@ def get_games():
 
 
 _GAMES_TTL_SECONDS = 60
-_games_cache_ts: float | None = None
-_games_cache_data: list[dict] | None = None
+# Cache per URL key -> (ts, data)
+_games_cache: dict[str, tuple[float, list[dict]]] = {}
 
 
 def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:
@@ -116,54 +116,119 @@ def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:
     return result
 
 
-def _get_weekly_games(force_refresh: bool = False) -> list[dict]:
-    global _games_cache_ts, _games_cache_data
+def _get_weekly_games(
+    *, year: int | None, week: int | None, season_type: int | None, force_refresh: bool = False
+) -> list[dict]:
     now = time.monotonic()
-    if (
-        not force_refresh
-        and _games_cache_data is not None
-        and _games_cache_ts is not None
-        and (now - _games_cache_ts) < _GAMES_TTL_SECONDS
-    ):
-        return _games_cache_data
+    base_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+    # Build URL with params only when provided
+    params: list[str] = []
+    if year is not None:
+        params.append(f"year={year}")
+    if week is not None:
+        params.append(f"week={week}")
+    if season_type is not None:
+        params.append(f"seasontype={season_type}")
+    url = base_url + ("?" + "&".join(params) if params else "")
+
+    # Cache key is the full URL
+    if not force_refresh and url in _games_cache:
+        ts, data = _games_cache[url]
+        if (now - ts) < _GAMES_TTL_SECONDS:
+            return data
 
     try:
-        resp = httpx.get(
-            "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
-            timeout=20,
-        )
+        resp = httpx.get(url, timeout=20)
         resp.raise_for_status()
-        data = resp.json()
+        from typing import cast
+        data = cast(dict, resp.json())
         games = _extract_weekly_games_from_scoreboard(data)
         if games:
-            _games_cache_data = games
-            _games_cache_ts = now
+            _games_cache[url] = (now, games)
             return games
         # If ESPN returns empty, fall back to cached or example
-        if _games_cache_data is not None:
-            return _games_cache_data
+        if url in _games_cache:
+            return _games_cache[url][1]
         return example_data.get("weekly_games", [])
     except httpx.TimeoutException:
-        if _games_cache_data is not None:
-            return _games_cache_data
+        if url in _games_cache:
+            return _games_cache[url][1]
         return example_data.get("weekly_games", [])
     except httpx.HTTPStatusError:
-        if _games_cache_data is not None:
-            return _games_cache_data
+        if url in _games_cache:
+            return _games_cache[url][1]
         return example_data.get("weekly_games", [])
     except httpx.RequestError:
-        if _games_cache_data is not None:
-            return _games_cache_data
+        if url in _games_cache:
+            return _games_cache[url][1]
         return example_data.get("weekly_games", [])
     except Exception:
-        if _games_cache_data is not None:
-            return _games_cache_data
+        if url in _games_cache:
+            return _games_cache[url][1]
         return example_data.get("weekly_games", [])
 
 
 @app.get("/games/weekly", response_model=List[WeeklyGame])
-def get_weekly_games():
-    return _get_weekly_games()
+def get_weekly_games(
+    year: int | None = Query(default=None, description="Season year, e.g., 2025"),
+    week: int | None = Query(default=None, ge=1, le=25, description="Week number"),
+    seasonType: int | None = Query(
+        default=None, description="Season type: 1=pre, 2=reg, 3=post"
+    ),
+):
+    return _get_weekly_games(year=year, week=week, season_type=seasonType)
+
+
+class WeeklyContext(BaseModel):
+    year: int
+    week: int
+    seasonType: int
+
+
+def _extract_weekly_context(payload: dict) -> dict:
+    season = (payload.get("season") or {})
+    year = season.get("year")
+    s_type = season.get("type")
+    week = (payload.get("week") or {}).get("number")
+    # Be defensive: ensure ints
+    try:
+        year = int(year)
+        s_type = int(s_type)
+        week = int(week)
+    except Exception:
+        raise HTTPException(status_code=502, detail="Invalid upstream context")
+    return {"year": year, "week": week, "seasonType": s_type}
+
+
+@app.get("/games/weekly/context", response_model=WeeklyContext)
+def get_weekly_context(
+    year: int | None = Query(default=None),
+    week: int | None = Query(default=None),
+    seasonType: int | None = Query(default=None),
+):
+    base_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+    params: list[str] = []
+    if year is not None:
+        params.append(f"year={year}")
+    if week is not None:
+        params.append(f"week={week}")
+    if seasonType is not None:
+        params.append(f"seasontype={seasonType}")
+    url = base_url + ("?" + "&".join(params) if params else "")
+    try:
+        resp = httpx.get(url, timeout=20)
+        resp.raise_for_status()
+        payload = resp.json()
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=502, detail="Unexpected upstream format")
+        return _extract_weekly_context(payload)
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Upstream timeout") from None
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code if exc.response is not None else 502
+        raise HTTPException(status_code=502, detail=f"Upstream error: {status}") from None
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="Upstream request failed") from None
 
 
 _TEAMS_TTL_SECONDS = 86400
