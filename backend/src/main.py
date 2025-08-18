@@ -333,7 +333,11 @@ def get_standings():
         except OSError:
             # IO error; fall back
             return example_data["standings"]
-    return example_data["standings"]
+        except (json.JSONDecodeError, OSError):
+            # Corrupt cache or IO error; fall back to example data
+            return example_data["standings"]
+    else:
+        return example_data["standings"]
 
 
 # --- Live standings (simple TTL cache) ---
