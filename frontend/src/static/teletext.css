@@ -1,0 +1,90 @@
+/* Minimal teletext-inspired styling */
+:root {
+  --bg: #000;
+  --fg: #ddd;
+  --accent: #00ff00; /* green */
+  --warn: #ffff00;   /* yellow */
+  --error: #ff0000;  /* red */
+  --info: #00aaff;   /* blue */
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.ttx-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.ttx-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #111;
+  border: 2px solid #222;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.ttx-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (min-width: 800px) {
+  .ttx-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.ttx-panel {
+  border: 2px solid #222;
+  background: #0a0a0a;
+}
+
+.ttx-panel h2 {
+  margin: 0;
+  padding: 6px 10px;
+  background: #111;
+  color: var(--info);
+  font-size: 14px;
+}
+
+.ttx-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.ttx-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dotted #222;
+}
+
+.ttx-item:last-child {
+  border-bottom: none;
+}
+
+.ttx-team {
+  color: var(--fg);
+}
+
+.ttx-score { color: var(--accent); }
+.ttx-status-live { color: var(--warn); }
+.ttx-status-final { color: var(--error); }
+.ttx-status-upcoming { color: var(--info); }
+
+.muted { color: #888; }
