@@ -9,7 +9,7 @@ This document provides information about the backend service of the NFL Scores a
 ### Prerequisites
 
 - Python 3.13 or higher
-- pip (Python package manager)
+- uv (https://docs.astral.sh/uv/)
 
 ### Installation
 
@@ -19,13 +19,12 @@ This document provides information about the backend service of the NFL Scores a
 git clone https://github.com/juusoi/light-score
 ```
 
-2. Set up a virtual environment:
+2. Set up a virtual environment and sync deps (pyproject-first):
 
 ```bash
 cd light-score
-python -m venv venv
-source venv/bin/activate
-python -m pip install --upgrade pip
+uv venv
+./scripts/uv-sync.sh --all
 ```
 
 3. Navigate to the backend directory:
@@ -34,19 +33,13 @@ python -m pip install --upgrade pip
 cd backend
 ```
 
-4. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
 ## Running the Service Locally
 
 To run the backend service locally, use the following command:
 
 ```bash
 cd src
-uvicorn main:app --reload
+../../.venv/bin/uvicorn main:app --reload
 ```
 
 The service will be available at http://localhost:8000.
@@ -64,7 +57,7 @@ To run the unit tests, execute:
 
 ```bash
 cd src
-python -m pytest
+../../.venv/bin/python -m pytest
 ```
 
 ## Development Guidelines

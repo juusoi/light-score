@@ -1,4 +1,30 @@
+[project]
+name = "light-score"
+version = "0.1.0"
+description = "NFL Scores and Standings app (Flask + FastAPI + AWS)"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.optional-dependencies]
+backend = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "pydantic>=2.9.0",
+    "httpx>=0.27.0",
+    "requests>=2.32.0",
+]
+frontend = ["Flask>=3.0.0", "Flask-Testing>=0.8.1", "requests>=2.32.0"]
+functions = ["httpx>=0.27.0", "pydantic>=2.9.0"]
+
 [tool.ruff]
 target-version = "py313"
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "B", "Q"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3.0",
+    "ruff>=0.6.4",
+    "ty>=0.0.1a18",
+]

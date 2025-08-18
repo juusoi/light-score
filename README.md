@@ -6,8 +6,8 @@ This project aims to provide real-time NFL scores and standings through a user-f
 
 - **Frontend**: Flask - see [frontend/README.md](./frontend/README.md)
 - **Backend**: FastAPI - see [backend/README.md](./backend/README.md)
+- **Functions**: AWS Lambda - see [functions/README.md](./functions/README.md)
 - **Database**: DynamoDB (Amazon DynamoDB)
-- **Serverless Function**: AWS Lambda
 - **CI/CD**: GitHub Actions
 - **Cloud Services**: Amazon Web Services (AWS) - including EC2, ECS, Lambda, and CloudWatch
 
@@ -26,7 +26,53 @@ The project consists of a Flask application for the frontend, communicating with
 ## Installation
 
 1. Clone the repository: git clone https://github.com/juusoi/light-score
-2. Follow the setup instructions in each component's directory (frontend, backend, functions).
+2. Choose one of the setup methods below.
+
+### Quick Setup (Recommended for Development)
+
+For developers who want to work on all components (pyproject-first):
+
+```bash
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# One-command setup from project root
+uv venv
+./scripts/uv-sync.sh --all   # installs dev deps and all extras
+```
+
+### Component-Specific Setup
+
+For working on individual components using extras:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv venv
+# Backend only
+uv sync --extra backend --dev
+# Frontend only
+uv sync --extra frontend --dev
+# Functions only
+uv sync --extra functions --dev
+```
+
+### Using Scripts (Easiest)
+
+We provide convenient scripts for common development tasks (pyproject-first):
+
+```bash
+# Quick setup everything
+./scripts/setup-dev.sh
+
+# Just install dependencies
+./scripts/install-deps.sh   # uv venv + uv sync --all
+
+# Run all tests
+./scripts/test-simple.sh
+
+# Lint, format, and type check
+./scripts/lint-and-format.sh
+```
 
 ## Development Guidelines
 
@@ -36,8 +82,22 @@ The project consists of a Flask application for the frontend, communicating with
 
 ## Testing
 
-- **Backend**: Write unit and integration tests using pytest.
-- **Frontend**: Conduct manual testing and consider using a framework like Playwright for automated UI tests.
+### Running Tests
+
+```bash
+# Run all tests with our script
+./scripts/test-simple.sh
+
+# Or run tests individually
+cd backend/src && python -m pytest utest/ -v
+cd frontend/src && python -m pytest utest/ -v
+```
+
+### Writing Tests
+
+- **Backend**: Write unit and integration tests using pytest in `backend/src/utest/`
+- **Frontend**: Write tests using pytest and Flask-Testing in `frontend/src/utest/`
+- **Functions**: Add tests for AWS Lambda functions in `functions/src/utest/`
 
 ## Deployment
 
