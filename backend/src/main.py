@@ -327,12 +327,6 @@ def get_standings():
     if cache_file.exists():
         try:
             return json.loads(cache_file.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            # Corrupt cache; ignore and fall back below
-            return example_data["standings"]
-        except OSError:
-            # IO error; fall back
-            return example_data["standings"]
         except (json.JSONDecodeError, OSError):
             # Corrupt cache or IO error; fall back to example data
             return example_data["standings"]

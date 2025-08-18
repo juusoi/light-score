@@ -1,3 +1,4 @@
+import logging
 import os
 
 import requests
@@ -7,6 +8,12 @@ app = Flask(__name__, static_url_path="/static", static_folder="static")
 
 # Configure backend base URL via env var for staging/prod
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+
+def season_type_name(season_type: int) -> str:
+    """Convert season type number to readable name."""
+    season_types = {1: "Preseason", 2: "Regular Season", 3: "Postseason"}
+    return season_types.get(season_type, "Unknown")
 
 
 @app.route("/")
@@ -37,7 +44,7 @@ def home():
         if not standings_response.ok:
             standings_response = requests.get(f"{BACKEND_URL}/standings", timeout=10)
     # Narrow network-related exceptions
-    except requests.RequestException as e:
+    except requests.RequestException:
         logging.exception("Network error while fetching data from backend")
         return render_template("home_no_api.html")
 
@@ -50,11 +57,13 @@ def home():
         ctx = ctx_resp.json() or {}
 
         # Compute navigation targets
-        def to_int(v, default):
-            try:
-                return int(v)
-            except Exception:
-                return default
+        def to_int(v, default: int) -> int:
+            if v:
+                try:
+                    return int(v)
+                except Exception:
+                    return default
+            return default
 
         cur_year = to_int(ctx.get("year"), 2025)
         cur_week = to_int(ctx.get("week"), 1)
@@ -94,6 +103,7 @@ def home():
             prev_week_params=prev_week_params,
             next_week_params=next_week_params,
             divisions=divisions,
+            season_type_name=season_type_name(cur_type),
         )
     else:
         return "Error: Could not retrieve data from backend.", 500

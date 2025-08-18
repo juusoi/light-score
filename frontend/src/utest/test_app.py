@@ -16,5 +16,15 @@ class MyTest(TestCase):
         self.assertIn(b"Light Score", response.data)
 
 
+def test_season_type_name():
+    """Test the season_type_name function."""
+    from app import season_type_name
+
+    assert season_type_name(1) == "Preseason"
+    assert season_type_name(2) == "Regular Season"
+    assert season_type_name(3) == "Postseason"
+    assert season_type_name(999) == "Unknown"
+
+
 if __name__ == "__main__":
     pytest.main()
