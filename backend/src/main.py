@@ -153,7 +153,9 @@ def _get_weekly_games(
     try:
         resp = httpx.get(url, timeout=20)
         resp.raise_for_status()
-        data = resp.json()
+        from typing import cast
+
+        data = cast(dict, resp.json())
         games = _extract_weekly_games_from_scoreboard(data)
         if games:
             _games_cache[url] = (now, games)
@@ -308,7 +310,6 @@ def _get_all_teams(force_refresh: bool = False) -> list[dict]:
             return _teams_cache_data
         return []
     except Exception:
-        # Unexpected error; return last good cache or empty list
         if _teams_cache_data is not None:
             return _teams_cache_data
         return []
@@ -357,8 +358,7 @@ def _extract_minimal_standings(payload: dict) -> list[dict]:
                 try:
                     wins_int = int(float(wins))
                     losses_int = int(float(losses))
-                except (TypeError, ValueError):
-                    # Skip entries with unparsable stats
+                except Exception:
                     continue
                 result.append(
                     {

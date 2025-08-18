@@ -52,15 +52,7 @@ test:
 	@echo "$(BLUE)🧪 Running all tests...$(NC)"
 	@./scripts/run-tests.sh && echo "$(GREEN)✅ All tests passed!$(NC)" || (echo "$(RED)❌ Tests failed!$(NC)" && exit 1)
 
-ci: 
-	@echo "$(BLUE)🚀 Running full CI pipeline...$(NC)"
-	@echo "$(BLUE)📋 Step 1/3: Linting...$(NC)"
-	@$(MAKE) lint
-	@echo "$(BLUE)📋 Step 2/3: Type checking...$(NC)"
-	@$(MAKE) ty
-	@echo "$(BLUE)📋 Step 3/3: Testing...$(NC)"
-	@$(MAKE) test
-	@echo "$(GREEN)🎉 CI pipeline completed successfully!$(NC)"
+ci: lint ty test
 
 security:
 	@echo "$(BLUE)🔒 Running security checks...$(NC)"
