@@ -1,9 +1,11 @@
+import os
 import requests
 from flask import Flask, render_template, request
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
 
-BACKEND_URL = "http://localhost:8000"
+# Configure backend base URL via env var for staging/prod
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 
 @app.route("/")

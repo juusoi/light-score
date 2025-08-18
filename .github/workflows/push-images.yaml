@@ -1,0 +1,105 @@
+name: Build and Push Staging Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      ecrBackendRepo:
+        description: ECR repo name for backend
+        required: true
+        default: light-score-backend
+      ecrFrontendRepo:
+        description: ECR repo name for frontend
+        required: true
+        default: light-score-frontend
+      region:
+        description: AWS region
+        required: true
+        default: us-east-1
+
+permissions:
+  id-token: write   # for GitHub OIDC
+  contents: read
+
+concurrency:
+  group: ${{ github.ref }}-push-images
+  cancel-in-progress: false
+
+jobs:
+  build-and-push:
+    name: Build and push images to ECR
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ inputs.region }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      ECR_BACKEND_REPO: ${{ inputs.ecrBackendRepo }}
+      ECR_FRONTEND_REPO: ${{ inputs.ecrFrontendRepo }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: github-actions-push-images
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Ensure ECR repositories exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          for repo in "${ECR_BACKEND_REPO}" "${ECR_FRONTEND_REPO}"; do
+            if ! aws ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1; then
+              aws ecr create-repository --repository-name "$repo" >/dev/null
+              echo "Created ECR repository: $repo"
+            else
+              echo "ECR repository exists: $repo"
+            fi
+          done
+
+      - name: Build and push backend image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BACKEND_IMAGE="$ECR_REGISTRY/${ECR_BACKEND_REPO}"
+          docker build -f backend/Dockerfile -t "$BACKEND_IMAGE:${GITHUB_SHA}" -t "$BACKEND_IMAGE:staging" .
+          docker push "$BACKEND_IMAGE:${GITHUB_SHA}"
+          docker push "$BACKEND_IMAGE:staging"
+
+      - name: Build and push frontend image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          FRONTEND_IMAGE="$ECR_REGISTRY/${ECR_FRONTEND_REPO}"
+          docker build -f frontend/Dockerfile -t "$FRONTEND_IMAGE:${GITHUB_SHA}" -t "$FRONTEND_IMAGE:staging" .
+          docker push "$FRONTEND_IMAGE:${GITHUB_SHA}"
+          docker push "$FRONTEND_IMAGE:staging"
+
+      # Optional: Update existing App Runner services if already created
+      # - name: Update App Runner services (optional)
+      #   if: ${{ false }}
+      #   shell: bash
+      #   env:
+      #     ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      #   run: |
+      #     set -euo pipefail
+      #     # Replace with your App Runner service ARNs or names
+      #     BACKEND_SERVICE_ARN="${{ secrets.APP_RUNNER_BACKEND_SERVICE_ARN }}"
+      #     FRONTEND_SERVICE_ARN="${{ secrets.APP_RUNNER_FRONTEND_SERVICE_ARN }}"
+      #     if [ -n "${BACKEND_SERVICE_ARN:-}" ]; then
+      #       aws apprunner update-service \
+      #         --service-arn "$BACKEND_SERVICE_ARN" \
+      #         --source-configuration '{"ImageRepository":{"ImageIdentifier":"'"$ECR_REGISTRY"'/'"$ECR_BACKEND_REPO"':staging","ImageRepositoryType":"ECR"}}'
+      #     fi
+      #     if [ -n "${FRONTEND_SERVICE_ARN:-}" ]; then
+      #       aws apprunner update-service \
+      #         --service-arn "$FRONTEND_SERVICE_ARN" \
+      #         --source-configuration '{"ImageRepository":{"ImageIdentifier":"'"$ECR_REGISTRY"'/'"$ECR_FRONTEND_REPO"':staging","ImageRepositoryType":"ECR"},"RuntimeEnvironmentVariables":[{"Name":"BACKEND_URL","Value":"${{ secrets.STAGING_BACKEND_URL }}"}]}'
+      #     fi
