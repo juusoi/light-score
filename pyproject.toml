@@ -8,14 +8,28 @@ dependencies = []
 
 [project.optional-dependencies]
 backend = [
-    "fastapi>=0.115.0",
-    "uvicorn>=0.30.0",
-    "pydantic>=2.9.0",
-    "httpx>=0.27.0",
-    "requests>=2.32.0",
+    "fastapi==0.116.1",
+    "uvicorn[standard]==0.35.0",
+    "httpx==0.28.1",
+    "pydantic==2.11.7",
 ]
-frontend = ["Flask>=3.0.0", "Flask-Testing>=0.8.1", "requests>=2.32.0"]
-functions = ["httpx>=0.27.0", "pydantic>=2.9.0"]
+frontend = [
+    "flask==3.1.1",
+    "gunicorn==23.0.0",
+    "requests==2.32.4",
+    "flask-testing==0.8.1",
+]
+functions = [
+    "beautifulsoup4==4.12.3",
+    "lxml==5.3.0",
+    "pydantic==2.11.7",
+    "httpx==0.28.1",
+]
+security = ["bandit[toml]==1.8.0", "pip-audit==2.7.0"]
+
+[tool.bandit]
+exclude_dirs = ["*/utest/*", "*/test/*", "*/__pycache__/*"]
+skips = ["B101"]
 
 [tool.ruff]
 target-version = "py313"
@@ -23,8 +37,4 @@ target-version = "py313"
 select = ["E4", "E7", "E9", "F", "B", "Q"]
 
 [tool.uv]
-dev-dependencies = [
-    "pytest>=8.3.0",
-    "ruff>=0.6.4",
-    "ty>=0.0.1a18",
-]
+dev-dependencies = ["pytest>=8.3.0", "ruff>=0.6.4", "ty>=0.0.1a18"]

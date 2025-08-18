@@ -1,9 +1,19 @@
+import logging
+import os
+
 import requests
 from flask import Flask, render_template, request
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
 
-BACKEND_URL = "http://localhost:8000"
+# Configure backend base URL via env var for staging/prod
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+
+def season_type_name(season_type: int) -> str:
+    """Convert season type number to readable name."""
+    season_types = {1: "Preseason", 2: "Regular Season", 3: "Postseason"}
+    return season_types.get(season_type, "Unknown")
 
 
 @app.route("/")
@@ -22,15 +32,20 @@ def home():
         if seasonType:
             params["seasonType"] = seasonType
 
-        weekly_response = requests.get(f"{BACKEND_URL}/games/weekly", params=params)
+        weekly_response = requests.get(
+            f"{BACKEND_URL}/games/weekly", params=params, timeout=10
+        )
         # Fetch context (resolves defaults if params missing)
-        ctx_resp = requests.get(f"{BACKEND_URL}/games/weekly/context", params=params)
+        ctx_resp = requests.get(
+            f"{BACKEND_URL}/games/weekly/context", params=params, timeout=10
+        )
         # Prefer live standings; fall back to cached /standings on failure
-        standings_response = requests.get(f"{BACKEND_URL}/standings/live")
+        standings_response = requests.get(f"{BACKEND_URL}/standings/live", timeout=10)
         if not standings_response.ok:
-            standings_response = requests.get(f"{BACKEND_URL}/standings")
-    # Broad except to keep UX friendly if backend is down/unreachable
-    except Exception:
+            standings_response = requests.get(f"{BACKEND_URL}/standings", timeout=10)
+    # Narrow network-related exceptions
+    except requests.RequestException:
+        logging.exception("Network error while fetching data from backend")
         return render_template("home_no_api.html")
 
     if weekly_response.ok and standings_response.ok and ctx_resp.ok:
@@ -42,11 +57,13 @@ def home():
         ctx = ctx_resp.json() or {}
 
         # Compute navigation targets
-        def to_int(v, default):
-            try:
-                return int(v)
-            except Exception:
-                return default
+        def to_int(v, default: int) -> int:
+            if v:
+                try:
+                    return int(v)
+                except Exception:
+                    return default
+            return default
 
         cur_year = to_int(ctx.get("year"), 2025)
         cur_week = to_int(ctx.get("week"), 1)
@@ -86,13 +103,15 @@ def home():
             prev_week_params=prev_week_params,
             next_week_params=next_week_params,
             divisions=divisions,
+            season_type_name=season_type_name(cur_type),
         )
     else:
         return "Error: Could not retrieve data from backend.", 500
 
 
 def main():
-    app.run(debug=True)
+    debug = os.getenv("FLASK_DEBUG", "0") in {"1", "true", "True"}
+    app.run(debug=debug)
 
 
 if __name__ == "__main__":

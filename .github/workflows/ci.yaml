@@ -1,5 +1,8 @@
 name: CI
 
+# This workflow runs code quality checks (lint, format, type-check, tests)
+# Security checks in security.yaml depend on this workflow's success
+
 on:
   pull_request:
     branches:
@@ -100,3 +103,18 @@ jobs:
           cd - >/dev/null
           # Run tests
           ../../.venv/bin/python -m pytest -v
+
+  # Summary job for other workflows to depend on
+  ci-success:
+    name: CI Pipeline Success
+    runs-on: ubuntu-latest
+    needs: [lint, tests]
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || [ "${{ needs.tests.result }}" != "success" ]; then
+            echo "❌ CI pipeline failed"
+            exit 1
+          fi
+          echo "✅ CI pipeline completed successfully"

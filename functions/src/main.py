@@ -95,7 +95,6 @@ async def main():
     elapsed_time_seconds = (time.time_ns() - start) / 1e9
     print(f"Parser time: {elapsed_time_seconds} seconds")
 
-    # TODO. Save to firebase db
     save_on_disk(parsed_afc, "afc.json")
     save_on_disk(parsed_nfc, "nfc.json")
     # Save quick cache for backend e2e testing

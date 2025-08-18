@@ -327,10 +327,11 @@ def get_standings():
     if cache_file.exists():
         try:
             return json.loads(cache_file.read_text(encoding="utf-8"))
-        except Exception:
-            # If cache is corrupt, fall back to example
-            pass
-    return example_data["standings"]
+        except (json.JSONDecodeError, OSError):
+            # Corrupt cache or IO error; fall back to example data
+            return example_data["standings"]
+    else:
+        return example_data["standings"]
 
 
 # --- Live standings (simple TTL cache) ---
@@ -355,7 +356,8 @@ def _extract_minimal_standings(payload: dict) -> list[dict]:
                 try:
                     wins_int = int(float(wins))
                     losses_int = int(float(losses))
-                except Exception:
+                except (ValueError, TypeError):
+                    # Skip entries with unparseable stats
                     continue
                 result.append(
                     {

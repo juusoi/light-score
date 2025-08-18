@@ -1,0 +1,3 @@
+[bandit]
+exclude_dirs = ["*/utest/*", "*/test/*", "*/__pycache__/*"]
+skips = ["B101"]  # Skip assert_used in test files

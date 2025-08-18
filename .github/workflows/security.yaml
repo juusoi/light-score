@@ -1,0 +1,79 @@
+name: Security checks
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    # Run on PRs directly, or after CI succeeds on main
+    if: |
+      github.event_name == 'pull_request' || 
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [bandit, pip-audit]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: latest
+
+      - name: Setup environment and install dependencies
+        run: |
+          uv venv
+          ./scripts/uv-sync.sh --all
+
+      - name: Install security tools
+        run: |
+          case "${{ matrix.tool }}" in
+            bandit)
+              uv pip install bandit
+              ;;
+            pip-audit)
+              uv pip install pip-audit
+              ;;
+          esac
+
+      - name: Run security scan - ${{ matrix.tool }}
+        run: |
+          case "${{ matrix.tool }}" in
+            bandit)
+              echo "🔍 Running Bandit security scan..."
+              .venv/bin/bandit -r backend frontend functions \
+                --exclude "*/utest/*,*/test_*,*test*.py" \
+                -f json -o bandit-report.json || true
+              .venv/bin/bandit -r backend frontend functions \
+                --exclude "*/utest/*,*/test_*,*test*.py" \
+                -q
+              ;;
+            pip-audit)
+              echo "🔍 Running pip-audit dependency scan..."
+              .venv/bin/pip-audit --desc --output=json --output-file=pip-audit-report.json || true
+              .venv/bin/pip-audit --desc
+              ;;
+          esac
+
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report-${{ matrix.tool }}
+          path: '*-report.json'
+          retention-days: 30
