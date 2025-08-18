@@ -17,21 +17,20 @@
         <div class="ttx-panel">
           <h2>History</h2>
           <ul class="ttx-list">
-            {% if history_games and history_games|length > 0 %}
-              {% for game in history_games %}
-                <li class="ttx-item">
-                  <div class="ttx-team">{{ game.team_a }} vs {{ game.team_b }}</div>
-                  <div class="ttx-status-final">
-                    {% if game.score_a is not none and game.score_b is not none %}
-                      {{ game.score_a }} - {{ game.score_b }}
-                    {% else %}
-                      final
-                    {% endif %}
-                  </div>
-                </li>
-              {% endfor %}
-            {% else %}
-              <li class="ttx-item"><span class="muted">No finished games</span></li>
+            {% if history_games and history_games|length > 0 %} {% for game in
+            history_games %}
+            <li class="ttx-item">
+              <div class="ttx-team">{{ game.team_a }} vs {{ game.team_b }}</div>
+              <div class="ttx-status-final">
+                {% if game.score_a is not none and game.score_b is not none %}
+                {{ game.score_a }} - {{ game.score_b }} {% else %} final {%
+                endif %}
+              </div>
+            </li>
+            {% endfor %} {% else %}
+            <li class="ttx-item">
+              <span class="muted">No finished games</span>
+            </li>
             {% endif %}
           </ul>
         </div>
@@ -39,21 +38,18 @@
         <div class="ttx-panel">
           <h2>Live</h2>
           <ul class="ttx-list">
-            {% if live_games and live_games|length > 0 %}
-              {% for game in live_games %}
-                <li class="ttx-item">
-                  <div class="ttx-team">{{ game.team_a }} vs {{ game.team_b }}</div>
-                  <div class="ttx-status-live">
-                    {% if game.score_a is not none and game.score_b is not none %}
-                      {{ game.score_a }} - {{ game.score_b }}
-                    {% else %}
-                      live
-                    {% endif %}
-                  </div>
-                </li>
-              {% endfor %}
-            {% else %}
-              <li class="ttx-item"><span class="muted">No live games</span></li>
+            {% if live_games and live_games|length > 0 %} {% for game in
+            live_games %}
+            <li class="ttx-item">
+              <div class="ttx-team">{{ game.team_a }} vs {{ game.team_b }}</div>
+              <div class="ttx-status-live">
+                {% if game.score_a is not none and game.score_b is not none %}
+                {{ game.score_a }} - {{ game.score_b }} {% else %} live {% endif
+                %}
+              </div>
+            </li>
+            {% endfor %} {% else %}
+            <li class="ttx-item"><span class="muted">No live games</span></li>
             {% endif %}
           </ul>
         </div>
@@ -61,21 +57,19 @@
         <div class="ttx-panel">
           <h2>Upcoming</h2>
           <ul class="ttx-list">
-            {% if upcoming_games and upcoming_games|length > 0 %}
-              {% for game in upcoming_games %}
-                <li class="ttx-item">
-                  <div class="ttx-team">{{ game.team_a }} vs {{ game.team_b }}</div>
-                  <div class="ttx-status-upcoming">
-                    {% if game.start_time %}
-                      {{ game.start_time }}
-                    {% else %}
-                      scheduled
-                    {% endif %}
-                  </div>
-                </li>
-              {% endfor %}
-            {% else %}
-              <li class="ttx-item"><span class="muted">No upcoming games</span></li>
+            {% if upcoming_games and upcoming_games|length > 0 %} {% for game in
+            upcoming_games %}
+            <li class="ttx-item">
+              <div class="ttx-team">{{ game.team_a }} vs {{ game.team_b }}</div>
+              <div class="ttx-status-upcoming">
+                {% if game.start_time %} {{ game.start_time }} {% else %}
+                scheduled {% endif %}
+              </div>
+            </li>
+            {% endfor %} {% else %}
+            <li class="ttx-item">
+              <span class="muted">No upcoming games</span>
+            </li>
             {% endif %}
           </ul>
         </div>
@@ -83,20 +77,19 @@
         <div class="ttx-panel">
           <h2>Standings (Live)</h2>
           <ul class="ttx-list">
-            {% if standings and standings|length > 0 %}
-              {% for s in standings %}
-                <li class="ttx-item">
-                  <div class="ttx-team">{{ s.team }}</div>
-                  <div>{{ s.wins }}-{{ s.losses }}</div>
-                </li>
-              {% endfor %}
-            {% else %}
-              <li class="ttx-item"><span class="muted">No standings available</span></li>
+            {% if standings and standings|length > 0 %} {% for s in standings %}
+            <li class="ttx-item">
+              <div class="ttx-team">{{ s.team }}</div>
+              <div>{{ s.wins }}-{{ s.losses }}</div>
+            </li>
+            {% endfor %} {% else %}
+            <li class="ttx-item">
+              <span class="muted">No standings available</span>
+            </li>
             {% endif %}
           </ul>
         </div>
       </section>
     </div>
   </body>
-  
 </html>
