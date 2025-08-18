@@ -1,8 +1,9 @@
 import logging
+import re
 from operator import itemgetter
 from typing import Any, Callable, Dict, List, Tuple
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, Field, computed_field
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s", encoding="utf-8", level=logging.INFO
@@ -27,7 +28,6 @@ class TeamStandingInfo(BaseModel):
     conference_record: Tuple[int, int]
 
     @computed_field
-    @property
     def points_diff(self) -> int:
         return self.points_for - self.points_against
 
@@ -36,7 +36,8 @@ class ConferenceGroup(BaseModel):
     """Represents a group of teams within a conference."""
 
     name: str
-    teams: List[TeamStandingInfo] = []
+    # Use default_factory to avoid sharing the list between instances
+    teams: List[TeamStandingInfo] = Field(default_factory=list)
 
     def add_team(self, team: TeamStandingInfo):
         self.teams.append(team)
@@ -108,9 +109,9 @@ def find_first(list_of_items: List[Dict], condition: Callable[[Dict], bool]) -> 
     """Find the first item in a list that satisfies the given condition."""
     try:
         return next(filter(condition, list_of_items))
-    except StopIteration as e:
+    except StopIteration:
         logging.error(list_of_items)
-        raise Exception("No item found with the given condition") from e
+        raise ValueError("No item found with the given condition") from None
 
 
 class Parse:
@@ -124,9 +125,17 @@ class Parse:
 
     @staticmethod
     def tuple_int_value(obj: dict) -> Tuple[int, int]:
+        """Parse records like '4-2' or '4-2-1' into a (wins, losses) tuple.
+
+        ESPN sometimes includes ties as a third number (e.g., '4-2-1').
+        We return the first two components (wins, losses) and ignore the rest.
+        """
         value: str = obj["displayValue"]
-        first, second = value.split("-", maxsplit=1)
-        return (int(first), int(second))
+        # Normalize any en dashes and extract numbers only
+        numbers = re.findall(r"\d+", value.replace("–", "-"))
+        if len(numbers) < 2:
+            raise ValueError(f"Invalid record format: {value}")
+        return (int(numbers[0]), int(numbers[1]))
 
 
 def parse_team_standing_info(team: dict) -> TeamStandingInfo:

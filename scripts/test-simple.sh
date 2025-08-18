@@ -32,11 +32,11 @@ cd "$ROOT_DIR/frontend/src"
 "$VENV_PY" -m pytest utest/ -v
 cd "$ROOT_DIR"
 
-# Test functions imports
+# Run functions tests
 echo ""
-echo "⚡ Testing functions imports..."
+echo "⚡ Running functions tests..."
 cd "$ROOT_DIR/functions/src"
-"$VENV_PY" -c "import main; print('✅ Functions code imports successfully')"
+"$VENV_PY" -m pytest utest/ -v
 cd "$ROOT_DIR"
 
 echo ""

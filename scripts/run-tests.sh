@@ -45,11 +45,11 @@ cd frontend/src
 eval "$PYTHON_CMD -m pytest utest/ -v"
 cd ../..
 
-# Test functions imports
+# Run functions tests
 echo ""
-echo "⚡ Testing functions imports..."
+echo "⚡ Running functions tests..."
 cd functions/src
-eval "$PYTHON_CMD -c 'import main; print(\"✅ Functions code imports successfully\")'"
+eval "$PYTHON_CMD -m pytest utest/ -v"
 cd ../..
 
 echo ""

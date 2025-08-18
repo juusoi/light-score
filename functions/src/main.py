@@ -3,8 +3,8 @@ import json
 import time
 from typing import Any, List
 
-from espn_integration import EspnClient
-from standings_parser import (
+from .espn_integration import EspnClient
+from .standings_parser import (
     Conditions,
     ConferenceGroup,
     TeamStandingInfo,
