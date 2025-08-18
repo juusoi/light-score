@@ -17,10 +17,12 @@ This repo includes automated deployment to AWS App Runner via GitHub Actions. Th
 ## Deploy to staging (automated)
 
 1. **Setup GitHub secrets** (one time):
+
    - `AWS_ACCOUNT_ID`: Your account ID (e.g., 123456789012)
    - `AWS_ROLE_TO_ASSUME`: The IAM role ARN your workflow will assume
 
 2. **Deploy**:
+
    - Merge your PR to main
    - Go to Actions → "Build and Deploy to AWS Staging" → Run workflow
    - You can override repo names and region if needed (defaults: eu-north-1)
@@ -33,10 +35,12 @@ This repo includes automated deployment to AWS App Runner via GitHub Actions. Th
 ## What the workflow does automatically
 
 1. **Builds and pushes Docker images** to ECR repos:
+
    - `light-score-backend:staging`
    - `light-score-frontend:staging`
 
 2. **Creates/updates App Runner services**:
+
    - Backend service: `light-score-backend-staging`
    - Frontend service: `light-score-frontend-staging`
    - Configures ports, health checks, and environment variables
@@ -53,6 +57,7 @@ This repo includes automated deployment to AWS App Runner via GitHub Actions. Th
 ## Subsequent deployments
 
 After the first deployment, just run the workflow again - it will:
+
 - Build new images with latest code
 - Update existing App Runner services
 - Services will automatically restart with new code

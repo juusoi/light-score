@@ -90,10 +90,10 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           set -euo pipefail
-          
+
           BACKEND_IMAGE="$ECR_REGISTRY/${ECR_BACKEND_REPO}:staging"
           FRONTEND_IMAGE="$ECR_REGISTRY/${ECR_FRONTEND_REPO}:staging"
-          
+
           # Create or update backend service
           BACKEND_SERVICE_NAME="light-score-backend-staging"
           echo "Checking if backend service exists..."
@@ -138,17 +138,17 @@ jobs:
                 "UnhealthyThreshold": 5
               }'
           fi
-          
+
           # Wait for backend to be running and get URL
           echo "Waiting for backend service to be running..."
           aws apprunner wait service-operation-completed \
             --service-arn "arn:aws:apprunner:${AWS_REGION}:${AWS_ACCOUNT_ID}:service/${BACKEND_SERVICE_NAME}"
-          
+
           BACKEND_URL=$(aws apprunner describe-service \
             --service-arn "arn:aws:apprunner:${AWS_REGION}:${AWS_ACCOUNT_ID}:service/${BACKEND_SERVICE_NAME}" \
             --query 'Service.ServiceUrl' --output text)
           echo "Backend URL: $BACKEND_URL"
-          
+
           # Create or update frontend service
           FRONTEND_SERVICE_NAME="light-score-frontend-staging"
           echo "Checking if frontend service exists..."
@@ -199,16 +199,16 @@ jobs:
                 "UnhealthyThreshold": 5
               }'
           fi
-          
+
           # Wait for frontend and get final URL
           echo "Waiting for frontend service to be running..."
           aws apprunner wait service-operation-completed \
             --service-arn "arn:aws:apprunner:${AWS_REGION}:${AWS_ACCOUNT_ID}:service/${FRONTEND_SERVICE_NAME}"
-          
+
           FRONTEND_URL=$(aws apprunner describe-service \
             --service-arn "arn:aws:apprunner:${AWS_REGION}:${AWS_ACCOUNT_ID}:service/${FRONTEND_SERVICE_NAME}" \
             --query 'Service.ServiceUrl' --output text)
-          
+
           echo "🎉 Deployment complete!"
           echo "Backend URL: $BACKEND_URL"
           echo "Frontend URL: $FRONTEND_URL"
