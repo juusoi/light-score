@@ -9,49 +9,13 @@ on:
       - main
 
 concurrency:
-  group: ${{ github.ref }}-main-ci
+  group: ${{ github.ref }}-ci
   cancel-in-progress: true
 
 jobs:
   lint:
-    name: Lint and format
-    uses: ./.github/workflows/ruff.yaml
-
-  # Full project CI on direct pushes (e.g., main merges)
-  backend-ci:
-    if: ${{ github.event_name != 'pull_request' }}
-    name: Backend CI
-    uses: ./.github/workflows/backend-ci.yaml
-
-  frontend-ci:
-    if: ${{ github.event_name != 'pull_request' }}
-    name: Frontend CI
-    uses: ./.github/workflows/frontend-ci.yaml
-
-  functions-ci:
-    if: ${{ github.event_name != 'pull_request' }}
-    name: Functions CI
-    uses: ./.github/workflows/functions-ci.yaml
-
-  # PRs: run tests only for changed projects using a matrix
-  pr-tests:
-    name: PR Tests (${{ matrix.name }})
-    if: ${{ github.event_name == 'pull_request' }}
-    needs: [lint]
+    name: Lint, format, and type-check
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: backend
-            workdir: ./backend/src
-            pattern: 'backend/**'
-          - name: frontend
-            workdir: ./frontend/src
-            pattern: 'frontend/**'
-          - name: functions
-            workdir: ./functions/src
-            pattern: 'functions/**'
     steps:
       - uses: actions/checkout@v4
 
@@ -61,31 +25,74 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: latest
 
-      - name: Run PR tests (only if changed)
+      - name: Sync deps (pyproject-first)
+        run: |
+          uv venv
+          ./scripts/uv-sync.sh --all
+
+      - name: Ruff lint
+        run: .venv/bin/ruff check --output-format=github .
+
+      - name: Ruff format (check only)
+        run: .venv/bin/ruff format --check .
+
+      - name: Ty type check (non-blocking)
+        continue-on-error: true
+        env:
+          PYTHONPATH: backend/src:frontend/src:functions/src
+        run: .venv/bin/ty check .
+
+  tests:
+    name: Tests (${{ matrix.name }})
+    needs: [lint]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            workdir: ./backend/src
+            root: backend
+          - name: frontend
+            workdir: ./frontend/src
+            root: frontend
+          - name: functions
+            workdir: ./functions/src
+            root: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: latest
+
+      - name: Run tests (PR-aware)
         working-directory: ${{ matrix.workdir }}
         shell: bash
         run: |
-          # Determine root path from pattern like 'backend/**'
-          ROOT_DIR=$(echo "${{ matrix.pattern }}" | cut -d'/' -f1)
-          echo "Project root: $ROOT_DIR"
-          # Ensure refs for diff are available
-          if [ -n "$GITHUB_BASE_REF" ]; then
-            git fetch origin "$GITHUB_BASE_REF" --depth=1 || true
-            BASE_REF="origin/$GITHUB_BASE_REF"
-          else
-            # Fallback to main if base not available (e.g., local or non-PR triggers)
-            git fetch origin main --depth=1 || true
-            BASE_REF="origin/main"
+          # On PRs, run tests only if changes under the project root; on pushes, always run
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            ROOT="${{ matrix.root }}"
+            echo "Checking for changes under $ROOT/"
+            # Ensure base ref is available
+            if [ -n "$GITHUB_BASE_REF" ]; then
+              git fetch origin "$GITHUB_BASE_REF" --depth=1 || true
+              BASE_REF="origin/$GITHUB_BASE_REF"
+            else
+              git fetch origin main --depth=1 || true
+              BASE_REF="origin/main"
+            fi
+            if ! git diff --name-only "$BASE_REF"...HEAD | grep -E "^$ROOT/" -q; then
+              echo "No changes under $ROOT/. Skipping ${{ matrix.name }} tests."
+              exit 0
+            fi
           fi
-          echo "Base ref: $BASE_REF"
-          # Check for changes in the project directory
-          if ! git diff --name-only "$BASE_REF"...HEAD | grep -E "^$ROOT_DIR/" -q; then
-            echo "Skipping ${{ matrix.name }} tests; no changes detected in $ROOT_DIR/."
-            exit 0
-          fi
-          echo "Changes detected in $ROOT_DIR. Running tests..."
           # Prepare venv and deps from repo root
           cd ..
           uv venv
