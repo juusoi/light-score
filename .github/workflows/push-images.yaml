@@ -17,7 +17,7 @@ on:
         default: us-east-1
 
 permissions:
-  id-token: write   # for GitHub OIDC
+  id-token: write # for GitHub OIDC
   contents: read
 
 concurrency:
