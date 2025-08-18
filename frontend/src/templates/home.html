@@ -11,8 +11,7 @@
       <header class="ttx-header">
         <div>Light Score</div>
         <div class="muted">
-          Week {{ ctx.week }} · {{ ctx.year }} · type {{ ctx.seasonType }}
-          &nbsp;|
+          Week {{ ctx.week }} · {{ ctx.year }} &nbsp;|
           <a
             class="ttx-link"
             href="/?year={{ prev_week_params.year }}&seasonType={{ prev_week_params.seasonType }}&week={{ prev_week_params.week }}"
@@ -23,18 +22,6 @@
             class="ttx-link"
             href="/?year={{ next_week_params.year }}&seasonType={{ next_week_params.seasonType }}&week={{ next_week_params.week }}"
             >Next week</a
-          >
-          &nbsp;|
-          <a
-            class="ttx-link"
-            href="/?year={{ prev_season_params.year }}&seasonType={{ prev_season_params.seasonType }}&week={{ prev_season_params.week }}"
-            >Prev season</a
-          >
-          &nbsp;•&nbsp;
-          <a
-            class="ttx-link"
-            href="/?year={{ next_season_params.year }}&seasonType={{ next_season_params.seasonType }}&week={{ next_season_params.week }}"
-            >Next season</a
           >
         </div>
       </header>
@@ -102,18 +89,23 @@
 
         <div class="ttx-panel">
           <h2>Standings (Live)</h2>
+          {% if divisions %} {% for div_name, teams in divisions.items() %}
+          <h3 class="ttx-subtitle">{{ div_name }}</h3>
           <ul class="ttx-list">
-            {% if standings and standings|length > 0 %} {% for s in standings %}
+            {% for s in teams %}
             <li class="ttx-item">
               <div class="ttx-team">{{ s.team }}</div>
               <div>{{ s.wins }}-{{ s.losses }}</div>
             </li>
-            {% endfor %} {% else %}
+            {% endfor %}
+          </ul>
+          {% endfor %} {% else %}
+          <ul class="ttx-list">
             <li class="ttx-item">
               <span class="muted">No standings available</span>
             </li>
-            {% endif %}
           </ul>
+          {% endif %}
         </div>
       </section>
     </div>
