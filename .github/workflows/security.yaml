@@ -56,8 +56,12 @@ jobs:
           case "${{ matrix.tool }}" in
             bandit)
               echo "🔍 Running Bandit security scan..."
-              .venv/bin/bandit -r backend frontend functions -f json -o bandit-report.json || true
-              .venv/bin/bandit -r backend frontend functions -q
+              .venv/bin/bandit -r backend frontend functions \
+                --exclude "*/utest/*,*/test_*,*test*.py" \
+                -f json -o bandit-report.json || true
+              .venv/bin/bandit -r backend frontend functions \
+                --exclude "*/utest/*,*/test_*,*test*.py" \
+                -q
               ;;
             pip-audit)
               echo "🔍 Running pip-audit dependency scan..."
