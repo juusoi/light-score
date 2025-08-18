@@ -37,7 +37,8 @@ def home():
         if not standings_response.ok:
             standings_response = requests.get(f"{BACKEND_URL}/standings", timeout=10)
     # Narrow network-related exceptions
-    except requests.RequestException:
+    except requests.RequestException as e:
+        logging.exception("Network error while fetching data from backend")
         return render_template("home_no_api.html")
 
     if weekly_response.ok and standings_response.ok and ctx_resp.ok:
