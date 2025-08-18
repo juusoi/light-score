@@ -34,7 +34,9 @@ fi
 
 if podman ps --filter "name=light-score" --format "{{.Names}}" | grep -q "frontend"; then
     echo "🐳 Frontend container dependencies:"
-    podman exec light-score_frontend_1 pip freeze | grep -E "(Flask|gunicorn|requests)" | while read dep; do
+if $DOCKER ps --filter "name=light-score" --format "{{.Names}}" | grep -q "frontend"; then
+    echo "🐳 Frontend container dependencies:"
+    $DOCKER exec light-score_frontend_1 pip freeze | grep -E "(Flask|gunicorn|requests)" | while read dep; do
         echo "  ✓ $dep"
     done
     echo ""
