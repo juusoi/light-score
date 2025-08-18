@@ -11,7 +11,8 @@ class MyTest(TestCase):
     def test_home_route(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Welcome to NFL Scores and Standings", response.data)
+        # Should render the teletext layout (offline variant when backend not reachable in tests)
+        self.assertIn(b"Light Score", response.data)
 
 
 if __name__ == "__main__":
