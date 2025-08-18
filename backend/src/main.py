@@ -209,8 +209,8 @@ def _extract_weekly_context(payload: dict) -> dict:
         year = int(year)
         s_type = int(s_type)
         week = int(week)
-    except Exception:
-        raise HTTPException(status_code=502, detail="Invalid upstream context")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Invalid upstream context") from exc
     return {"year": year, "week": week, "seasonType": s_type}
 
 
