@@ -35,38 +35,16 @@ Create an IAM policy with these permissions and attach it to the role that GitHu
         "apprunner:ListServices"
       ],
       "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": ["iam:PassRole"],
-      "Resource": "arn:aws:iam::*:role/AppRunnerECRAccessRole"
     }
   ]
 }
 ```
 
-## App Runner Service Role
+## App Runner ECR Access
 
-App Runner also needs a service role to access ECR. Create an IAM role with:
+App Runner automatically handles ECR access when using ECR images. **No manual service role setup required.**
 
-1. **Trust Policy** (who can assume this role):
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "build.apprunner.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-```
-
-2. **Attach the AWS managed policy**: `AmazonAppRunnerServicePolicyForECRAccess`
+The IAM permissions above are sufficient for the GitHub Actions workflow to create and manage App Runner services that pull from ECR.
 
 ## GitHub Secrets Required
 
