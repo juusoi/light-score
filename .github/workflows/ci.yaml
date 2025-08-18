@@ -94,9 +94,9 @@ jobs:
             fi
           fi
           # Prepare venv and deps from repo root
-          cd ..
+          cd ../..
           uv venv
           ./scripts/uv-sync.sh --all
           cd - >/dev/null
           # Run tests
-          ../.venv/bin/python -m pytest -v
+          ../../.venv/bin/python -m pytest -v
