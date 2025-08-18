@@ -358,7 +358,8 @@ def _extract_minimal_standings(payload: dict) -> list[dict]:
                 try:
                     wins_int = int(float(wins))
                     losses_int = int(float(losses))
-                except Exception:
+                except (ValueError, TypeError):
+                    # Skip entries with unparseable stats
                     continue
                 result.append(
                     {
