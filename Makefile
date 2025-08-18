@@ -1,6 +1,6 @@
 PYTHON?=.venv/bin/python
 
-.PHONY: venv sync deps lint fmt ty test ci
+.PHONY: venv sync deps lint fmt ty test ci start
 
 venv:
 	uv venv
@@ -24,3 +24,6 @@ test:
 	./scripts/run-tests.sh
 
 ci: lint ty test
+
+start:
+	./scripts/run-local.sh
