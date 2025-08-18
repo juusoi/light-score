@@ -151,7 +151,25 @@ else
     log "Creating GitHub OIDC provider"
     aws iam create-open-id-connect-provider \
         --url "https://token.actions.githubusercontent.com" \
-        --thumbprint-list "6938fd4d98bab03faadb97b34396831e3780aea1" \
+    # Dynamically retrieve the thumbprint for token.actions.githubusercontent.com
+    if ! command -v openssl &>/dev/null; then
+        echo -e "${RED}Error: openssl is required but not installed.${NC}" >&2
+        exit 1
+    fi
+    GITHUB_OIDC_HOST="token.actions.githubusercontent.com"
+    # Get the root certificate from the chain and its SHA-1 fingerprint
+    GITHUB_OIDC_THUMBPRINT=$(echo | \
+        openssl s_client -showcerts -servername $GITHUB_OIDC_HOST -connect $GITHUB_OIDC_HOST:443 2>/dev/null | \
+        awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ {print}' | \
+        openssl x509 -fingerprint -noout -sha1 | \
+        sed 's/.*=//;s/://g' | tr 'A-Z' 'a-z')
+    if [[ -z "$GITHUB_OIDC_THUMBPRINT" ]]; then
+        echo -e "${RED}Error: Failed to retrieve GitHub OIDC thumbprint.${NC}" >&2
+        exit 1
+    fi
+    aws iam create-open-id-connect-provider \
+        --url "https://token.actions.githubusercontent.com" \
+        --thumbprint-list "$GITHUB_OIDC_THUMBPRINT" \
         --client-id-list "sts.amazonaws.com"
 fi
 
