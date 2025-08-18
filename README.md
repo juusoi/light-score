@@ -1,124 +1,137 @@
 # NFL Scores and Standings
 
-This project aims to provide real-time NFL scores and standings through a user-friendly interface. It utilizes a Python-centric technology stack, featuring a Flask frontend, FastAPI backend, and DynamoDB database, all hosted on Amazon Web Services.
+Lightweight NFL scores and standings app with:
 
-## Technology Stack
+- FastAPI backend (example API)
+- Flask frontend (renders backend data)
+- Functions package (ESPN parser utilities, AWS Lambda-ready)
 
-- **Frontend**: Flask - see [frontend/README.md](./frontend/README.md)
-- **Backend**: FastAPI - see [backend/README.md](./backend/README.md)
-- **Functions**: AWS Lambda - see [functions/README.md](./functions/README.md)
-- **Database**: DynamoDB (Amazon DynamoDB)
-- **CI/CD**: GitHub Actions
-- **Cloud Services**: Amazon Web Services (AWS) - including EC2, ECS, Lambda, and CloudWatch
+Everything is managed with a single project (pyproject-first) using uv for env/deps and a unified CI.
 
-## Architecture Overview
+## Repo structure
 
-The project consists of a Flask application for the frontend, communicating with a FastAPI backend. DynamoDB serves as the database, storing NFL scores and standings. AWS Lambda functions are used to fetch data from an external NFL API. The architecture is designed for scalability and efficiency, leveraging AWS's robust cloud infrastructure.
+- `backend/` — FastAPI app and tests
+- `frontend/` — Flask app and tests
+- `functions/` — ESPN integrations and parsers with tests
+- `scripts/` — helper scripts for setup, tests, lint, formatting
+- `pyproject.toml` — root metadata, extras, dev deps
 
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 - Python 3.13+
-- Docker (for containerization)
-- AWS Account
+- uv (https://docs.astral.sh/uv/)
 
-## Installation
-
-1. Clone the repository: git clone https://github.com/juusoi/light-score
-2. Choose one of the setup methods below.
-
-### Quick Setup (Recommended for Development)
-
-For developers who want to work on all components (pyproject-first):
+## Setup (pyproject-first)
 
 ```bash
-# Install uv
+# Install uv (if not installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# One-command setup from project root
+# From project root
 uv venv
-./scripts/uv-sync.sh --all   # installs dev deps and all extras
+./scripts/uv-sync.sh --all   # installs dev deps + all extras
 ```
 
-### Component-Specific Setup
+````bash
+uv venv
+uv sync --extra backend --dev     # backend only
+uv sync --extra frontend --dev    # frontend only
+## Run locally
 
-For working on individual components using extras:
+Backend (FastAPI):
+
+ Frontend (Flask):
+ - Uses BACKEND_URL=http://localhost:8000 (see `frontend/src/app.py`)
+ - Start app on http://localhost:5000
+ ```bash
+ cd frontend/src
+ ../../.venv/bin/python app.py
+````
+
+- Start API on http://localhost:8000
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv venv
-# Backend only
-uv sync --extra backend --dev
-# Frontend only
-uv sync --extra frontend --dev
-# Functions only
-uv sync --extra functions --dev
+../../.venv/bin/uvicorn main:app --reload
 ```
 
-### Using Scripts (Easiest)
+Frontend (Flask):
+Functions (ESPN parsers):
 
-We provide convenient scripts for common development tasks (pyproject-first):
+- Parse standings from ESPN and write `afc.json` and `nfc.json`. Also writes a backend cache file for quick e2e:
+  `backend/src/data/standings_cache.json`
 
 ```bash
-# Quick setup everything
-./scripts/setup-dev.sh
-
-# Just install dependencies
-./scripts/install-deps.sh   # uv venv + uv sync --all
-
-# Run all tests
-./scripts/test-simple.sh
-
-# Lint, format, and type check
-./scripts/lint-and-format.sh
+cd functions/src
+../../.venv/bin/python main.py
 ```
 
-## Development Guidelines
+- Uses BACKEND_URL=http://localhost:8000 (see `frontend/src/app.py`)
+- Start app on http://localhost:5000
 
-- **Code Style**: Follow PEP 8 guidelines for Python code.
-- **Commit Messages**: Use clear, concise commit messages, describing the changes made.
-  **Branching Strategy**: Feature branching workflow (create a new branch for each feature).
+```bash
+cd frontend/src
+../../.venv/bin/python app.py
+```
+
+Functions (ESPN parsers):
+
+- Parse standings from ESPN and write `afc.json` and `nfc.json`
+
+## One-command local run
+
+This starts both the backend (uvicorn) and frontend (Flask) and first generates the standings cache via the functions package. Useful for quick e2e checks.
+
+```bash
+./scripts/run-local.sh
+```
+
+```bash
+cd functions/src
+../../.venv/bin/python main.py
+```
 
 ## Testing
 
-### Running Tests
+Run all tests:
 
 ```bash
-# Run all tests with our script
-./scripts/test-simple.sh
-
-# Or run tests individually
-cd backend/src && python -m pytest utest/ -v
-cd frontend/src && python -m pytest utest/ -v
+./scripts/run-tests.sh
 ```
 
-### Writing Tests
+Run per package:
 
-- **Backend**: Write unit and integration tests using pytest in `backend/src/utest/`
-- **Frontend**: Write tests using pytest and Flask-Testing in `frontend/src/utest/`
-- **Functions**: Add tests for AWS Lambda functions in `functions/src/utest/`
+```bash
+cd backend/src   && ../../.venv/bin/python -m pytest -v
+cd frontend/src  && ../../.venv/bin/python -m pytest -v
+cd functions/src && ../../.venv/bin/python -m pytest -v
+```
 
-## Deployment
+## Lint, format, type-check
 
-- Deployment processes are automated via GitHub Actions.
-- Pushing code (approved PR) to the main branch triggers deployment to the test environment.
-- After testing, code can be deployed to the production environment.
+```bash
+./scripts/lint-and-format.sh
+```
 
-## Contributing
+Tools:
 
-Contributors are welcome! Please read the contributing guidelines for the process of submitting pull requests to us.
+- Ruff (lint + format)
+- Ty (type check, non-blocking)
 
-## Versioning
+## CI
 
-We use [SemVer](https://semver.org) for versioning. For the versions available, see the tags on this repository.
+A single GitHub Actions workflow runs:
 
-## Authors and Acknowledgment
+- Lint/format/type-check via uv environment
+- Matrix tests for backend, frontend, and functions
+- On PRs, each matrix job only runs if that folder has changes; on pushes, all run
 
-- juusoi, firekki - Initial work
-- Lemminkyinen - Collaborator
-- Acknowledgments to YLE text-tv page 235.
+See `.github/workflows/ci.yaml`.
+
+## Notes and roadmap
+
+- Functions currently parse standings via ESPN and save JSON to disk. AWS Lambda + DB integration is planned.
+- Frontend expects backend at http://localhost:8000; update `BACKEND_URL` in `frontend/src/app.py` if needed.
 
 ## License
 
-This project is licensed under the [MIT License](./LICENSE).
+MIT — see [LICENSE](./LICENSE).

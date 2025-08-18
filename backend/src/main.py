@@ -1,8 +1,11 @@
+import json
+from pathlib import Path
 from typing import List
 
-from data.example import example_data
 from fastapi import FastAPI
 from pydantic import BaseModel
+
+from data.example import example_data
 
 app = FastAPI()
 
@@ -32,4 +35,12 @@ def get_games():
 
 @app.get("/standings", response_model=List[Standings])
 def get_standings():
+    # Serve from cache file if available; fallback to example data
+    cache_file = Path(__file__).resolve().parent / "data" / "standings_cache.json"
+    if cache_file.exists():
+        try:
+            return json.loads(cache_file.read_text(encoding="utf-8"))
+        except Exception:
+            # If cache is corrupt, fall back to example
+            pass
     return example_data["standings"]

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+from pathlib import Path
 from typing import Any, List
 
 from .espn_integration import EspnClient
@@ -23,6 +24,32 @@ def convert_to_dict(obj: Any) -> dict:
 def save_on_disk(conference: List[ConferenceGroup], name: str):
     with open(name, "w", encoding="utf-8") as file:
         json.dump(conference, file, indent=4, default=convert_to_dict)
+
+
+def save_standings_cache(
+    parsed_afc: List[ConferenceGroup], parsed_nfc: List[ConferenceGroup]
+):
+    """Write a minimal standings cache JSON for the backend to serve.
+
+    The format is a list of objects: {"team": str, "wins": int, "losses": int}
+    Saved to backend/src/data/standings_cache.json relative to repo root.
+    """
+    minimal: List[dict] = []
+
+    def add_group(group: ConferenceGroup):
+        for t in group.teams:
+            minimal.append({"team": t.name, "wins": t.wins, "losses": t.losses})
+
+    for g in parsed_afc:
+        add_group(g)
+    for g in parsed_nfc:
+        add_group(g)
+
+    # Compute repo root from this file location: functions/src/main.py -> repo_root
+    repo_root = Path(__file__).resolve().parents[2]
+    cache_path = repo_root / "backend" / "src" / "data" / "standings_cache.json"
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(json.dumps(minimal, indent=2), encoding="utf-8")
 
 
 async def main():
@@ -71,6 +98,8 @@ async def main():
     # TODO. Save to firebase db
     save_on_disk(parsed_afc, "afc.json")
     save_on_disk(parsed_nfc, "nfc.json")
+    # Save quick cache for backend e2e testing
+    save_standings_cache(parsed_afc, parsed_nfc)
 
 
 if __name__ == "__main__":

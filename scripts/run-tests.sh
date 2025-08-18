@@ -1,56 +1,43 @@
 #!/bin/bash
-# Run all tests script
+# Simple test runner using the project's virtual environment (.venv)
 
-set -e
+set -euo pipefail
 
-echo "🧪 Running all tests for light-score project..."
+ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+cd "$ROOT_DIR"
 
-# Function to check if virtual environment is activated
-check_venv() {
-    if [ -z "$VIRTUAL_ENV" ] && [ ! -f ".venv/bin/activate" ]; then
-        echo "❌ No virtual environment found. Please run ./scripts/install-deps.sh first (pyproject-first)"
-        exit 1
-    fi
-}
+echo "🧪 Running all tests for light-score project using .venv..."
 
-# Function to get Python executable path
-get_python() {
-    if [ -f ".venv/bin/python" ]; then
-        echo ".venv/bin/python"
-    elif [ -n "$VIRTUAL_ENV" ]; then
-        echo "python"
-    else
-    # Use the system Python with PYTHONPATH set to venv site-packages
-        echo "PYTHONPATH=$(find .venv/lib -name site-packages -type d 2>/dev/null | head -1) $(which python3)"
-    fi
-}
+VENV_PY="$ROOT_DIR/.venv/bin/python"
 
-check_venv
+if [ ! -x "$VENV_PY" ]; then
+    echo "❌ .venv not found or python missing at $VENV_PY"
+    echo "👉 Run './scripts/install-deps.sh' or 'uv venv && ./scripts/uv-sync.sh --all' first."
+    exit 1
+fi
 
-PYTHON_CMD=$(get_python)
-
-echo "🔧 Using Python: $PYTHON_CMD"
+echo "🔧 Using Python: $VENV_PY"
 
 # Run backend tests
 echo ""
 echo "🏗️  Running backend tests..."
-cd backend/src
-eval "$PYTHON_CMD -m pytest utest/ -v"
-cd ../..
+cd "$ROOT_DIR/backend/src"
+"$VENV_PY" -m pytest utest/ -v
+cd "$ROOT_DIR"
 
-# Run frontend tests  
+# Run frontend tests
 echo ""
 echo "🌐 Running frontend tests..."
-cd frontend/src
-eval "$PYTHON_CMD -m pytest utest/ -v"
-cd ../..
+cd "$ROOT_DIR/frontend/src"
+"$VENV_PY" -m pytest utest/ -v
+cd "$ROOT_DIR"
 
 # Run functions tests
 echo ""
 echo "⚡ Running functions tests..."
-cd functions/src
-eval "$PYTHON_CMD -m pytest utest/ -v"
-cd ../..
+cd "$ROOT_DIR/functions/src"
+"$VENV_PY" -m pytest utest/ -v
+cd "$ROOT_DIR"
 
 echo ""
 echo "🎉 All tests completed successfully!"

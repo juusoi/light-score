@@ -21,6 +21,6 @@ ty:
 	$(PYTHON) -m ty check . || true
 
 test:
-	./scripts/test-simple.sh
+	./scripts/run-tests.sh
 
 ci: lint ty test
