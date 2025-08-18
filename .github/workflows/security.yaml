@@ -1,10 +1,6 @@
 name: Security checks
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_run:
     workflows: ['CI']
     types: [completed]
@@ -14,30 +10,10 @@ permissions:
   contents: read
 
 jobs:
-  # Skip security checks if CI workflow failed
-  check-ci-status:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_run'
-    outputs:
-      ci-success: ${{ steps.check.outputs.success }}
-    steps:
-      - name: Check CI workflow status
-        id: check
-        run: |
-          if [ "${{ github.event.workflow_run.conclusion }}" = "success" ]; then
-            echo "success=true" >> $GITHUB_OUTPUT
-          else
-            echo "success=false" >> $GITHUB_OUTPUT
-            echo "CI workflow failed, skipping security checks"
-            exit 1
-          fi
-
   security-scan:
     runs-on: ubuntu-latest
-    # Run if: direct push/PR OR if CI workflow succeeded
-    if: |
-      github.event_name != 'workflow_run' || 
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    # Only run if CI workflow succeeded
+    if: github.event.workflow_run.conclusion == 'success'
     strategy:
       fail-fast: false
       matrix:
