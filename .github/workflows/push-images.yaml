@@ -14,7 +14,7 @@ on:
       region:
         description: AWS region
         required: true
-        default: us-east-1
+        default: eu-north-1
 
 permissions:
   id-token: write # for GitHub OIDC
@@ -28,6 +28,7 @@ jobs:
   build-and-push:
     name: Build and push images to ECR
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     env:
       AWS_REGION: ${{ inputs.region }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}

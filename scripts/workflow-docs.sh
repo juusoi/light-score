@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# GitHub Workflows Documentation
+# Shows the relationship between CI and Security workflows
+
+set -euo pipefail
+
+echo "📋 GitHub Workflows Overview"
+echo "============================"
+echo ""
+
+echo "🔄 Workflow Dependencies:"
+echo ""
+echo "┌─────────────┐    triggers    ┌─────────────────┐"
+echo "│   CI.yaml   │ ──────────────▶ │ security.yaml   │"
+echo "│             │                 │                 │"
+echo "│ • Lint      │                 │ • Bandit scan   │"
+echo "│ • Format    │                 │ • pip-audit     │"
+echo "│ • Type      │                 │ • Reports       │"
+echo "│ • Tests     │                 │                 │"
+echo "└─────────────┘                 └─────────────────┘"
+echo ""
+
+echo "🎯 Execution Flow:"
+echo ""
+echo "1️⃣  Developer pushes code or creates PR"
+echo "2️⃣  CI workflow runs immediately:"
+echo "    • Linting (ruff check)"
+echo "    • Formatting (ruff format)"
+echo "    • Type checking (ty)"
+echo "    • Tests (pytest)"
+echo ""
+echo "3️⃣  If CI succeeds, Security workflow runs:"
+echo "    • Bandit security scan"
+echo "    • pip-audit dependency scan"
+echo "    • Generates security reports"
+echo ""
+echo "4️⃣  If CI fails, Security workflow is skipped"
+echo ""
+
+echo "💡 Key Benefits:"
+echo ""
+echo "✅ Parallel execution on PR/push events"
+echo "✅ Security only runs if code quality passes"
+echo "✅ Clear separation of concerns"
+echo "✅ Independent failure handling"
+echo "✅ Artifact collection for security reports"
+echo "✅ Local security checks via 'make security'"
+echo ""
+
+echo "🔧 Local Development:"
+echo ""
+echo "Run the same checks locally:"
+echo "  make ci        # Run CI pipeline locally"
+echo "  make security  # Run security checks locally"
+echo "  make help      # See all available commands"
+echo ""
+
+echo "📊 Workflow Files:"
+echo "  .github/workflows/ci.yaml        - Code quality pipeline"
+echo "  .github/workflows/security.yaml  - Security scanning"
+echo "  .github/workflows/push-images.yaml - Deployment pipeline"

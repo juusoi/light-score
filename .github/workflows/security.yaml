@@ -1,0 +1,97 @@
+name: Security checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Skip security checks if CI workflow failed
+  check-ci-status:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_run'
+    outputs:
+      ci-success: ${{ steps.check.outputs.success }}
+    steps:
+      - name: Check CI workflow status
+        id: check
+        run: |
+          if [ "${{ github.event.workflow_run.conclusion }}" = "success" ]; then
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "CI workflow failed, skipping security checks"
+            exit 1
+          fi
+
+  security-scan:
+    runs-on: ubuntu-latest
+    # Run if: direct push/PR OR if CI workflow succeeded
+    if: |
+      github.event_name != 'workflow_run' || 
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [bandit, pip-audit]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: latest
+
+      - name: Create virtual environment
+        run: uv venv
+
+      - name: Install security tools
+        run: |
+          case "${{ matrix.tool }}" in
+            bandit)
+              uv pip install -e .[security]
+              ;;
+            pip-audit)
+              uv pip install -e .[security]
+              ;;
+          esac
+
+      - name: Run security scan - ${{ matrix.tool }}
+        run: |
+          case "${{ matrix.tool }}" in
+            bandit)
+              echo "🔍 Running Bandit security scan..."
+              bandit -r backend frontend functions -f json -o bandit-report.json || true
+              bandit -r backend frontend functions -q
+              ;;
+            pip-audit)
+              echo "🔍 Running pip-audit dependency scan..."
+              # Install project dependencies first for better audit
+              ./scripts/uv-sync.sh --all
+              pip-audit --desc --output=json --output-file=pip-audit-report.json || true
+              pip-audit --desc
+              ;;
+          esac
+
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report-${{ matrix.tool }}
+          path: '*-report.json'
+          retention-days: 30

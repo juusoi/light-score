@@ -25,15 +25,19 @@ def home():
         if seasonType:
             params["seasonType"] = seasonType
 
-        weekly_response = requests.get(f"{BACKEND_URL}/games/weekly", params=params)
+        weekly_response = requests.get(
+            f"{BACKEND_URL}/games/weekly", params=params, timeout=10
+        )
         # Fetch context (resolves defaults if params missing)
-        ctx_resp = requests.get(f"{BACKEND_URL}/games/weekly/context", params=params)
+        ctx_resp = requests.get(
+            f"{BACKEND_URL}/games/weekly/context", params=params, timeout=10
+        )
         # Prefer live standings; fall back to cached /standings on failure
-        standings_response = requests.get(f"{BACKEND_URL}/standings/live")
+        standings_response = requests.get(f"{BACKEND_URL}/standings/live", timeout=10)
         if not standings_response.ok:
-            standings_response = requests.get(f"{BACKEND_URL}/standings")
-    # Broad except to keep UX friendly if backend is down/unreachable
-    except Exception:
+            standings_response = requests.get(f"{BACKEND_URL}/standings", timeout=10)
+    # Narrow network-related exceptions
+    except requests.RequestException:
         return render_template("home_no_api.html")
 
     if weekly_response.ok and standings_response.ok and ctx_resp.ok:
@@ -95,7 +99,8 @@ def home():
 
 
 def main():
-    app.run(debug=True)
+    debug = os.getenv("FLASK_DEBUG", "0") in {"1", "true", "True"}
+    app.run(debug=debug)
 
 
 if __name__ == "__main__":

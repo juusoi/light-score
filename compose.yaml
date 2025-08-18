@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: light-score-backend:dev
+    ports:
+      - '8000:8000'
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: light-score-frontend:dev
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    ports:
+      - '5000:5000'
+    restart: unless-stopped
+
+networks:
+  default:
+    name: light-score-net
