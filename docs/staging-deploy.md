@@ -1,61 +1,71 @@
-# Staging deployment to AWS (App Runner via ECR)
+# Automated Staging Deployment to AWS App Runner
 
-This repo now includes Dockerfiles for backend and frontend, and a GitHub Actions workflow to build and push images to Amazon ECR for a staging environment.
+This repo includes automated deployment to AWS App Runner via GitHub Actions. The workflow builds Docker images, pushes them to ECR, and automatically creates/updates App Runner services.
 
 ## What you need in AWS
 
-- An AWS account and a role that GitHub Actions can assume (OIDC) with permissions for ECR and App Runner.
-- Two ECR repositories:
-  - `light-score-backend` (default)
-  - `light-score-frontend` (default)
-- Two App Runner services (one per image) or an ECS Fargate setup. App Runner is the simplest to start.
+- An AWS account and a role that GitHub Actions can assume (OIDC) with permissions for ECR and App Runner
+- See `docs/aws-iam-permissions.md` for detailed IAM setup
 
-## Files added
+## Files
 
-- `backend/Dockerfile`: FastAPI backend at port 8000 using Uvicorn.
-- `frontend/Dockerfile`: Flask frontend at port 5000 using Gunicorn, configurable via `BACKEND_URL` env var.
-- `.github/workflows/push-images.yaml`: Build + push images to ECR (manual trigger).
-- `.dockerignore`: Keeps images lean.
+- `backend/Dockerfile`: FastAPI backend at port 8000 using Uvicorn
+- `frontend/Dockerfile`: Flask frontend at port 5000 using Gunicorn, configurable via `BACKEND_URL` env var
+- `.github/workflows/push-images.yaml`: Build + push images to ECR + deploy to App Runner (manual trigger)
+- `.dockerignore`: Keeps images lean
 
-## Build and push images (from GitHub Actions)
+## Deploy to staging (automated)
 
-1. In GitHub repo settings, add secrets:
+1. **Setup GitHub secrets** (one time):
    - `AWS_ACCOUNT_ID`: Your account ID (e.g., 123456789012)
    - `AWS_ROLE_TO_ASSUME`: The IAM role ARN your workflow will assume
-   - (Optional for auto-update) `APP_RUNNER_BACKEND_SERVICE_ARN`, `APP_RUNNER_FRONTEND_SERVICE_ARN`, `STAGING_BACKEND_URL`
-2. Run the workflow: Actions → "Build and Push Staging Images" → Run workflow.
-   - You can override repo names and region if needed.
 
-## Create App Runner services (once)
+2. **Deploy**:
+   - Merge your PR to main
+   - Go to Actions → "Build and Deploy to AWS Staging" → Run workflow
+   - You can override repo names and region if needed (defaults: eu-north-1)
 
-Do this once per service via AWS Console or CLI.
+3. **Access your app**:
+   - The workflow will output the frontend URL at the end
+   - Backend: `https://<random-id>.eu-north-1.awsapprunner.com`
+   - Frontend: `https://<random-id>.eu-north-1.awsapprunner.com` (main app URL)
 
-### Backend (FastAPI)
+## What the workflow does automatically
 
-- Source: Container image from ECR
-- Image: `<account>.dkr.ecr.<region>.amazonaws.com/light-score-backend:staging`
-- Port: 8000
-- Health check path: `/`
-- Auto-deploy: enabled (optional)
+1. **Builds and pushes Docker images** to ECR repos:
+   - `light-score-backend:staging`
+   - `light-score-frontend:staging`
 
-### Frontend (Flask)
+2. **Creates/updates App Runner services**:
+   - Backend service: `light-score-backend-staging`
+   - Frontend service: `light-score-frontend-staging`
+   - Configures ports, health checks, and environment variables
+   - Sets up auto-deployment for future updates
 
-- Source: Container image from ECR
-- Image: `<account>.dkr.ecr.<region>.amazonaws.com/light-score-frontend:staging`
-- Port: 5000
-- Environment variables:
-  - `BACKEND_URL`: Point to the backend service URL (e.g., `https://<apprunner-backend-id>.<region>.awsapprunner.com`)
-- Health check path: `/`
-- Auto-deploy: enabled (optional)
+3. **Connects frontend to backend** automatically via `BACKEND_URL` environment variable
 
-Once services are running, open the frontend URL; it will call the backend using `BACKEND_URL`.
+## Service configuration
 
-## Local test
+- **CPU/Memory**: 0.25 vCPU, 0.5 GB (can be changed in workflow)
+- **Health checks**: HTTP on `/` path
+- **Auto-deploy**: Enabled (services update when new images are pushed)
+
+## Subsequent deployments
+
+After the first deployment, just run the workflow again - it will:
+- Build new images with latest code
+- Update existing App Runner services
+- Services will automatically restart with new code
+
+## Local development
 
 - Backend: `uv venv && ./scripts/uv-sync.sh --all && .venv/bin/uvicorn backend.src.main:app --reload`
 - Frontend: `BACKEND_URL=http://localhost:8000 .venv/bin/python -m flask --app frontend/src/app.py run -p 5000`
 
+Or use: `make dev-setup && make start`
+
 ## Notes
 
-- For ECS instead of App Runner, reuse the ECR images and set up Task Definitions with the same ports and env vars.
-- If you later add a database, store credentials in AWS Secrets Manager and inject via App Runner Env Vars.
+- For production, consider using larger instance sizes and implementing proper logging/monitoring
+- Database credentials should be stored in AWS Secrets Manager when you add a database
+- The App Runner service URLs are stable - they won't change unless you delete and recreate the services
