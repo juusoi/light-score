@@ -23,6 +23,7 @@ class Standings(BaseModel):
     team: str
     wins: int
     losses: int
+    division: str | None = None
 
 
 class WeeklyGame(BaseModel):
@@ -343,7 +344,7 @@ def _extract_minimal_standings(payload: dict) -> list[dict]:
     groups = payload.get("content", {}).get("standings", {}).get("groups", [])
     result: list[dict] = []
 
-    def add_entries(entries: list[dict]):
+    def add_entries(entries: list[dict], division_name: str | None):
         for e in entries:
             team = e.get("team", {}).get("displayName")
             stats = {s.get("name"): s for s in e.get("stats", [])}
@@ -356,13 +357,23 @@ def _extract_minimal_standings(payload: dict) -> list[dict]:
                     losses_int = int(float(losses))
                 except Exception:
                     continue
-                result.append({"team": team, "wins": wins_int, "losses": losses_int})
+                result.append(
+                    {
+                        "team": team,
+                        "wins": wins_int,
+                        "losses": losses_int,
+                        "division": division_name,
+                    }
+                )
 
     for conf in groups:
         subgroups = conf.get("groups") or []
         for g in subgroups:
             entries = g.get("standings", {}).get("entries") or []
-            add_entries(entries)
+            division_name = (
+                g.get("name") or g.get("abbreviation") or g.get("shortName") or None
+            )
+            add_entries(entries, division_name)
 
     return result
 

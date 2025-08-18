@@ -62,16 +62,19 @@ def home():
             "seasonType": cur_type,
             "week": cur_week + 1,
         }
-        prev_season_params = {
-            "year": cur_year - 1,
-            "seasonType": cur_type,
-            "week": cur_week,
-        }
-        next_season_params = {
-            "year": cur_year + 1,
-            "seasonType": cur_type,
-            "week": cur_week,
-        }
+        # Group standings by division for UI
+        divisions = {}
+        for row in standings_data:
+            div = row.get("division") or "Other"
+            divisions.setdefault(div, []).append(row)
+        for k in divisions:
+            divisions[k].sort(
+                key=lambda x: (
+                    -int(x.get("wins", 0)),
+                    int(x.get("losses", 0)),
+                    x.get("team", ""),
+                )
+            )
 
         return render_template(
             "home.html",
@@ -82,8 +85,7 @@ def home():
             ctx=ctx,
             prev_week_params=prev_week_params,
             next_week_params=next_week_params,
-            prev_season_params=prev_season_params,
-            next_season_params=next_season_params,
+            divisions=divisions,
         )
     else:
         return "Error: Could not retrieve data from backend.", 500
