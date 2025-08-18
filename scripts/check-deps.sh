@@ -21,7 +21,9 @@ echo ""
 
 if podman ps --filter "name=light-score" --format "{{.Names}}" | grep -q "backend"; then
     echo "🐳 Backend container dependencies:"
-    podman exec light-score_backend_1 pip freeze | grep -E "(fastapi|uvicorn|pydantic|httpx)" | while read dep; do
+if $DOCKER ps --filter "name=light-score" --format "{{.Names}}" | grep -q "backend"; then
+    echo "🐳 Backend container dependencies:"
+    $DOCKER exec light-score_backend_1 pip freeze | grep -E "(fastapi|uvicorn|pydantic|httpx)" | while read dep; do
         echo "  ✓ $dep"
     done
     echo ""
