@@ -44,10 +44,10 @@ jobs:
         run: |
           case "${{ matrix.tool }}" in
             bandit)
-              .venv/bin/uv pip install bandit
+              uv pip install bandit
               ;;
             pip-audit)
-              .venv/bin/uv pip install pip-audit
+              uv pip install pip-audit
               ;;
           esac
 
