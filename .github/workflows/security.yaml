@@ -29,25 +29,25 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           version: latest
 
-      - name: Create virtual environment
-        run: uv venv
+      - name: Setup environment and install dependencies
+        run: |
+          uv venv
+          ./scripts/uv-sync.sh --all
 
       - name: Install security tools
         run: |
           case "${{ matrix.tool }}" in
             bandit)
-              uv pip install -e .[security]
+              .venv/bin/uv pip install bandit
               ;;
             pip-audit)
-              uv pip install -e .[security]
+              .venv/bin/uv pip install pip-audit
               ;;
           esac
 
@@ -56,15 +56,13 @@ jobs:
           case "${{ matrix.tool }}" in
             bandit)
               echo "🔍 Running Bandit security scan..."
-              bandit -r backend frontend functions -f json -o bandit-report.json || true
-              bandit -r backend frontend functions -q
+              .venv/bin/bandit -r backend frontend functions -f json -o bandit-report.json || true
+              .venv/bin/bandit -r backend frontend functions -q
               ;;
             pip-audit)
               echo "🔍 Running pip-audit dependency scan..."
-              # Install project dependencies first for better audit
-              ./scripts/uv-sync.sh --all
-              pip-audit --desc --output=json --output-file=pip-audit-report.json || true
-              pip-audit --desc
+              .venv/bin/pip-audit --desc --output=json --output-file=pip-audit-report.json || true
+              .venv/bin/pip-audit --desc
               ;;
           esac
 
