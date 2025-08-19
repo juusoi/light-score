@@ -106,6 +106,25 @@ jobs:
               --output text
           }
 
+          wait_for_service_ready () {
+            local service_arn="$1"
+            echo "Waiting for service to be ready..."
+            for i in {1..30}; do
+              local status=$(aws apprunner describe-service --region "$APPRUNNER_REGION" --service-arn "$service_arn" --query 'Service.Status' --output text)
+              echo "Status: $status (attempt $i/30)"
+              if [ "$status" = "RUNNING" ]; then
+                echo "Service is ready!"
+                return 0
+              elif [ "$status" = "CREATE_FAILED" ] || [ "$status" = "UPDATE_FAILED" ]; then
+                echo "Service deployment failed with status: $status"
+                return 1
+              fi
+              sleep 30
+            done
+            echo "Timeout waiting for service to be ready"
+            return 1
+          }
+
           # ---- Backend ----
           BACKEND_ARN="$(get_service_arn_by_name "$BACKEND_SERVICE_NAME")"
           if [ "$BACKEND_ARN" != "None" ] && [ -n "$BACKEND_ARN" ]; then
@@ -144,7 +163,7 @@ jobs:
           fi
 
           echo "Waiting backend..."
-          aws apprunner wait service-operation-completed --region "$APPRUNNER_REGION" --service-arn "$BACKEND_ARN"
+          wait_for_service_ready "$BACKEND_ARN"
           BACKEND_URL=$(aws apprunner describe-service --region "$APPRUNNER_REGION" --service-arn "$BACKEND_ARN" --query 'Service.ServiceUrl' --output text)
           echo "Backend URL: $BACKEND_URL"
 
@@ -192,7 +211,7 @@ jobs:
           fi
 
           echo "Waiting frontend..."
-          aws apprunner wait service-operation-completed --region "$APPRUNNER_REGION" --service-arn "$FRONTEND_ARN"
+          wait_for_service_ready "$FRONTEND_ARN"
           FRONTEND_URL=$(aws apprunner describe-service --region "$APPRUNNER_REGION" --service-arn "$FRONTEND_ARN" --query 'Service.ServiceUrl' --output text)
 
           echo "🎉 Deployment complete!"
