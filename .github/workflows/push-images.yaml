@@ -85,6 +85,7 @@ jobs:
           docker push "$FRONTEND_IMAGE:staging"
 
       - name: Deploy to App Runner services (in eu-central-1)
+        id: deploy
         shell: bash
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -126,7 +127,8 @@ jobs:
                 \"ImageRepository\": {
                   \"ImageIdentifier\": \"${BACKEND_IMAGE}\",
                   \"ImageConfiguration\": { \"Port\": \"8000\" },
-                  \"ImageRepositoryType\": \"ECR\"
+                  \"ImageRepositoryType\": \"ECR\",
+                  \"ImageRepositoryAccessRole\": \"${{ secrets.AWS_APPRUNNER_ACCESS_ROLE_ARN }}\"
                 },
                 \"AutoDeploymentsEnabled\": true
               }" \
@@ -168,7 +170,8 @@ jobs:
                     \"Port\": \"5000\",
                     \"RuntimeEnvironmentVariables\": { \"BACKEND_URL\": \"${BACKEND_URL}\" }
                   },
-                  \"ImageRepositoryType\": \"ECR\"
+                  \"ImageRepositoryType\": \"ECR\",
+                  \"ImageRepositoryAccessRole\": \"${{ secrets.AWS_APPRUNNER_ACCESS_ROLE_ARN }}\"
                 },
                 \"AutoDeploymentsEnabled\": true
               }" \
