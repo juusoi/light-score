@@ -121,9 +121,11 @@ jobs:
                   \"ImageConfiguration\": { \"Port\": \"8000\" },
                   \"ImageRepositoryType\": \"ECR\"
                 },
-                \"AutoDeploymentsEnabled\": true
-              }" \
-              --authentication-configuration "{\"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"}"
+                \"AutoDeploymentsEnabled\": true,
+                \"AuthenticationConfiguration\": {
+                  \"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"
+                }
+              }"
           else
             echo "Creating backend..."
             BACKEND_ARN=$(aws apprunner create-service --region "$APPRUNNER_REGION" \
@@ -134,9 +136,11 @@ jobs:
                   \"ImageConfiguration\": { \"Port\": \"8000\" },
                   \"ImageRepositoryType\": \"ECR\"
                 },
-                \"AutoDeploymentsEnabled\": true
+                \"AutoDeploymentsEnabled\": true,
+                \"AuthenticationConfiguration\": {
+                  \"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"
+                }
               }" \
-              --authentication-configuration "{\"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"}" \
               --instance-configuration "{\"Cpu\":\"0.25 vCPU\",\"Memory\":\"0.5 GB\"}" \
               --health-check-configuration "{\"Protocol\":\"HTTP\",\"Path\":\"/\",\"Interval\":10,\"Timeout\":5,\"HealthyThreshold\":1,\"UnhealthyThreshold\":5}" \
               --query 'Service.ServiceArn' --output text)
@@ -162,9 +166,11 @@ jobs:
                   },
                   \"ImageRepositoryType\": \"ECR\"
                 },
-                \"AutoDeploymentsEnabled\": true
-              }" \
-              --authentication-configuration "{\"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"}"
+                \"AutoDeploymentsEnabled\": true,
+                \"AuthenticationConfiguration\": {
+                  \"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"
+                }
+              }"
           else
             echo "Creating frontend..."
             FRONTEND_ARN=$(aws apprunner create-service --region "$APPRUNNER_REGION" \
@@ -178,9 +184,11 @@ jobs:
                   },
                   \"ImageRepositoryType\": \"ECR\"
                 },
-                \"AutoDeploymentsEnabled\": true
+                \"AutoDeploymentsEnabled\": true,
+                \"AuthenticationConfiguration\": {
+                  \"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"
+                }
               }" \
-              --authentication-configuration "{\"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"}" \
               --instance-configuration "{\"Cpu\":\"0.25 vCPU\",\"Memory\":\"0.5 GB\"}" \
               --health-check-configuration "{\"Protocol\":\"HTTP\",\"Path\":\"/\",\"Interval\":10,\"Timeout\":5,\"HealthyThreshold\":1,\"UnhealthyThreshold\":5}" \
               --query 'Service.ServiceArn' --output text)
