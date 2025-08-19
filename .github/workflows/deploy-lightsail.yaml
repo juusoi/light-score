@@ -1,0 +1,200 @@
+name: Terraform + Lightsail Deploy
+
+on:
+  workflow_dispatch: {}
+  workflow_run:
+    workflows: ['CI', 'Security checks']
+    types: [completed]
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: eu-north-1
+  SERVICE_NAME: lightscore-prod
+  FRONTEND_PORT: '5000'
+  BACKEND_PORT: '8000'
+
+jobs:
+  check-prerequisites:
+    name: Verify CI and Security passed
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_run'
+    outputs:
+      deploy-ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Check workflow prerequisites
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.payload.workflow_run.head_sha;
+
+            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner, repo, head_sha: sha, status: 'completed', per_page: 50
+            });
+
+            const findByName = (n) => data.workflow_runs.find(r => r.name === n);
+            const ci = findByName('CI');
+            const sec = findByName('Security checks');
+
+            const ciPassed = !!ci && ci.conclusion === 'success';
+            const secPassed = !!sec && sec.conclusion === 'success';
+
+            core.info(`CI passed: ${ciPassed}`);
+            core.info(`Security passed: ${secPassed}`);
+
+            const ready = ciPassed && secPassed;
+            core.setOutput('ready', String(ready));
+            if (!ready) core.setFailed('Prereqs not met: CI and Security checks must pass');
+
+  terraform:
+    name: Terraform apply (create/update Lightsail service)
+    runs-on: ubuntu-latest
+    needs: [check-prerequisites]
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'workflow_run' && needs.check-prerequisites.outputs.deploy-ready == 'true')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gh-terraform
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        working-directory: ./terraform
+        run: terraform apply -auto-approve -input=false
+
+      - name: Verify Terraform deployment
+        working-directory: ./terraform
+        run: |
+          terraform state list | grep -q '^aws_lightsail_container_service\.svc$'
+          echo "✅ Terraform deployment verified"
+
+      - name: Output service URL
+        id: svc
+        working-directory: ./terraform
+        run: |
+          URL=$(terraform output -raw lightsail_service_url || true)
+          echo "URL=$URL"
+          echo "URL=$URL" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "## Terraform" >> $GITHUB_STEP_SUMMARY
+          echo "- Service URL: ${{ steps.svc.outputs.URL }}" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: Build, push & deploy containers to Lightsail
+    runs-on: ubuntu-latest
+    needs: [check-prerequisites, terraform]
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'workflow_run' && needs.check-prerequisites.outputs.deploy-ready == 'true')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gh-deploy
+
+      - name: Install lightsailctl (amd64)
+        run: |
+          curl -sSL "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl" -o /usr/local/bin/lightsailctl
+          chmod +x /usr/local/bin/lightsailctl
+
+      - name: Set up Docker Buildx (optional)
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build images
+        run: |
+          set -euo pipefail
+          docker build -f backend/Dockerfile  -t backend:ci  .
+          docker build -f frontend/Dockerfile -t frontend:ci .
+
+      - name: Ensure Lightsail service exists (idempotent)
+        run: |
+          aws lightsail create-container-service \
+            --region "${{ env.AWS_REGION }}" \
+            --service-name "${{ env.SERVICE_NAME }}" \
+            --power small \
+            --scale 1 || true
+
+      - name: Push images to Lightsail (returns digests)
+        id: push
+        run: |
+          set -euo pipefail
+          B_IMG=$(aws lightsail push-container-image \
+            --region "${{ env.AWS_REGION }}" \
+            --service-name "${{ env.SERVICE_NAME }}" \
+            --label backend \
+            --image backend:ci \
+            --output text | tail -n1)
+
+          F_IMG=$(aws lightsail push-container-image \
+            --region "${{ env.AWS_REGION }}" \
+            --service-name "${{ env.SERVICE_NAME }}" \
+            --label frontend \
+            --image frontend:ci \
+            --output text | tail -n1)
+
+          echo "BACKEND_IMG=$B_IMG"  >> $GITHUB_OUTPUT
+          echo "FRONTEND_IMG=$F_IMG" >> $GITHUB_OUTPUT
+
+      - name: Deploy containers to Lightsail
+        id: deploy
+        run: |
+          set -euo pipefail
+          aws lightsail create-container-service-deployment \
+            --region "${{ env.AWS_REGION }}" \
+            --service-name "${{ env.SERVICE_NAME }}" \
+            --containers "$(
+              jq -n --arg b "${{ steps.push.outputs.BACKEND_IMG }}" \
+                    --arg f "${{ steps.push.outputs.FRONTEND_IMG }}" \
+                    --arg bp "${{ env.BACKEND_PORT }}" \
+                    --arg fp "${{ env.FRONTEND_PORT }}" \
+                '{ backend:  { image: $b, ports: {($bp): "HTTP"} },
+                   frontend: { image: $f, ports: {($fp): "HTTP"},
+                               environment: { BACKEND_URL: ("http://backend:" + $bp) } } }'
+            )" \
+            --public-endpoint "$(
+              jq -n --arg fp "${{ env.FRONTEND_PORT }}" \
+                '{ containerName: "frontend",
+                   containerPort: ($fp|tonumber),
+                   healthCheck: { path:"/", intervalSeconds:10, timeoutSeconds:5, healthyThreshold:1, unhealthyThreshold:5 } }'
+            )"
+
+          URL=$(aws lightsail get-container-services \
+            --region "${{ env.AWS_REGION }}" \
+            --service-name "${{ env.SERVICE_NAME }}" \
+            --query 'containerServices[0].url' --output text)
+          echo "URL=$URL" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "## Deploy" >> $GITHUB_STEP_SUMMARY
+          echo "- Service: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- URL: ${{ steps.deploy.outputs.URL }}" >> $GITHUB_STEP_SUMMARY
