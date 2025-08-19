@@ -127,20 +127,33 @@ jobs:
       - name: Install lightsailctl with checksum verification
         run: |
           set -euo pipefail
-          mkdir -p ~/.local/bin
-          
-          # Download binary and checksum to current directory
-          curl -sSL -o ~/.local/bin/lightsailctl \
+          BIN="$HOME/.local/bin/lightsailctl"
+          SUMFILE="$HOME/lightsailctl.sha256"
+
+          mkdir -p "$HOME/.local/bin"
+
+          # Download binary and checksum
+          curl -sSL -o "$BIN" \
             "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl"
-          curl -sSL -o lightsailctl.sha256 \
+          curl -sSL -o "$SUMFILE" \
             "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl.sha256"
-          
-          # Verify checksum
-          echo "$(cat lightsailctl.sha256 | cut -d' ' -f1)  $HOME/.local/bin/lightsailctl" | sha256sum -c
-          
-          # Make executable and add to PATH
-          chmod +x ~/.local/bin/lightsailctl
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+          # Detect checksum file format
+          if awk 'NF>=2{exit 0} END{exit 1}' "$SUMFILE"; then
+            # Format: "<hash>  lightsailctl" -> rewrite filename to our path and verify with -c
+            sed "s| lightsailctl| $BIN|" "$SUMFILE" | sha256sum -c -
+          else
+            # Format: "<hash>" only -> compute and compare manually
+            EXPECTED="$(tr -d ' \t\r\n' < "$SUMFILE")"
+            ACTUAL="$(sha256sum "$BIN" | awk '{print $1}')"
+            [ "$EXPECTED" = "$ACTUAL" ] || { echo "Checksum mismatch!"; exit 1; }
+          fi
+
+          chmod +x "$BIN"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+          # sanity check
+          command -v lightsailctl
 
       - name: Set up Docker Buildx (optional)
         uses: docker/setup-buildx-action@v3
