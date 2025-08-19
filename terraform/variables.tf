@@ -7,7 +7,7 @@ variable "service_name" {
 variable "power" {
   description = "Instance size for Lightsail Container Service"
   type        = string
-  default     = "small" # nano | micro | small | medium | large | xlarge | 2xlarge
+  default     = "nano" # nano | micro | small | medium | large | xlarge | 2xlarge
 }
 
 variable "scale" {
