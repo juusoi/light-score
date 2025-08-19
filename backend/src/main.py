@@ -323,11 +323,22 @@ def _extract_weekly_context(payload: dict) -> dict:
     year = season.get("year")
     s_type = season.get("type")
     week = (payload.get("week") or {}).get("number")
-    # Be defensive: ensure ints
+    # Be defensive: ensure ints and validate ranges
     try:
-        year = int(year) if year is not None else 0
-        s_type = int(s_type) if s_type is not None else 0
-        week = int(week) if week is not None else 0
+        year = int(year) if year is not None else 2025  # Current NFL season
+        s_type = int(s_type) if s_type is not None else 2  # Regular season default
+        week = int(week) if week is not None else 1  # Week 1 default
+
+        # Validate ranges
+        if year < 1970 or year > 2030:  # Reasonable NFL year range
+            year = 2025
+        if s_type not in [1, 2, 3]:  # Valid season types only
+            s_type = 2
+        if (
+            week < 1 or week > 25
+        ):  # Valid week range (max possible across all season types)
+            week = 1
+
     except (ValueError, TypeError) as exc:
         raise HTTPException(status_code=502, detail="Invalid upstream context") from exc
     return {"year": year, "week": week, "seasonType": s_type}

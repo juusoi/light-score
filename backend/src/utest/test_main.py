@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from ..main import _extract_weekly_games_from_scoreboard, app
+from ..main import _extract_weekly_context, _extract_weekly_games_from_scoreboard, app
 
 client = TestClient(app)
 
@@ -234,3 +234,30 @@ def test_extract_final_game():
     assert game["start_time_finnish"] is None
     assert game["start_date_time_finnish"] is None
     assert game["game_time"] is None
+
+
+def test_extract_weekly_context_valid():
+    """Test extracting weekly context with valid data."""
+    payload = {"season": {"year": 2025, "type": 2}, "week": {"number": 5}}
+
+    context = _extract_weekly_context(payload)
+    assert context == {"year": 2025, "week": 5, "seasonType": 2}
+
+
+def test_extract_weekly_context_missing_data():
+    """Test extracting weekly context with missing data uses sensible defaults."""
+    payload = {}
+
+    context = _extract_weekly_context(payload)
+    assert context == {"year": 2025, "week": 1, "seasonType": 2}
+
+
+def test_extract_weekly_context_invalid_ranges():
+    """Test extracting weekly context with invalid ranges uses sensible defaults."""
+    payload = {
+        "season": {"year": 1900, "type": 99},  # Invalid year and season type
+        "week": {"number": 50},  # Invalid week
+    }
+
+    context = _extract_weekly_context(payload)
+    assert context == {"year": 2025, "week": 1, "seasonType": 2}
