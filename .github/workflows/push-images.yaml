@@ -63,26 +63,36 @@ jobs:
           done
 
       - name: Build and push backend image (to eu-north-1 ECR)
+        id: build-backend
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         shell: bash
         run: |
           set -euo pipefail
           BACKEND_IMAGE="$ECR_REGISTRY/${ECR_BACKEND_REPO}"
-          docker build -f backend/Dockerfile -t "$BACKEND_IMAGE:${GITHUB_SHA}" -t "$BACKEND_IMAGE:staging" .
+          docker build -f backend/Dockerfile -t "$BACKEND_IMAGE:${GITHUB_SHA}" .
           docker push "$BACKEND_IMAGE:${GITHUB_SHA}"
-          docker push "$BACKEND_IMAGE:staging"
+
+          # Get the image digest for the commit-tagged image
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$BACKEND_IMAGE:${GITHUB_SHA}" | cut -d'@' -f2)
+          echo "BACKEND_DIGEST=$DIGEST" >> $GITHUB_OUTPUT
+          echo "Backend image digest: $DIGEST"
 
       - name: Build and push frontend image (to eu-north-1 ECR)
+        id: build-frontend
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         shell: bash
         run: |
           set -euo pipefail
           FRONTEND_IMAGE="$ECR_REGISTRY/${ECR_FRONTEND_REPO}"
-          docker build -f frontend/Dockerfile -t "$FRONTEND_IMAGE:${GITHUB_SHA}" -t "$FRONTEND_IMAGE:staging" .
+          docker build -f frontend/Dockerfile -t "$FRONTEND_IMAGE:${GITHUB_SHA}" .
           docker push "$FRONTEND_IMAGE:${GITHUB_SHA}"
-          docker push "$FRONTEND_IMAGE:staging"
+
+          # Get the image digest for the commit-tagged image
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$FRONTEND_IMAGE:${GITHUB_SHA}" | cut -d'@' -f2)
+          echo "FRONTEND_DIGEST=$DIGEST" >> $GITHUB_OUTPUT
+          echo "Frontend image digest: $DIGEST"
 
       - name: Deploy to App Runner services (in eu-central-1)
         id: deploy
@@ -90,14 +100,16 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ACCESS_ROLE_ARN: ${{ secrets.AWS_APPRUNNER_ACCESS_ROLE_ARN }}
+          BACKEND_DIGEST: ${{ steps.build-backend.outputs.BACKEND_DIGEST }}
+          FRONTEND_DIGEST: ${{ steps.build-frontend.outputs.FRONTEND_DIGEST }}
         run: |
           set -euo pipefail
 
           BACKEND_SERVICE_NAME="light-score-backend-staging"
           FRONTEND_SERVICE_NAME="light-score-frontend-staging"
 
-          BACKEND_IMAGE="$ECR_REGISTRY/${ECR_BACKEND_REPO}:staging"
-          FRONTEND_IMAGE="$ECR_REGISTRY/${ECR_FRONTEND_REPO}:staging"
+          BACKEND_IMAGE="$ECR_REGISTRY/${ECR_BACKEND_REPO}@${BACKEND_DIGEST}"
+          FRONTEND_IMAGE="$ECR_REGISTRY/${ECR_FRONTEND_REPO}@${FRONTEND_DIGEST}"
 
           get_service_arn_by_name () {
             local name="$1"
