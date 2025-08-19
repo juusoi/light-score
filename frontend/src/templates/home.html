@@ -56,9 +56,9 @@
             <li class="ttx-item">
               <div class="ttx-team">{{ game.team_a }} vs {{ game.team_b }}</div>
               <div class="ttx-status-live">
-                {% if game.score_a is not none and game.score_b is not none %}
-                {{ game.score_a }} - {{ game.score_b }} {% else %} live {% endif
-                %}
+                {% if game.game_time %} {{ game.game_time }} {% elif
+                game.score_a is not none and game.score_b is not none %} {{
+                game.score_a }} - {{ game.score_b }} {% else %} live {% endif %}
               </div>
             </li>
             {% endfor %} {% else %}
@@ -75,8 +75,10 @@
             <li class="ttx-item">
               <div class="ttx-team">{{ game.team_a }} vs {{ game.team_b }}</div>
               <div class="ttx-status-upcoming">
-                {% if game.start_time %} {{ game.start_time }} {% else %}
-                scheduled {% endif %}
+                {% if game.start_date_time_finnish %} {{
+                game.start_date_time_finnish }} {% elif game.start_time_finnish
+                %} {{ game.start_time_finnish }} {% elif game.start_time %} {{
+                game.start_time }} {% else %} scheduled {% endif %}
               </div>
             </li>
             {% endfor %} {% else %}
