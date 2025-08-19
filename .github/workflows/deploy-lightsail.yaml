@@ -245,10 +245,10 @@ jobs:
           --region "$REGION" \
           --service-name "$SVC" \
           --containers "$(
-              jq -n --arg b "$B_IMG" --arg f "$F_IMG" --arg bp "$BP" --arg fp "$FP" \
+              jq -n --arg b "$B_IMG" --arg f "$F_IMG" --arg bp "$BP" --arg fp "$FP" --arg svc "$SVC" \
               '{ backend:  { image: $b, ports: {($bp): "HTTP"} },
                   frontend: { image: $f, ports: {($fp): "HTTP"},
-                              environment: { BACKEND_URL: ("http://backend:" + $bp) } } }'
+                              environment: { BACKEND_URL: ("http://" + $svc + ".service.local:" + $bp) } } }'
           )" \
           --public-endpoint "$(
               jq -n --arg fp "$FP" \
