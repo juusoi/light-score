@@ -107,9 +107,6 @@ jobs:
           }
 
           # ---- Backend ----
-          echo "DEBUG: ACCESS_ROLE_ARN = ${ACCESS_ROLE_ARN}"
-          echo "DEBUG: BACKEND_IMAGE = ${BACKEND_IMAGE}"
-
           BACKEND_ARN="$(get_service_arn_by_name "$BACKEND_SERVICE_NAME")"
           if [ "$BACKEND_ARN" != "None" ] && [ -n "$BACKEND_ARN" ]; then
             echo "Updating backend..."
