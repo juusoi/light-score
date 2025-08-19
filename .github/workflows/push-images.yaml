@@ -170,6 +170,8 @@ jobs:
           # ---- Frontend ----
           FRONTEND_ARN="$(get_service_arn_by_name "$FRONTEND_SERVICE_NAME")"
           if [ "$FRONTEND_ARN" != "None" ] && [ -n "$FRONTEND_ARN" ]; then
+            echo "Checking frontend service status..."
+            wait_for_service_ready "$FRONTEND_ARN"
             echo "Updating frontend..."
             aws apprunner update-service --region "$APPRUNNER_REGION" \
               --service-arn "$FRONTEND_ARN" \
