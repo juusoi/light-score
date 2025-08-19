@@ -128,11 +128,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.local/bin
+          
+          # Download binary and checksum to current directory
           curl -sSL -o ~/.local/bin/lightsailctl \
-          "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl"
+            "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl"
           curl -sSL -o lightsailctl.sha256 \
-          "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl.sha256"
-          (cd ~/.local/bin && sha256sum -c ~/lightsailctl.sha256)
+            "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl.sha256"
+          
+          # Verify checksum
+          echo "$(cat lightsailctl.sha256 | cut -d' ' -f1)  $HOME/.local/bin/lightsailctl" | sha256sum -c
+          
+          # Make executable and add to PATH
           chmod +x ~/.local/bin/lightsailctl
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
