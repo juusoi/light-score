@@ -11,13 +11,9 @@ on:
         description: ECR repo name for frontend
         required: true
         default: light-score-frontend
-      region:
-        description: AWS region
-        required: true
-        default: eu-north-1
 
 permissions:
-  id-token: write # for GitHub OIDC
+  id-token: write
   contents: read
 
 concurrency:
@@ -30,38 +26,43 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     env:
-      AWS_REGION: ${{ inputs.region }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       ECR_BACKEND_REPO: ${{ inputs.ecrBackendRepo }}
       ECR_FRONTEND_REPO: ${{ inputs.ecrFrontendRepo }}
+      ECR_REGION: eu-north-1
+      APPRUNNER_REGION: eu-central-1
     steps:
       - uses: actions/checkout@v4
 
+      # Use the App Runner region for AWS credential config
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ env.APPRUNNER_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: github-actions-push-images
 
+      # Log in to ECR in eu-north-1
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+        env:
+          AWS_REGION: ${{ env.ECR_REGION }}
 
-      - name: Ensure ECR repositories exist
+      - name: Ensure ECR repositories exist (eu-north-1)
         shell: bash
         run: |
           set -euo pipefail
           for repo in "${ECR_BACKEND_REPO}" "${ECR_FRONTEND_REPO}"; do
-            if ! aws ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1; then
-              aws ecr create-repository --repository-name "$repo" >/dev/null
+            if ! aws ecr describe-repositories --repository-names "$repo" --region "$ECR_REGION" >/dev/null 2>&1; then
+              aws ecr create-repository --repository-name "$repo" --region "$ECR_REGION" >/dev/null
               echo "Created ECR repository: $repo"
             else
               echo "ECR repository exists: $repo"
             fi
           done
 
-      - name: Build and push backend image
+      - name: Build and push backend image (to eu-north-1 ECR)
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         shell: bash
@@ -72,7 +73,7 @@ jobs:
           docker push "$BACKEND_IMAGE:${GITHUB_SHA}"
           docker push "$BACKEND_IMAGE:staging"
 
-      - name: Build and push frontend image
+      - name: Build and push frontend image (to eu-north-1 ECR)
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         shell: bash
@@ -83,8 +84,7 @@ jobs:
           docker push "$FRONTEND_IMAGE:${GITHUB_SHA}"
           docker push "$FRONTEND_IMAGE:staging"
 
-      # Optional: Update existing App Runner services if already created
-      - name: Deploy to App Runner services
+      - name: Deploy to App Runner services (in eu-central-1)
         shell: bash
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -94,102 +94,100 @@ jobs:
           BACKEND_SERVICE_NAME="light-score-backend-staging"
           FRONTEND_SERVICE_NAME="light-score-frontend-staging"
 
-          ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
           BACKEND_IMAGE="$ECR_REGISTRY/${ECR_BACKEND_REPO}:staging"
           FRONTEND_IMAGE="$ECR_REGISTRY/${ECR_FRONTEND_REPO}:staging"
-                  
+
           get_service_arn_by_name () {
             local name="$1"
-            aws apprunner list-services \
+            aws apprunner list-services --region "$APPRUNNER_REGION" \
               --query "ServiceSummaryList[?ServiceName=='${name}'].ServiceArn | [0]" \
               --output text
           }
 
-            # ---- Backend ----
-            BACKEND_ARN="$(get_service_arn_by_name "$BACKEND_SERVICE_NAME")"
-            if [ "$BACKEND_ARN" != "None" ] && [ -n "$BACKEND_ARN" ]; then
-              echo "Updating backend..."
-              aws apprunner update-service \
-                --service-arn "$BACKEND_ARN" \
-                --source-configuration "{
-                  \"ImageRepository\": {
-                    \"ImageIdentifier\": \"${BACKEND_IMAGE}\",
-                    \"ImageConfiguration\": { \"Port\": \"8000\" },
-                    \"ImageRepositoryType\": \"ECR\"
-                  },
-                  \"AutoDeploymentsEnabled\": true
-                }"
-            else
-              echo "Creating backend..."
-              BACKEND_ARN=$(aws apprunner create-service \
-                --service-name "$BACKEND_SERVICE_NAME" \
-                --source-configuration "{
-                  \"ImageRepository\": {
-                    \"ImageIdentifier\": \"${BACKEND_IMAGE}\",
-                    \"ImageConfiguration\": { \"Port\": \"8000\" },
-                    \"ImageRepositoryType\": \"ECR\"
-                  },
-                  \"AutoDeploymentsEnabled\": true
-                }" \
-                --instance-configuration "{\"Cpu\":\"0.25 vCPU\",\"Memory\":\"0.5 GB\"}" \
-                --health-check-configuration "{\"Protocol\":\"HTTP\",\"Path\":\"/\",\"Interval\":10,\"Timeout\":5,\"HealthyThreshold\":1,\"UnhealthyThreshold\":5}" \
-                --query 'Service.ServiceArn' --output text)
-            fi
+          # ---- Backend ----
+          BACKEND_ARN="$(get_service_arn_by_name "$BACKEND_SERVICE_NAME")"
+          if [ "$BACKEND_ARN" != "None" ] && [ -n "$BACKEND_ARN" ]; then
+            echo "Updating backend..."
+            aws apprunner update-service --region "$APPRUNNER_REGION" \
+              --service-arn "$BACKEND_ARN" \
+              --source-configuration "{
+                \"ImageRepository\": {
+                  \"ImageIdentifier\": \"${BACKEND_IMAGE}\",
+                  \"ImageConfiguration\": { \"Port\": \"8000\" },
+                  \"ImageRepositoryType\": \"ECR\"
+                },
+                \"AutoDeploymentsEnabled\": true
+              }"
+          else
+            echo "Creating backend..."
+            BACKEND_ARN=$(aws apprunner create-service --region "$APPRUNNER_REGION" \
+              --service-name "$BACKEND_SERVICE_NAME" \
+              --source-configuration "{
+                \"ImageRepository\": {
+                  \"ImageIdentifier\": \"${BACKEND_IMAGE}\",
+                  \"ImageConfiguration\": { \"Port\": \"8000\" },
+                  \"ImageRepositoryType\": \"ECR\"
+                },
+                \"AutoDeploymentsEnabled\": true
+              }" \
+              --instance-configuration "{\"Cpu\":\"0.25 vCPU\",\"Memory\":\"0.5 GB\"}" \
+              --health-check-configuration "{\"Protocol\":\"HTTP\",\"Path\":\"/\",\"Interval\":10,\"Timeout\":5,\"HealthyThreshold\":1,\"UnhealthyThreshold\":5}" \
+              --query 'Service.ServiceArn' --output text)
+          fi
 
-            echo "Waiting backend..."
-            aws apprunner wait service-operation-completed --service-arn "$BACKEND_ARN"
-            BACKEND_URL=$(aws apprunner describe-service --service-arn "$BACKEND_ARN" --query 'Service.ServiceUrl' --output text)
-            echo "Backend URL: $BACKEND_URL"
+          echo "Waiting backend..."
+          aws apprunner wait service-operation-completed --region "$APPRUNNER_REGION" --service-arn "$BACKEND_ARN"
+          BACKEND_URL=$(aws apprunner describe-service --region "$APPRUNNER_REGION" --service-arn "$BACKEND_ARN" --query 'Service.ServiceUrl' --output text)
+          echo "Backend URL: $BACKEND_URL"
 
-            # ---- Frontend ----
-            FRONTEND_ARN="$(get_service_arn_by_name "$FRONTEND_SERVICE_NAME")"
-            if [ "$FRONTEND_ARN" != "None" ] && [ -n "$FRONTEND_ARN" ]; then
-              echo "Updating frontend..."
-              aws apprunner update-service \
-                --service-arn "$FRONTEND_ARN" \
-                --source-configuration "{
-                  \"ImageRepository\": {
-                    \"ImageIdentifier\": \"${FRONTEND_IMAGE}\",
-                    \"ImageConfiguration\": {
-                      \"Port\": \"5000\",
-                      \"RuntimeEnvironmentVariables\": { \"BACKEND_URL\": \"${BACKEND_URL}\" }
-                    },
-                    \"ImageRepositoryType\": \"ECR\"
+          # ---- Frontend ----
+          FRONTEND_ARN="$(get_service_arn_by_name "$FRONTEND_SERVICE_NAME")"
+          if [ "$FRONTEND_ARN" != "None" ] && [ -n "$FRONTEND_ARN" ]; then
+            echo "Updating frontend..."
+            aws apprunner update-service --region "$APPRUNNER_REGION" \
+              --service-arn "$FRONTEND_ARN" \
+              --source-configuration "{
+                \"ImageRepository\": {
+                  \"ImageIdentifier\": \"${FRONTEND_IMAGE}\",
+                  \"ImageConfiguration\": {
+                    \"Port\": \"5000\",
+                    \"RuntimeEnvironmentVariables\": { \"BACKEND_URL\": \"${BACKEND_URL}\" }
                   },
-                  \"AutoDeploymentsEnabled\": true
-                }"
-            else
-              echo "Creating frontend..."
-              FRONTEND_ARN=$(aws apprunner create-service \
-                --service-name "$FRONTEND_SERVICE_NAME" \
-                --source-configuration "{
-                  \"ImageRepository\": {
-                    \"ImageIdentifier\": \"${FRONTEND_IMAGE}\",
-                    \"ImageConfiguration\": {
-                      \"Port\": \"5000\",
-                      \"RuntimeEnvironmentVariables\": { \"BACKEND_URL\": \"${BACKEND_URL}\" }
-                    },
-                    \"ImageRepositoryType\": \"ECR\"
+                  \"ImageRepositoryType\": \"ECR\"
+                },
+                \"AutoDeploymentsEnabled\": true
+              }"
+          else
+            echo "Creating frontend..."
+            FRONTEND_ARN=$(aws apprunner create-service --region "$APPRUNNER_REGION" \
+              --service-name "$FRONTEND_SERVICE_NAME" \
+              --source-configuration "{
+                \"ImageRepository\": {
+                  \"ImageIdentifier\": \"${FRONTEND_IMAGE}\",
+                  \"ImageConfiguration\": {
+                    \"Port\": \"5000\",
+                    \"RuntimeEnvironmentVariables\": { \"BACKEND_URL\": \"${BACKEND_URL}\" }
                   },
-                  \"AutoDeploymentsEnabled\": true
-                }" \
-                --instance-configuration "{\"Cpu\":\"0.25 vCPU\",\"Memory\":\"0.5 GB\"}" \
-                --health-check-configuration "{\"Protocol\":\"HTTP\",\"Path\":\"/\",\"Interval\":10,\"Timeout\":5,\"HealthyThreshold\":1,\"UnhealthyThreshold\":5}" \
-                --query 'Service.ServiceArn' --output text)
-            fi
+                  \"ImageRepositoryType\": \"ECR\"
+                },
+                \"AutoDeploymentsEnabled\": true
+              }" \
+              --instance-configuration "{\"Cpu\":\"0.25 vCPU\",\"Memory\":\"0.5 GB\"}" \
+              --health-check-configuration "{\"Protocol\":\"HTTP\",\"Path\":\"/\",\"Interval\":10,\"Timeout\":5,\"HealthyThreshold\":1,\"UnhealthyThreshold\":5}" \
+              --query 'Service.ServiceArn' --output text)
+          fi
 
-            echo "Waiting frontend..."
-            aws apprunner wait service-operation-completed --service-arn "$FRONTEND_ARN"
-            FRONTEND_URL=$(aws apprunner describe-service --service-arn "$FRONTEND_ARN" --query 'Service.ServiceUrl' --output text)
+          echo "Waiting frontend..."
+          aws apprunner wait service-operation-completed --region "$APPRUNNER_REGION" --service-arn "$FRONTEND_ARN"
+          FRONTEND_URL=$(aws apprunner describe-service --region "$APPRUNNER_REGION" --service-arn "$FRONTEND_ARN" --query 'Service.ServiceUrl' --output text)
 
-            echo "🎉 Deployment complete!"
-            echo "BACKEND_URL=$BACKEND_URL" >> $GITHUB_OUTPUT
-            echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_OUTPUT
+          echo "🎉 Deployment complete!"
+          echo "BACKEND_URL=$BACKEND_URL" >> $GITHUB_OUTPUT
+          echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_OUTPUT
 
       - name: Summary
         run: |
           {
-            echo "## Deployed endpoints"
-            echo "- Backend:  ${{ steps.deploy.outputs.BACKEND_URL }}"
+            echo "- Backend: ${{ steps.deploy.outputs.BACKEND_URL }}"
             echo "- Frontend: ${{ steps.deploy.outputs.FRONTEND_URL }}"
           } >> $GITHUB_STEP_SUMMARY
