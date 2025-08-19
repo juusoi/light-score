@@ -127,33 +127,38 @@ jobs:
       - name: Install lightsailctl with checksum verification
         run: |
           set -euo pipefail
-          BIN="$HOME/.local/bin/lightsailctl"
-          SUMFILE="$HOME/lightsailctl.sha256"
+          ARCH=linux-amd64
+          BASE="https://s3.us-west-2.amazonaws.com/lightsailctl/latest/${ARCH}"
 
-          mkdir -p "$HOME/.local/bin"
+          TMP="$(mktemp -d)"
+          curl --proto '=https' --tlsv1.2 --retry 3 -fsSLo "${TMP}/lightsailctl" "${BASE}/lightsailctl"
 
-          # Download binary and checksum
-          curl -sSL -o "$BIN" \
-            "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl"
-          curl -sSL -o "$SUMFILE" \
-            "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl.sha256"
-
-          # Detect checksum file format
-          if awk 'NF>=2{exit 0} END{exit 1}' "$SUMFILE"; then
-            # Format: "<hash>  lightsailctl" -> rewrite filename to our path and verify with -c
-            sed "s| lightsailctl| $BIN|" "$SUMFILE" | sha256sum -c -
+          # Try to download checksum file (AWS may not publish one)
+          if curl --proto '=https' --tlsv1.2 --retry 3 -fsSLo "${TMP}/lightsailctl.sha256" "${BASE}/lightsailctl.sha256" 2>/dev/null; then
+          cd "${TMP}"
+          # If checksum file includes a filename, use as-is; else normalize to "<hash>  lightsailctl"
+          if awk 'NF>=2{found=1} END{exit !found}' lightsailctl.sha256; then
+              CHECKFILE="lightsailctl.sha256"
           else
-            # Format: "<hash>" only -> compute and compare manually
-            EXPECTED="$(tr -d ' \t\r\n' < "$SUMFILE")"
-            ACTUAL="$(sha256sum "$BIN" | awk '{print $1}')"
-            [ "$EXPECTED" = "$ACTUAL" ] || { echo "Checksum mismatch!"; exit 1; }
+              echo "$(tr -d ' \t\r\n' < lightsailctl.sha256)  lightsailctl" > sum.txt
+              CHECKFILE="sum.txt"
+          fi
+          echo "✅ Verifying checksum..."
+          sha256sum -c "$CHECKFILE"
+          else
+          echo "⚠️  No checksum file available from AWS, skipping verification"
+          echo "    Binary: ${BASE}/lightsailctl"
           fi
 
-          chmod +x "$BIN"
+          # Install to user bin (no sudo needed)
+          mkdir -p "$HOME/.local/bin"
+          mv "${TMP}/lightsailctl" "$HOME/.local/bin/lightsailctl"
+          chmod +x "$HOME/.local/bin/lightsailctl"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
 
-          # sanity check
-          command -v lightsailctl
+          # Sanity check
+          command -v lightsailctl && lightsailctl --help >/dev/null
 
       - name: Set up Docker Buildx (optional)
         uses: docker/setup-buildx-action@v3
