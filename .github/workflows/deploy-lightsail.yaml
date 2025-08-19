@@ -178,55 +178,120 @@ jobs:
             --power small \
             --scale 1 || true
 
-      - name: Push images to Lightsail (returns digests)
+      - name: Push images to Lightsail (returns labels)
         id: push
         run: |
           set -euo pipefail
-          B_IMG=$(aws lightsail push-container-image \
-            --region "${{ env.AWS_REGION }}" \
-            --service-name "${{ env.SERVICE_NAME }}" \
-            --label backend \
-            --image backend:ci \
-            --output text | tail -n1)
 
-          F_IMG=$(aws lightsail push-container-image \
-            --region "${{ env.AWS_REGION }}" \
-            --service-name "${{ env.SERVICE_NAME }}" \
-            --label frontend \
-            --image frontend:ci \
-            --output text | tail -n1)
+          # helper: extract lightsail label like :lightscore-prod.backend.12
+          extract_label() {
+          grep -oE ':[a-z0-9._-]+\.[a-z0-9._-]+\.[0-9]+' | tail -n1
+          }
 
-          echo "BACKEND_IMG=$B_IMG"  >> $GITHUB_OUTPUT
-          echo "FRONTEND_IMG=$F_IMG" >> $GITHUB_OUTPUT
+          echo "🚢 Pushing backend image..."
+          B_OUT=$(aws lightsail push-container-image \
+          --region "${{ env.AWS_REGION }}" \
+          --service-name "${{ env.SERVICE_NAME }}" \
+          --label backend \
+          --image backend:ci \
+          --output text)
+
+          echo "🚢 Pushing frontend image..."
+          F_OUT=$(aws lightsail push-container-image \
+          --region "${{ env.AWS_REGION }}" \
+          --service-name "${{ env.SERVICE_NAME }}" \
+          --label frontend \
+          --image frontend:ci \
+          --output text)
+
+          B_IMG=$(printf "%s" "$B_OUT" | extract_label)
+          F_IMG=$(printf "%s" "$F_OUT" | extract_label)
+
+          # Validate labels
+          case "$B_IMG" in
+          :*) ;;  *) echo "❌ Could not parse backend label from output"; echo "$B_OUT"; exit 1 ;; esac
+          case "$F_IMG" in
+          :*) ;;  *) echo "❌ Could not parse frontend label from output"; echo "$F_OUT"; exit 1 ;; esac
+
+          echo "✅ Backend image: $B_IMG"
+          echo "✅ Frontend image: $F_IMG"
+
+          echo "BACKEND_IMG=$B_IMG"  >> "$GITHUB_OUTPUT"
+          echo "FRONTEND_IMG=$F_IMG" >> "$GITHUB_OUTPUT"
 
       - name: Deploy containers to Lightsail
         id: deploy
         run: |
           set -euo pipefail
+
+          B_IMG='${{ steps.push.outputs.BACKEND_IMG }}'
+          F_IMG='${{ steps.push.outputs.FRONTEND_IMG }}'
+          BP='${{ env.BACKEND_PORT }}'
+          FP='${{ env.FRONTEND_PORT }}'
+          REGION='${{ env.AWS_REGION }}'
+          SVC='${{ env.SERVICE_NAME }}'
+
+          echo "🔍 Backend image: $B_IMG"
+          echo "🔍 Frontend image: $F_IMG"
+
+          # Basic sanity checks
+          [[ -n "$B_IMG" ]] || { echo "❌ Backend image reference is empty"; exit 1; }
+          [[ -n "$F_IMG" ]] || { echo "❌ Frontend image reference is empty"; exit 1; }
+
+          # Lightsail label format like :lightscore-prod.backend.12
+          is_label() { [[ "$1" =~ ^:[a-z0-9._-]+\.[a-z0-9._-]+\.[0-9]+$ ]]; }
+          is_label "$B_IMG" || { echo "❌ Backend label looks wrong: $B_IMG"; exit 1; }
+          is_label "$F_IMG" || { echo "❌ Frontend label looks wrong: $F_IMG"; exit 1; }
+
+          echo "🚀 Creating deployment..."
           aws lightsail create-container-service-deployment \
-            --region "${{ env.AWS_REGION }}" \
-            --service-name "${{ env.SERVICE_NAME }}" \
-            --containers "$(
-              jq -n --arg b "${{ steps.push.outputs.BACKEND_IMG }}" \
-                    --arg f "${{ steps.push.outputs.FRONTEND_IMG }}" \
-                    --arg bp "${{ env.BACKEND_PORT }}" \
-                    --arg fp "${{ env.FRONTEND_PORT }}" \
-                '{ backend:  { image: $b, ports: {($bp): "HTTP"} },
-                   frontend: { image: $f, ports: {($fp): "HTTP"},
-                               environment: { BACKEND_URL: ("http://backend:" + $bp) } } }'
-            )" \
-            --public-endpoint "$(
-              jq -n --arg fp "${{ env.FRONTEND_PORT }}" \
-                '{ containerName: "frontend",
-                   containerPort: ($fp|tonumber),
-                   healthCheck: { path:"/", intervalSeconds:10, timeoutSeconds:5, healthyThreshold:1, unhealthyThreshold:5 } }'
-            )"
+          --region "$REGION" \
+          --service-name "$SVC" \
+          --containers "$(
+              jq -n --arg b "$B_IMG" --arg f "$F_IMG" --arg bp "$BP" --arg fp "$FP" \
+              '{ backend:  { image: $b, ports: {($bp): "HTTP"} },
+                  frontend: { image: $f, ports: {($fp): "HTTP"},
+                              environment: { BACKEND_URL: ("http://backend:" + $bp) } } }'
+          )" \
+          --public-endpoint "$(
+              jq -n --arg fp "$FP" \
+              '{ containerName: "frontend",
+                  containerPort: ($fp|tonumber),
+                  healthCheck: { path:"/", intervalSeconds:10, timeoutSeconds:5, healthyThreshold:1, unhealthyThreshold:5 } }'
+          )" \
+          >/dev/null
+
+          # Wait until service status is RUNNING and latest deployment is ACTIVE
+          echo "⏳ Waiting for deployment to become ACTIVE..."
+          for i in {1..20}; do
+          STATUS=$(aws lightsail get-container-services \
+              --region "$REGION" --service-name "$SVC" \
+              --query 'containerServices[0].state' --output text)
+
+          DEPLOY_STATUS=$(aws lightsail get-container-service-deployments \
+              --region "$REGION" --service-name "$SVC" \
+              --query 'deployments[0].state' --output text)
+
+          echo "Attempt $i/20 → service:$STATUS, deployment:$DEPLOY_STATUS"
+          if [[ "$STATUS" == "RUNNING" && "$DEPLOY_STATUS" == "ACTIVE" ]]; then
+              break
+          fi
+          sleep 10
+          done
+
+          if [[ "$STATUS" != "RUNNING" || "$DEPLOY_STATUS" != "ACTIVE" ]]; then
+          echo "❌ Deployment did not become ACTIVE (service:$STATUS, deployment:$DEPLOY_STATUS)"
+          echo "🔎 Last operations:"
+          aws lightsail get-operations --region "$REGION" --query 'operations[0:5].[status,operationType,resourceName,createdAt]' --output table || true
+          exit 1
+          fi
 
           URL=$(aws lightsail get-container-services \
-            --region "${{ env.AWS_REGION }}" \
-            --service-name "${{ env.SERVICE_NAME }}" \
-            --query 'containerServices[0].url' --output text)
-          echo "URL=$URL" >> $GITHUB_OUTPUT
+          --region "$REGION" --service-name "$SVC" \
+          --query 'containerServices[0].url' --output text)
+
+          echo "✅ Deployment ACTIVE → $URL"
+          echo "URL=$URL" >> "$GITHUB_OUTPUT"
 
       - name: Summary
         run: |
