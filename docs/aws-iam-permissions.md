@@ -1,6 +1,6 @@
 # AWS IAM Permissions for GitHub Actions
 
-The GitHub Actions workflow requires an IAM role with the following permissions to build images and deploy to App Runner.
+The GitHub Actions workflow requires an IAM role with the following permissions for Terraform and Lightsail deployment.
 
 ## Required IAM Policy
 
@@ -11,28 +11,37 @@ Create an IAM policy with these permissions and attach it to the role that GitHu
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "TerraformStateManagement",
       "Effect": "Allow",
       "Action": [
-        "ecr:GetAuthorizationToken",
-        "ecr:BatchCheckLayerAvailability",
-        "ecr:GetDownloadUrlForLayer",
-        "ecr:BatchGetImage",
-        "ecr:DescribeRepositories",
-        "ecr:CreateRepository",
-        "ecr:PutImage",
-        "ecr:InitiateLayerUpload",
-        "ecr:UploadLayerPart",
-        "ecr:CompleteLayerUpload"
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
       ],
-      "Resource": "*"
+      "Resource": [
+        "arn:aws:s3:::tfstate-lightscore-eun1",
+        "arn:aws:s3:::tfstate-lightscore-eun1/*"
+      ]
     },
     {
+      "Sid": "TerraformStateLocking",
+      "Effect": "Allow",
+      "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
+      "Resource": "arn:aws:dynamodb:eu-north-1:*:table/tf-locks-lightscore-eun1"
+    },
+    {
+      "Sid": "LightsailManagement",
       "Effect": "Allow",
       "Action": [
-        "apprunner:CreateService",
-        "apprunner:UpdateService",
-        "apprunner:DescribeService",
-        "apprunner:ListServices"
+        "lightsail:CreateContainerService",
+        "lightsail:UpdateContainerService",
+        "lightsail:DeleteContainerService",
+        "lightsail:GetContainerServices",
+        "lightsail:GetContainerServiceDeployments",
+        "lightsail:CreateContainerServiceDeployment",
+        "lightsail:PushContainerImage",
+        "lightsail:GetContainerImages"
       ],
       "Resource": "*"
     }
