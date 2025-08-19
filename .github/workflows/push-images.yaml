@@ -89,6 +89,7 @@ jobs:
         shell: bash
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ACCESS_ROLE_ARN: ${{ secrets.AWS_APPRUNNER_ACCESS_ROLE_ARN }}
         run: |
           set -euo pipefail
 
@@ -117,6 +118,9 @@ jobs:
                   \"ImageConfiguration\": { \"Port\": \"8000\" },
                   \"ImageRepositoryType\": \"ECR\"
                 },
+                \"AuthenticationConfiguration\": {
+                  \"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"
+                },
                 \"AutoDeploymentsEnabled\": true
               }"
           else
@@ -127,8 +131,10 @@ jobs:
                 \"ImageRepository\": {
                   \"ImageIdentifier\": \"${BACKEND_IMAGE}\",
                   \"ImageConfiguration\": { \"Port\": \"8000\" },
-                  \"ImageRepositoryType\": \"ECR\",
-                  \"ImageRepositoryAccessRole\": \"${{ secrets.AWS_APPRUNNER_ACCESS_ROLE_ARN }}\"
+                  \"ImageRepositoryType\": \"ECR\"
+                },
+                \"AuthenticationConfiguration\": {
+                  \"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"
                 },
                 \"AutoDeploymentsEnabled\": true
               }" \
@@ -157,6 +163,9 @@ jobs:
                   },
                   \"ImageRepositoryType\": \"ECR\"
                 },
+                \"AuthenticationConfiguration\": {
+                  \"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"
+                },
                 \"AutoDeploymentsEnabled\": true
               }"
           else
@@ -170,8 +179,10 @@ jobs:
                     \"Port\": \"5000\",
                     \"RuntimeEnvironmentVariables\": { \"BACKEND_URL\": \"${BACKEND_URL}\" }
                   },
-                  \"ImageRepositoryType\": \"ECR\",
-                  \"ImageRepositoryAccessRole\": \"${{ secrets.AWS_APPRUNNER_ACCESS_ROLE_ARN }}\"
+                  \"ImageRepositoryType\": \"ECR\"
+                },
+                \"AuthenticationConfiguration\": {
+                  \"AccessRoleArn\": \"${ACCESS_ROLE_ARN}\"
                 },
                 \"AutoDeploymentsEnabled\": true
               }" \
@@ -191,6 +202,7 @@ jobs:
       - name: Summary
         run: |
           {
-            echo "- Backend: ${{ steps.deploy.outputs.BACKEND_URL }}"
-            echo "- Frontend: ${{ steps.deploy.outputs.FRONTEND_URL }}"
-          } >> $GITHUB_STEP_SUMMARY
+            echo "Deployment Summary:"
+            echo "BACKEND_URL: $BACKEND_URL"
+            echo "FRONTEND_URL: $FRONTEND_URL"
+          } >> $GITHUB_OUTPUT
