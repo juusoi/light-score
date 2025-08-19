@@ -231,9 +231,6 @@ jobs:
           REGION='${{ env.AWS_REGION }}'
           SVC='${{ env.SERVICE_NAME }}'
 
-          echo "🔍 Backend image: $B_IMG"
-          echo "🔍 Frontend image: $F_IMG"
-
           # Basic sanity checks
           [[ -n "$B_IMG" ]] || { echo "❌ Backend image reference is empty"; exit 1; }
           [[ -n "$F_IMG" ]] || { echo "❌ Frontend image reference is empty"; exit 1; }
@@ -257,7 +254,7 @@ jobs:
               jq -n --arg fp "$FP" \
               '{ containerName: "frontend",
                   containerPort: ($fp|tonumber),
-                  healthCheck: { path:"/", intervalSeconds:10, timeoutSeconds:5, healthyThreshold:1, unhealthyThreshold:5 } }'
+                  healthCheck: { path:"/", intervalSeconds:10, timeoutSeconds:5, healthyThreshold:2, unhealthyThreshold:5 } }'
           )" \
           >/dev/null
 
