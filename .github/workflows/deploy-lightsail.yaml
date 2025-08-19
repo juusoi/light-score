@@ -157,8 +157,9 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.local/bin:$PATH"
 
-          # Sanity check
-          command -v lightsailctl && lightsailctl --help >/dev/null
+          # Sanity check - lightsailctl is meant to be invoked by AWS CLI, not directly
+          command -v lightsailctl >/dev/null || { echo "❌ lightsailctl not found in PATH"; exit 1; }
+          echo "✅ lightsailctl installed successfully"
 
       - name: Set up Docker Buildx (optional)
         uses: docker/setup-buildx-action@v3
