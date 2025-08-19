@@ -69,16 +69,56 @@ def home():
         cur_week = to_int(ctx.get("week"), 1)
         cur_type = to_int(ctx.get("seasonType"), 2)
 
-        prev_week_params = {
-            "year": cur_year,
-            "seasonType": cur_type,
-            "week": max(1, cur_week - 1),
-        }
-        next_week_params = {
-            "year": cur_year,
-            "seasonType": cur_type,
-            "week": cur_week + 1,
-        }
+        # Use smart navigation endpoint instead of simple arithmetic
+        try:
+            prev_response = requests.get(
+                f"{BACKEND_URL}/games/weekly/navigation",
+                params={
+                    "year": cur_year,
+                    "week": cur_week,
+                    "seasonType": cur_type,
+                    "direction": "prev",
+                },
+                timeout=5,
+            )
+            next_response = requests.get(
+                f"{BACKEND_URL}/games/weekly/navigation",
+                params={
+                    "year": cur_year,
+                    "week": cur_week,
+                    "seasonType": cur_type,
+                    "direction": "next",
+                },
+                timeout=5,
+            )
+
+            if prev_response.ok and next_response.ok:
+                prev_week_params = prev_response.json()
+                next_week_params = next_response.json()
+            else:
+                # Fallback to simple arithmetic if navigation endpoint fails
+                prev_week_params = {
+                    "year": cur_year,
+                    "seasonType": cur_type,
+                    "week": max(1, cur_week - 1),
+                }
+                next_week_params = {
+                    "year": cur_year,
+                    "seasonType": cur_type,
+                    "week": cur_week + 1,
+                }
+        except requests.RequestException:
+            # Fallback to simple arithmetic if network error
+            prev_week_params = {
+                "year": cur_year,
+                "seasonType": cur_type,
+                "week": max(1, cur_week - 1),
+            }
+            next_week_params = {
+                "year": cur_year,
+                "seasonType": cur_type,
+                "week": cur_week + 1,
+            }
         # Group standings by division for UI
         divisions = {}
         for row in standings_data:

@@ -21,7 +21,7 @@ EXTRA_FLAGS=(--dev)
 
 # Install extras
 if [ "${1:-}" = "--all" ]; then
-  echo "➕ Installing all component extras (backend, frontend, functions)"
+  echo "➕ Installing all component extras (backend, frontend, functions, security)"
   EXTRA_FLAGS+=(--all-extras)
 fi
 
