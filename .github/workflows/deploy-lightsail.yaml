@@ -3,7 +3,7 @@ name: Terraform + Lightsail Deploy
 on:
   workflow_dispatch: {}
   workflow_run:
-    workflows: ['CI']
+    workflows: ['CI', 'Security checks']
     types: [completed]
 
 permissions:
@@ -23,7 +23,7 @@ env:
 
 jobs:
   check-prerequisites:
-    name: Verify CI passed
+    name: Verify CI and Security passed
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_run'
     outputs:
@@ -43,14 +43,17 @@ jobs:
 
             const findByName = (n) => data.workflow_runs.find(r => r.name === n);
             const ci = findByName('CI');
+            const sec = findByName('Security checks');
 
             const ciPassed = !!ci && ci.conclusion === 'success';
+            const secPassed = !!sec && sec.conclusion === 'success';
 
             core.info(`CI passed: ${ciPassed}`);
+            core.info(`Security passed: ${secPassed}`);
 
-            const ready = ciPassed;
+            const ready = ciPassed && secPassed;
             core.setOutput('ready', String(ready));
-            if (!ready) core.setFailed('Prerequisites not met: CI must pass');
+            if (!ready) core.setFailed('Prereqs not met: CI and Security checks must pass');
 
   terraform:
     name: Terraform apply (create/update Lightsail service)
