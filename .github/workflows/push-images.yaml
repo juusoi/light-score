@@ -164,7 +164,7 @@ jobs:
 
           echo "Waiting backend..."
           wait_for_service_ready "$BACKEND_ARN"
-          BACKEND_URL=$(aws apprunner describe-service --region "$APPRUNNER_REGION" --service-arn "$BACKEND_ARN" --query 'Service.ServiceUrl' --output text)
+          BACKEND_URL="https://$(aws apprunner describe-service --region "$APPRUNNER_REGION" --service-arn "$BACKEND_ARN" --query 'Service.ServiceUrl' --output text)"
           echo "Backend URL: $BACKEND_URL"
 
           # ---- Frontend ----
