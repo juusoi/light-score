@@ -67,11 +67,6 @@ jobs:
       (github.event_name == 'workflow_run' && needs.check-prerequisites.outputs.deploy-ready == 'true')
     steps:
       - uses: actions/checkout@v4
-      - name: Load optional domain secret
-        run: |
-          D='${{ secrets.LIGHTSCORE_DOMAIN }}'
-          if [ -n "$D" ]; then echo "LIGHTSCORE_DOMAIN=$D" >> $GITHUB_ENV; fi
-
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -295,9 +290,11 @@ jobs:
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
           SERVICE_NAME: ${{ env.SERVICE_NAME }}
+          LIGHTSCORE_DOMAIN: ${{ secrets.LIGHTSCORE_DOMAIN }}
         run: |
           set -euo pipefail
-          DOMAIN_NAME="$LIGHTSCORE_DOMAIN"
+          # Use default expansion so unset secret doesn't trigger set -u
+          DOMAIN_NAME="${LIGHTSCORE_DOMAIN:-}"
           if [ -z "$DOMAIN_NAME" ]; then
             echo "ℹ️ Skipping domain attach: secret LIGHTSCORE_DOMAIN not set"
             exit 0
