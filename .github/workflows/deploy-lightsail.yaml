@@ -67,6 +67,10 @@ jobs:
       (github.event_name == 'workflow_run' && needs.check-prerequisites.outputs.deploy-ready == 'true')
     steps:
       - uses: actions/checkout@v4
+      - name: Load optional domain secret
+        run: |
+          D='${{ secrets.LIGHTSCORE_DOMAIN }}'
+          if [ -n "$D" ]; then echo "LIGHTSCORE_DOMAIN=$D" >> $GITHUB_ENV; fi
 
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -291,10 +295,10 @@ jobs:
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
           SERVICE_NAME: ${{ env.SERVICE_NAME }}
-          DOMAIN_NAME: ${{ secrets.LIGHTSCORE_DOMAIN }}
         run: |
           set -euo pipefail
-          if [ -z "${DOMAIN_NAME}" ]; then
+          DOMAIN_NAME="$LIGHTSCORE_DOMAIN"
+          if [ -z "$DOMAIN_NAME" ]; then
             echo "ℹ️ Skipping domain attach: secret LIGHTSCORE_DOMAIN not set"
             exit 0
           fi
@@ -361,12 +365,12 @@ jobs:
           fi
 
       - name: Certificate status (best effort)
-        if: ${{ secrets.LIGHTSCORE_DOMAIN != '' }}
         env:
-          DOMAIN_NAME: ${{ secrets.LIGHTSCORE_DOMAIN }}
           AWS_REGION: ${{ env.AWS_REGION }}
         run: |
           set -euo pipefail
+          DOMAIN_NAME='${{ secrets.LIGHTSCORE_DOMAIN }}'
+          if [ -z "$DOMAIN_NAME" ]; then echo "(skip) No domain secret"; exit 0; fi
           STATUS=$(aws lightsail get-certificates --region "$AWS_REGION" --query "certificates[?contains(domainName, '$DOMAIN_NAME')].status" --output text 2>/dev/null || true)
           echo "Certificate status: $STATUS"
           if echo "$STATUS" | grep -q ISSUED; then echo "✅ Certificate ISSUED"; else echo "⚠️ Certificate not ISSUED yet"; fi
