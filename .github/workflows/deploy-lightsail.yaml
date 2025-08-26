@@ -102,11 +102,6 @@ jobs:
           echo "URL=$URL"
           echo "URL=$URL" >> $GITHUB_OUTPUT
 
-      - name: Summary
-        run: |
-          echo "## Terraform" >> $GITHUB_STEP_SUMMARY
-          echo "- Service URL: ${{ steps.svc.outputs.URL }}" >> $GITHUB_STEP_SUMMARY
-
   deploy:
     name: Build, push & deploy containers to Lightsail
     runs-on: ubuntu-latest
@@ -114,6 +109,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' || 
       (github.event_name == 'workflow_run' && needs.check-prerequisites.outputs.deploy-ready == 'true')
+    outputs:
+      service_url: ${{ steps.deploy.outputs.URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -290,8 +287,86 @@ jobs:
           echo "✅ Deployment ACTIVE → $URL"
           echo "URL=$URL" >> "$GITHUB_OUTPUT"
 
-      - name: Summary
+      - name: Attach domain (idempotent)
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
+          DOMAIN_NAME: ${{ secrets.LIGHTSCORE_DOMAIN }}
         run: |
-          echo "## Deploy" >> $GITHUB_STEP_SUMMARY
-          echo "- Service: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
-          echo "- URL: ${{ steps.deploy.outputs.URL }}" >> $GITHUB_STEP_SUMMARY
+          set -euo pipefail
+          if [ -z "${DOMAIN_NAME}" ]; then
+            echo "ℹ️ Skipping domain attach: secret LIGHTSCORE_DOMAIN not set"
+            exit 0
+          fi
+          echo "🌐 Attaching domain ${DOMAIN_NAME}"
+          if aws lightsail attach-container-service-domains \
+            --region "$AWS_REGION" \
+            --service-name "$SERVICE_NAME" \
+            --domains "$DOMAIN_NAME"; then
+            echo "✅ Domain attached (or already present)"
+          else
+            echo "⚠️ Attach command failed (maybe already attached)"
+            aws lightsail get-operations --region "$AWS_REGION" --query 'operations[0:5].[status,operationType,resourceName,createdAt]' --output table || true
+          fi
+  verify:
+    name: Verify deployment & domain
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    steps:
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gh-verify
+
+      - name: Check service health
+        env:
+          SERVICE_URL: ${{ needs.deploy.outputs.service_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SERVICE_URL" ]; then echo "❌ Missing service URL output" >&2; exit 1; fi
+          echo "Probing service: $SERVICE_URL"
+          for i in $(seq 1 12); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "$SERVICE_URL" || true)
+            echo "Attempt $i -> $CODE"
+            if [ "$CODE" = 200 ]; then echo "✅ Service healthy"; exit 0; fi
+            sleep 5
+          done
+          echo "❌ Service did not return 200 within attempts" >&2
+          exit 1
+
+      - name: Check domain (if provided)
+        env:
+          DOMAIN_NAME: ${{ secrets.LIGHTSCORE_DOMAIN }}
+          SERVICE_URL: ${{ needs.deploy.outputs.service_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DOMAIN_NAME" ]; then echo "(skip) No domain secret"; exit 0; fi
+          echo "Probing domain: $DOMAIN_NAME"
+          # Effective URL (after redirects)
+          EFFECTIVE=$(curl -L -s -o /dev/null -w '%{url_effective}' --max-time 15 "https://$DOMAIN_NAME" || true)
+          CODE=$(curl -L -s -o /dev/null -w '%{http_code}' --max-time 15 "https://$DOMAIN_NAME" || true)
+          echo "Domain final URL: $EFFECTIVE (code $CODE)"
+            # Loose match: compare host portions ignoring scheme
+          HOST_SERVICE=$(echo "$SERVICE_URL" | sed -E 's#https?://##' | cut -d/ -f1)
+          HOST_EFFECTIVE=$(echo "$EFFECTIVE" | sed -E 's#https?://##' | cut -d/ -f1)
+          if [ "$CODE" != 200 ]; then
+            echo "❌ Domain did not return 200" >&2; exit 1; fi
+          echo "✅ Domain returned 200"
+          if [ "$HOST_SERVICE" = "$HOST_EFFECTIVE" ]; then
+            echo "✅ Domain redirects/points to service host ($HOST_SERVICE)"
+          else
+            echo "ℹ️ Domain host ($HOST_EFFECTIVE) differs from service host ($HOST_SERVICE) — may be expected if using custom CNAME"
+          fi
+
+      - name: Certificate status (best effort)
+        if: ${{ secrets.LIGHTSCORE_DOMAIN != '' }}
+        env:
+          DOMAIN_NAME: ${{ secrets.LIGHTSCORE_DOMAIN }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+        run: |
+          set -euo pipefail
+          STATUS=$(aws lightsail get-certificates --region "$AWS_REGION" --query "certificates[?contains(domainName, '$DOMAIN_NAME')].status" --output text 2>/dev/null || true)
+          echo "Certificate status: $STATUS"
+          if echo "$STATUS" | grep -q ISSUED; then echo "✅ Certificate ISSUED"; else echo "⚠️ Certificate not ISSUED yet"; fi
