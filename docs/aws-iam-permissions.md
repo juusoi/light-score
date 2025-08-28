@@ -105,6 +105,16 @@ The Terraform backend example stores state at `TF_STATE_PREFIX/terraform.tfstate
       "Resource": "*"
     },
     {
+      "Sid": "LightsailCertificateManagement",
+      "Effect": "Allow",
+      "Action": [
+        "lightsail:CreateCertificate",
+        "lightsail:GetCertificates",
+        "lightsail:DeleteCertificate"
+      ],
+      "Resource": "*"
+    },
+    {
       "Sid": "ReadOperationsForDebug",
       "Effect": "Allow",
       "Action": ["lightsail:GetOperations", "lightsail:GetOperation"],

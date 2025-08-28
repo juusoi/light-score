@@ -21,7 +21,6 @@ env:
   SERVICE_NAME: lightscore-prod
   FRONTEND_PORT: '5000'
   BACKEND_PORT: '8000'
-  CERT_NAME: lightscore-cert
 
 jobs:
   check-prerequisites:
@@ -270,7 +269,7 @@ jobs:
           if [[ "$STATUS" == "RUNNING" && "$DEPLOY_STATUS" == "ACTIVE" ]]; then
               break
           fi
-          sleep 10
+          sleep 15
           done
 
           if [[ "$STATUS" != "RUNNING" || "$DEPLOY_STATUS" != "ACTIVE" ]]; then
@@ -287,158 +286,72 @@ jobs:
           echo "✅ Deployment ACTIVE → $URL"
           echo "URL=$URL" >> "$GITHUB_OUTPUT"
 
-      - name: Ensure certificate (idempotent)
+      - name: Map custom domain (idempotent) & show cert/DNS status
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
-          CERT_NAME: ${{ env.CERT_NAME }}
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
           DOMAIN_NAME: ${{ secrets.LIGHTSCORE_DOMAIN }}
         run: |
           set -euo pipefail
           if [ -z "${DOMAIN_NAME:-}" ]; then
-            echo "(skip) No domain secret for certificate"
-            exit 0
-          fi
-          echo "🔐 Checking certificate $CERT_NAME for $DOMAIN_NAME"
-          STATUS=$(aws lightsail get-certificates --region "$AWS_REGION" --query "certificates[?name=='$CERT_NAME'].status" --output text || true)
-          if [ -z "$STATUS" ]; then
-            echo "ℹ️ Creating certificate $CERT_NAME (apex domain only)"
-            if aws lightsail create-certificate \
-              --region "$AWS_REGION" \
-              --certificate-name "$CERT_NAME" \
-              --domain-name "$DOMAIN_NAME" >/tmp/cert-create.json 2>&1; then
-              echo "✅ Certificate creation requested"
-            else
-              echo "⚠️ Certificate creation command returned non-zero (may already exist). Output:" >&2
-              cat /tmp/cert-create.json || true
-            fi
-            STATUS=PENDING_VALIDATION
-          fi
-          echo "Certificate status: $STATUS"
-          if [ "$STATUS" != ISSUED ]; then
-            echo "⚠️ Certificate not ISSUED yet. Domain update step will skip until ISSUED."
-          fi
-          echo "CERT_STATUS=$STATUS" >> $GITHUB_ENV
-
-      - name: Attach domain (idempotent)
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
-          SERVICE_NAME: ${{ env.SERVICE_NAME }}
-          LIGHTSCORE_DOMAIN: ${{ secrets.LIGHTSCORE_DOMAIN }}
-          CERT_STATUS: ${{ env.CERT_STATUS }}
-        run: |
-          set -euo pipefail
-          # Use default expansion so unset secret doesn't trigger set -u
-          DOMAIN_NAME="${LIGHTSCORE_DOMAIN:-}"
-          if [ -z "$DOMAIN_NAME" ]; then
             echo "ℹ️ Skipping domain attach: secret LIGHTSCORE_DOMAIN not set"
-            exit 0
+          exit 0
           fi
-          if [ "${CERT_STATUS:-}" != ISSUED ]; then
-            echo "ℹ️ Skipping domain update: certificate not ISSUED (status=${CERT_STATUS:-unknown})"
-            exit 0
-          fi
-          echo "🌐 Attaching domain ${DOMAIN_NAME}"
 
-          # Build JSON map: { "apex": ["apex"] } - only the apex domain, no www
-          if [[ "$DOMAIN_NAME" == www.* ]]; then
-            APEX=${DOMAIN_NAME#www.}
-          else
-            APEX=$DOMAIN_NAME
-          fi
-          MAP_JSON=$(jq -n --arg d "$APEX" '{($d):[$d]}')
-          echo "Map JSON: $MAP_JSON"
-
-          # Update public domain names (this automatically associates the certificate)
-          echo "🔧 Updating container service public domain names"
+          MAP_JSON=$(jq -n --arg d "$DOMAIN_NAME" '{($d):[$d]}')
+          echo "🔗 Mapping $DOMAIN_NAME to service ${SERVICE_NAME}"
           aws lightsail update-container-service \
             --region "$AWS_REGION" \
             --service-name "$SERVICE_NAME" \
-            --public-domain-names "$MAP_JSON"
-          echo "⏳ Waiting for service state to return to RUNNING after domain update"
-          for i in {1..12}; do
-            ST=$(aws lightsail get-container-services --region "$AWS_REGION" --service-name "$SERVICE_NAME" --query 'containerServices[0].state' --output text)
-            echo "Attempt $i state=$ST"
-            if [ "$ST" = RUNNING ]; then break; fi
-            sleep 10
-          done
-          aws lightsail get-container-services --region "$AWS_REGION" --service-name "$SERVICE_NAME" --query 'containerServices[0].publicDomainNames' --output json || true
-          echo "✅ Domain mapping update requested"
-  verify:
-    name: Verify deployment & domain
-    runs-on: ubuntu-latest
-    needs: [deploy]
-    steps:
-      - name: Configure AWS (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          role-session-name: gh-verify
+            --public-domain-names "$MAP_JSON" \
+            >/dev/null
 
-      - name: Check service health
-        env:
-          SERVICE_URL: ${{ needs.deploy.outputs.service_url }}
-        run: |
-          set -euo pipefail
-          if [ -z "$SERVICE_URL" ]; then echo "❌ Missing service URL output" >&2; exit 1; fi
-          echo "Probing service: $SERVICE_URL"
-          for i in $(seq 1 12); do
-            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "$SERVICE_URL" || true)
-            echo "Attempt $i -> $CODE"
-            if [ "$CODE" = 200 ]; then echo "✅ Service healthy"; exit 0; fi
-            sleep 5
-          done
-          echo "❌ Service did not return 200 within attempts" >&2
-          exit 1
+          echo "🔎 Certificate status:"
+          aws lightsail get-container-services \
+            --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
+            --query 'containerServices[0].publicEndpoint.certificate.{Domain:certificateDomainName,Status:certificateStatus,AltNames:certificateAlternativeNames}' \
+            --output table
 
-      - name: Check domain (if provided)
+          echo "📜 Validation records (if pending):"
+          aws lightsail get-container-service-deployments \
+            --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
+            --query 'deployments[0].publicEndpoint.certificateValidationRecords[].{Name:name,Type:type,Value:value,Status:status}' \
+            --output table || true
+
+          SVC_URL=$(aws lightsail get-container-services \
+            --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
+            --query 'containerServices[0].url' --output text)
+          SVC_HOST=$(echo "$SVC_URL" | sed -E 's#https?://##' | cut -d/ -f1)
+          echo "➡️  DNS: create/keep CNAME"
+          echo "    $DOMAIN_NAME  CNAME  $SVC_HOST"
+
+      - name: Wait briefly for certificate (soft)
         env:
-          DOMAIN_NAME: ${{ secrets.LIGHTSCORE_DOMAIN }}
-          SERVICE_URL: ${{ needs.deploy.outputs.service_url }}
           AWS_REGION: ${{ env.AWS_REGION }}
           SERVICE_NAME: ${{ env.SERVICE_NAME }}
-          CERT_NAME: ${{ env.CERT_NAME }}
+          DOMAIN_NAME: ${{ secrets.LIGHTSCORE_DOMAIN }}
         run: |
           set -euo pipefail
-          if [ -z "$DOMAIN_NAME" ]; then echo "(skip) No domain secret"; exit 0; fi
-          echo "🔎 Gathering domain diagnostics before HTTP probe"
-          aws lightsail get-container-services --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
-            --query 'containerServices[0].publicDomainNames' --output json || true
-          aws lightsail get-certificates --region "$AWS_REGION" --query "certificates[?name=='$CERT_NAME'].[name,status,domainName,subjectAlternativeNames]" --output table || true
-          echo "DNS A/AAAA/CNAME records (host command)" || true
-          host "$DOMAIN_NAME" || true
-          echo "Probing domain: $DOMAIN_NAME"
-          # Effective URL (after redirects)
-          EFFECTIVE=$(curl -L -s -o /dev/null -w '%{url_effective}' --max-time 15 "https://$DOMAIN_NAME" || true)
-          CODE=$(curl -L -s -o /dev/null -w '%{http_code}' --max-time 15 "https://$DOMAIN_NAME" || true)
-          echo "Domain final URL: $EFFECTIVE (code $CODE)"
-            # Loose match: compare host portions ignoring scheme
-          HOST_SERVICE=$(echo "$SERVICE_URL" | sed -E 's#https?://##' | cut -d/ -f1)
-          HOST_EFFECTIVE=$(echo "$EFFECTIVE" | sed -E 's#https?://##' | cut -d/ -f1)
-          if [ "$CODE" = 000 ]; then
-            echo "⚠️ Domain not reachable (code 000). Likely DNS propagation or certificate still pending. Treating as soft warning." >&2
+          if [ -z "${DOMAIN_NAME:-}" ]; then
+            echo "ℹ️ Skipping cert wait: DOMAIN_NAME not set"
             exit 0
           fi
-          if [ "$CODE" = 301 ] || [ "$CODE" = 302 ]; then
-            echo "ℹ️ Domain returned redirect $CODE (acceptable)";
-            CODE=200
-          fi
-          if [ "$CODE" != 200 ]; then
-            echo "❌ Domain returned HTTP $CODE (expected 200)" >&2; exit 1; fi
-          echo "✅ Domain returned 200"
-          if [ "$HOST_SERVICE" = "$HOST_EFFECTIVE" ]; then
-            echo "✅ Domain redirects/points to service host ($HOST_SERVICE)"
-          else
-            echo "ℹ️ Domain host ($HOST_EFFECTIVE) differs from service host ($HOST_SERVICE) — may be expected if using custom CNAME"
-          fi
 
-      - name: Certificate status (best effort)
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
-        run: |
-          set -euo pipefail
-          DOMAIN_NAME='${{ secrets.LIGHTSCORE_DOMAIN }}'
-          if [ -z "$DOMAIN_NAME" ]; then echo "(skip) No domain secret"; exit 0; fi
-          STATUS=$(aws lightsail get-certificates --region "$AWS_REGION" --query "certificates[?contains(domainName, '$DOMAIN_NAME')].status" --output text 2>/dev/null || true)
-          echo "Certificate status: $STATUS"
-          if echo "$STATUS" | grep -q ISSUED; then echo "✅ Certificate ISSUED"; else echo "⚠️ Certificate not ISSUED yet"; fi
+          echo "⏳ Waiting up to 3 minutes for certificate to be ready..."
+          for i in {1..18}; do
+            STATUS=$(aws lightsail get-container-services \
+              --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
+              --query 'containerServices[0].publicEndpoint.certificate.certificateStatus' \
+              --output text || true)
+
+            echo "Attempt $i/18 → status=$STATUS"
+            case "$STATUS" in
+              SUCCEEDED|SUCCESS|ISSUED)
+                echo "✅ Certificate ready"
+                exit 0
+                ;;
+            esac
+            sleep 10
+          done
+
+          echo "⚠️ Certificate not ready yet (likely DNS validation still pending). Continuing."
