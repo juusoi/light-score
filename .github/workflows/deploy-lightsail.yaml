@@ -300,13 +300,16 @@ jobs:
             exit 0
           fi
           echo "🌐 Attaching domain ${DOMAIN_NAME}"
-          if aws lightsail attach-container-service-domains \
+          # Lightsail custom domain association is done via update-container-service --public-domain-names
+          # Syntax: --public-domain-names domain1=,domain2=sub1.domain2,sub2.domain2
+          # Here we just set the single apex/root (or provided) domain; trailing '=' denotes no additional subdomains list.
+          if aws lightsail update-container-service \
             --region "$AWS_REGION" \
             --service-name "$SERVICE_NAME" \
-            --domains "$DOMAIN_NAME"; then
-            echo "✅ Domain attached (or already present)"
+            --public-domain-names "${DOMAIN_NAME}=" >/dev/null; then
+            echo "✅ Domain updated on container service"
           else
-            echo "⚠️ Attach command failed (maybe already attached)"
+            echo "⚠️ Domain update failed"
             aws lightsail get-operations --region "$AWS_REGION" --query 'operations[0:5].[status,operationType,resourceName,createdAt]' --output table || true
           fi
   verify:
