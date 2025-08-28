@@ -160,18 +160,28 @@ jobs:
       - name: Set up Docker Buildx (optional)
         uses: docker/setup-buildx-action@v3
 
+      - name: Docker cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
       - name: Build images
         run: |
           set -euo pipefail
-          docker build -f backend/Dockerfile  -t backend:ci  .
-          docker build -f frontend/Dockerfile -t frontend:ci .
+          docker buildx create --use
+          docker buildx build -f backend/Dockerfile  -t backend:ci  --cache-from type=local,src=/tmp/.buildx-cache --cache-to type=local,dest=/tmp/.buildx-cache-new --load .
+          docker buildx build -f frontend/Dockerfile -t frontend:ci --cache-from type=local,src=/tmp/.buildx-cache --cache-to type=local,dest=/tmp/.buildx-cache-new --load .
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       - name: Ensure Lightsail service exists (idempotent)
         run: |
           aws lightsail create-container-service \
             --region "${{ env.AWS_REGION }}" \
             --service-name "${{ env.SERVICE_NAME }}" \
-            --power small \
+            --power nano \
             --scale 1 || true
 
       - name: Push images to Lightsail (returns labels)
@@ -286,72 +296,65 @@ jobs:
           echo "✅ Deployment ACTIVE → $URL"
           echo "URL=$URL" >> "$GITHUB_OUTPUT"
 
-      - name: Map custom domain (idempotent) & show cert/DNS status
+      - name: Map custom domain (ensure cert, then attach)
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
           SERVICE_NAME: ${{ env.SERVICE_NAME }}
           DOMAIN_NAME: ${{ secrets.LIGHTSCORE_DOMAIN }}
         run: |
           set -euo pipefail
+
           if [ -z "${DOMAIN_NAME:-}" ]; then
-            echo "ℹ️ Skipping domain attach: secret LIGHTSCORE_DOMAIN not set"
-          exit 0
+            echo "ℹ️ Skipping domain attach: LIGHTSCORE_DOMAIN not set"
+            exit 0
           fi
 
-          MAP_JSON=$(jq -n --arg d "$DOMAIN_NAME" '{($d):[$d]}')
-          echo "🔗 Mapping $DOMAIN_NAME to service ${SERVICE_NAME}"
-          aws lightsail update-container-service \
+          echo "🔎 Ensuring Lightsail certificate exists for ${DOMAIN_NAME}"
+          EXISTING_STATUS=$(aws lightsail get-certificates \
             --region "$AWS_REGION" \
-            --service-name "$SERVICE_NAME" \
-            --public-domain-names "$MAP_JSON" \
-            >/dev/null
+            --query "certificates[?domainName=='${DOMAIN_NAME}'].status" \
+            --output text || true)
 
-          echo "🔎 Certificate status:"
+          if [ -z "$EXISTING_STATUS" ]; then
+            echo "🆕 Creating certificate request for ${DOMAIN_NAME}"
+            aws lightsail create-certificate \
+              --region "$AWS_REGION" \
+              --certificate-name "${DOMAIN_NAME}" \
+              --domain-name "${DOMAIN_NAME}" >/dev/null
+            # (Optional) print validation records so you can add CNAMEs if needed
+            echo "📜 Validation records to add (if not using ACM-managed DNS):"
+            aws lightsail get-container-service-deployments \
+              --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
+              --query 'deployments[0].publicEndpoint.certificateValidationRecords[].{Name:name,Type:type,Value:value,Status:status}' \
+              --output table || true
+          else
+            echo "✅ Certificate already requested (status: $EXISTING_STATUS)"
+          fi
+
+          echo "🔗 Mapping ${DOMAIN_NAME} to service ${SERVICE_NAME}"
+          MAP_JSON=$(jq -n --arg d "$DOMAIN_NAME" '{($d):[$d]}')
+          # Try update; if it still 404s NotFound, sleep and retry once
+          if ! aws lightsail update-container-service \
+              --region "$AWS_REGION" \
+              --service-name "$SERVICE_NAME" \
+              --public-domain-names "$MAP_JSON" >/dev/null; then
+            echo "⏳ Retry once after short wait..."
+            sleep 10
+            aws lightsail update-container-service \
+              --region "$AWS_REGION" \
+              --service-name "$SERVICE_NAME" \
+              --public-domain-names "$MAP_JSON" >/dev/null
+          fi
+
+          echo "🔎 Certificate status now:"
           aws lightsail get-container-services \
             --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
             --query 'containerServices[0].publicEndpoint.certificate.{Domain:certificateDomainName,Status:certificateStatus,AltNames:certificateAlternativeNames}' \
             --output table
 
-          echo "📜 Validation records (if pending):"
-          aws lightsail get-container-service-deployments \
-            --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
-            --query 'deployments[0].publicEndpoint.certificateValidationRecords[].{Name:name,Type:type,Value:value,Status:status}' \
-            --output table || true
-
           SVC_URL=$(aws lightsail get-container-services \
             --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
             --query 'containerServices[0].url' --output text)
           SVC_HOST=$(echo "$SVC_URL" | sed -E 's#https?://##' | cut -d/ -f1)
-          echo "➡️  DNS: create/keep CNAME"
+          echo "➡️  DNS: keep/create CNAME"
           echo "    $DOMAIN_NAME  CNAME  $SVC_HOST"
-
-      - name: Wait briefly for certificate (soft)
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
-          SERVICE_NAME: ${{ env.SERVICE_NAME }}
-          DOMAIN_NAME: ${{ secrets.LIGHTSCORE_DOMAIN }}
-        run: |
-          set -euo pipefail
-          if [ -z "${DOMAIN_NAME:-}" ]; then
-            echo "ℹ️ Skipping cert wait: DOMAIN_NAME not set"
-            exit 0
-          fi
-
-          echo "⏳ Waiting up to 3 minutes for certificate to be ready..."
-          for i in {1..18}; do
-            STATUS=$(aws lightsail get-container-services \
-              --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
-              --query 'containerServices[0].publicEndpoint.certificate.certificateStatus' \
-              --output text || true)
-
-            echo "Attempt $i/18 → status=$STATUS"
-            case "$STATUS" in
-              SUCCEEDED|SUCCESS|ISSUED)
-                echo "✅ Certificate ready"
-                exit 0
-                ;;
-            esac
-            sleep 10
-          done
-
-          echo "⚠️ Certificate not ready yet (likely DNS validation still pending). Continuing."
