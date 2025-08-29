@@ -1,4 +1,4 @@
-name: Terraform + Lightsail Deploy
+name: Deploy to Production
 
 on:
   workflow_dispatch: {}
@@ -23,6 +23,9 @@ env:
   BACKEND_PORT: '8000'
 
 jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Prerequisites Check
+  # ─────────────────────────────────────────────────────────────────────────────
   check-prerequisites:
     name: Verify CI and Security passed
     runs-on: ubuntu-latest
@@ -38,28 +41,33 @@ jobs:
             const { owner, repo } = context.repo;
             const sha = context.payload.workflow_run.head_sha;
 
-            // Since we're triggered by Security completion, verify CI also passed
+            // Verify both CI and Security workflows passed for this commit
             const { data } = await github.rest.actions.listWorkflowRunsForRepo({
               owner, repo, head_sha: sha, status: 'completed', per_page: 50
             });
 
-            const findByName = (n) => data.workflow_runs.find(r => r.name === n);
+            const findByName = (name) => data.workflow_runs.find(r => r.name === name);
             const ci = findByName('CI');
-            const sec = findByName('Security checks');
+            const security = findByName('Security checks');
 
-            const ciPassed = !!ci && ci.conclusion === 'success';
-            const secPassed = !!sec && sec.conclusion === 'success';
+            const ciPassed = ci?.conclusion === 'success';
+            const securityPassed = security?.conclusion === 'success';
 
             core.info(`CI passed: ${ciPassed}`);
-            core.info(`Security passed: ${secPassed}`);
+            core.info(`Security passed: ${securityPassed}`);
 
-            // Both must pass since we want security gates
-            const ready = ciPassed && secPassed;
+            const ready = ciPassed && securityPassed;
             core.setOutput('ready', String(ready));
-            if (!ready) core.setFailed('Prerequisites not met: Both CI and Security must pass');
 
+            if (!ready) {
+              core.setFailed('Prerequisites not met: Both CI and Security workflows must pass');
+            }
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Infrastructure
+  # ─────────────────────────────────────────────────────────────────────────────
   terraform:
-    name: Terraform apply (create/update Lightsail service)
+    name: Provision Lightsail Service
     runs-on: ubuntu-latest
     needs: [check-prerequisites]
     if: |
@@ -67,7 +75,8 @@ jobs:
       (github.event_name == 'workflow_run' && needs.check-prerequisites.outputs.deploy-ready == 'true')
     steps:
       - uses: actions/checkout@v4
-      - name: Configure AWS (OIDC)
+
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
@@ -79,30 +88,32 @@ jobs:
         with:
           terraform_wrapper: false
 
-      - name: Terraform Init
+      - name: Initialize Terraform
         working-directory: ./terraform
         run: terraform init -input=false
 
-      - name: Terraform Apply
+      - name: Apply Terraform configuration
         working-directory: ./terraform
         run: terraform apply -auto-approve -input=false
 
-      - name: Verify Terraform deployment
+      - name: Verify deployment
         working-directory: ./terraform
         run: |
           terraform state list | grep -q '^aws_lightsail_container_service\.svc$'
-          echo "✅ Terraform deployment verified"
+          echo "✅ Infrastructure provisioned successfully"
 
-      - name: Output service URL
-        id: svc
+      - name: Get service URL
+        id: service
         working-directory: ./terraform
         run: |
           URL=$(terraform output -raw lightsail_service_url || true)
-          echo "URL=$URL"
           echo "URL=$URL" >> $GITHUB_OUTPUT
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Application Deployment
+  # ─────────────────────────────────────────────────────────────────────────────
   deploy:
-    name: Build, push & deploy containers to Lightsail
+    name: Build and Deploy Containers
     runs-on: ubuntu-latest
     needs: [check-prerequisites, terraform]
     if: |
@@ -113,70 +124,82 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS (OIDC)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: gh-deploy
 
-      - name: Install lightsailctl with checksum verification
+      - name: Install lightsailctl
         run: |
           set -euo pipefail
           ARCH=linux-amd64
           BASE="https://s3.us-west-2.amazonaws.com/lightsailctl/latest/${ARCH}"
-
           TMP="$(mktemp -d)"
+
+          # Download binary
           curl --proto '=https' --tlsv1.2 --retry 3 -fsSLo "${TMP}/lightsailctl" "${BASE}/lightsailctl"
 
-          # Try to download checksum file (AWS may not publish one)
+          # Verify checksum if available
           if curl --proto '=https' --tlsv1.2 --retry 3 -fsSLo "${TMP}/lightsailctl.sha256" "${BASE}/lightsailctl.sha256" 2>/dev/null; then
-          cd "${TMP}"
-          # If checksum file includes a filename, use as-is; else normalize to "<hash>  lightsailctl"
-          if awk 'NF>=2{found=1} END{exit !found}' lightsailctl.sha256; then
+            cd "${TMP}"
+            if awk 'NF>=2{found=1} END{exit !found}' lightsailctl.sha256; then
               CHECKFILE="lightsailctl.sha256"
-          else
+            else
               echo "$(tr -d ' \t\r\n' < lightsailctl.sha256)  lightsailctl" > sum.txt
               CHECKFILE="sum.txt"
-          fi
-          echo "✅ Verifying checksum..."
-          sha256sum -c "$CHECKFILE"
+            fi
+            echo "✅ Verifying checksum..."
+            sha256sum -c "$CHECKFILE"
           else
-          echo "⚠️  No checksum file available from AWS, skipping verification"
-          echo "    Binary: ${BASE}/lightsailctl"
+            echo "⚠️ No checksum available, skipping verification"
           fi
 
-          # Install to user bin (no sudo needed)
+          # Install to PATH
           mkdir -p "$HOME/.local/bin"
           mv "${TMP}/lightsailctl" "$HOME/.local/bin/lightsailctl"
           chmod +x "$HOME/.local/bin/lightsailctl"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          export PATH="$HOME/.local/bin:$PATH"
 
-          # Sanity check - lightsailctl is meant to be invoked by AWS CLI, not directly
-          command -v lightsailctl >/dev/null || { echo "❌ lightsailctl not found in PATH"; exit 1; }
           echo "✅ lightsailctl installed successfully"
 
-      - name: Set up Docker Buildx (optional)
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker cache
+      - name: Cache Docker layers
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
-      - name: Build images
+
+      - name: Build Docker images
         run: |
           set -euo pipefail
           docker buildx create --use
-          docker buildx build -f backend/Dockerfile  -t backend:ci  --cache-from type=local,src=/tmp/.buildx-cache --cache-to type=local,dest=/tmp/.buildx-cache-new --load .
-          docker buildx build -f frontend/Dockerfile -t frontend:ci --cache-from type=local,src=/tmp/.buildx-cache --cache-to type=local,dest=/tmp/.buildx-cache-new --load .
+
+          # Build both images with cache
+          docker buildx build \
+            -f backend/Dockerfile \
+            -t backend:ci \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new \
+            --load .
+            
+          docker buildx build \
+            -f frontend/Dockerfile \
+            -t frontend:ci \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new \
+            --load .
+
+          # Rotate cache
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-      - name: Ensure Lightsail service exists (idempotent)
+      - name: Ensure Lightsail service exists
         run: |
           aws lightsail create-container-service \
             --region "${{ env.AWS_REGION }}" \
@@ -184,154 +207,188 @@ jobs:
             --power nano \
             --scale 1 || true
 
-      - name: Push images to Lightsail (returns labels)
+      - name: Push images to Lightsail
         id: push
         run: |
           set -euo pipefail
 
-          # helper: extract lightsail label like :lightscore-prod.backend.12
+          # Helper function to extract Lightsail image labels
           extract_label() {
-          grep -oE ':[a-z0-9._-]+\.[a-z0-9._-]+\.[0-9]+' | tail -n1
+            grep -oE ':[a-z0-9._-]+\.[a-z0-9._-]+\.[0-9]+' | tail -n1
           }
 
           echo "🚢 Pushing backend image..."
-          B_OUT=$(aws lightsail push-container-image \
-          --region "${{ env.AWS_REGION }}" \
-          --service-name "${{ env.SERVICE_NAME }}" \
-          --label backend \
-          --image backend:ci \
-          --output text)
+          BACKEND_OUTPUT=$(aws lightsail push-container-image \
+            --region "${{ env.AWS_REGION }}" \
+            --service-name "${{ env.SERVICE_NAME }}" \
+            --label backend \
+            --image backend:ci \
+            --output text)
 
           echo "🚢 Pushing frontend image..."
-          F_OUT=$(aws lightsail push-container-image \
-          --region "${{ env.AWS_REGION }}" \
-          --service-name "${{ env.SERVICE_NAME }}" \
-          --label frontend \
-          --image frontend:ci \
-          --output text)
+          FRONTEND_OUTPUT=$(aws lightsail push-container-image \
+            --region "${{ env.AWS_REGION }}" \
+            --service-name "${{ env.SERVICE_NAME }}" \
+            --label frontend \
+            --image frontend:ci \
+            --output text)
 
-          B_IMG=$(printf "%s" "$B_OUT" | extract_label)
-          F_IMG=$(printf "%s" "$F_OUT" | extract_label)
+          # Extract image labels
+          BACKEND_IMG=$(printf "%s" "$BACKEND_OUTPUT" | extract_label)
+          FRONTEND_IMG=$(printf "%s" "$FRONTEND_OUTPUT" | extract_label)
 
           # Validate labels
-          case "$B_IMG" in
-          :*) ;;  *) echo "❌ Could not parse backend label from output"; echo "$B_OUT"; exit 1 ;; esac
-          case "$F_IMG" in
-          :*) ;;  *) echo "❌ Could not parse frontend label from output"; echo "$F_OUT"; exit 1 ;; esac
+          [[ "$BACKEND_IMG" =~ ^: ]] || { 
+            echo "❌ Invalid backend label: $BACKEND_IMG"
+            echo "Output: $BACKEND_OUTPUT"
+            exit 1 
+          }
+          [[ "$FRONTEND_IMG" =~ ^: ]] || { 
+            echo "❌ Invalid frontend label: $FRONTEND_IMG"
+            echo "Output: $FRONTEND_OUTPUT"
+            exit 1 
+          }
 
-          echo "✅ Backend image: $B_IMG"
-          echo "✅ Frontend image: $F_IMG"
+          echo "✅ Backend image: $BACKEND_IMG"
+          echo "✅ Frontend image: $FRONTEND_IMG"
 
-          echo "BACKEND_IMG=$B_IMG"  >> "$GITHUB_OUTPUT"
-          echo "FRONTEND_IMG=$F_IMG" >> "$GITHUB_OUTPUT"
+          echo "BACKEND_IMG=$BACKEND_IMG" >> "$GITHUB_OUTPUT"
+          echo "FRONTEND_IMG=$FRONTEND_IMG" >> "$GITHUB_OUTPUT"
 
       - name: Deploy containers to Lightsail
         id: deploy
+        env:
+          BACKEND_IMG: ${{ steps.push.outputs.BACKEND_IMG }}
+          FRONTEND_IMG: ${{ steps.push.outputs.FRONTEND_IMG }}
         run: |
           set -euo pipefail
 
-          B_IMG='${{ steps.push.outputs.BACKEND_IMG }}'
-          F_IMG='${{ steps.push.outputs.FRONTEND_IMG }}'
-          BP='${{ env.BACKEND_PORT }}'
-          FP='${{ env.FRONTEND_PORT }}'
-          REGION='${{ env.AWS_REGION }}'
-          SVC='${{ env.SERVICE_NAME }}'
-
-          # Basic sanity checks
-          [[ -n "$B_IMG" ]] || { echo "❌ Backend image reference is empty"; exit 1; }
-          [[ -n "$F_IMG" ]] || { echo "❌ Frontend image reference is empty"; exit 1; }
-
-          # Lightsail label format like :lightscore-prod.backend.12
-          is_label() { [[ "$1" =~ ^:[a-z0-9._-]+\.[a-z0-9._-]+\.[0-9]+$ ]]; }
-          is_label "$B_IMG" || { echo "❌ Backend label looks wrong: $B_IMG"; exit 1; }
-          is_label "$F_IMG" || { echo "❌ Frontend label looks wrong: $F_IMG"; exit 1; }
+          # Validate image references
+          [[ -n "$BACKEND_IMG" && "$BACKEND_IMG" =~ ^:[a-z0-9._-]+\.[a-z0-9._-]+\.[0-9]+$ ]] || {
+            echo "❌ Invalid backend image reference: $BACKEND_IMG"
+            exit 1
+          }
+          [[ -n "$FRONTEND_IMG" && "$FRONTEND_IMG" =~ ^:[a-z0-9._-]+\.[a-z0-9._-]+\.[0-9]+$ ]] || {
+            echo "❌ Invalid frontend image reference: $FRONTEND_IMG"
+            exit 1
+          }
 
           echo "🚀 Creating deployment..."
+
+          # Create container configuration
+          CONTAINERS=$(jq -n \
+            --arg backend_img "$BACKEND_IMG" \
+            --arg frontend_img "$FRONTEND_IMG" \
+            --arg backend_port "${{ env.BACKEND_PORT }}" \
+            --arg frontend_port "${{ env.FRONTEND_PORT }}" \
+            --arg service_name "${{ env.SERVICE_NAME }}" \
+            '{
+              backend: {
+                image: $backend_img,
+                ports: {($backend_port): "HTTP"}
+              },
+              frontend: {
+                image: $frontend_img,
+                ports: {($frontend_port): "HTTP"},
+                environment: {
+                  BACKEND_URL: ("http://" + $service_name + ".service.local:" + $backend_port)
+                }
+              }
+            }')
+
+          # Create public endpoint configuration
+          PUBLIC_ENDPOINT=$(jq -n \
+            --arg frontend_port "${{ env.FRONTEND_PORT }}" \
+            '{
+              containerName: "frontend",
+              containerPort: ($frontend_port|tonumber),
+              healthCheck: {
+                path: "/",
+                intervalSeconds: 10,
+                timeoutSeconds: 5,
+                healthyThreshold: 2,
+                unhealthyThreshold: 5
+              }
+            }')
+
+          # Deploy to Lightsail
           aws lightsail create-container-service-deployment \
-          --region "$REGION" \
-          --service-name "$SVC" \
-          --containers "$(
-              jq -n --arg b "$B_IMG" --arg f "$F_IMG" --arg bp "$BP" --arg fp "$FP" --arg svc "$SVC" \
-              '{ backend:  { image: $b, ports: {($bp): "HTTP"} },
-                  frontend: { image: $f, ports: {($fp): "HTTP"},
-                              environment: { BACKEND_URL: ("http://" + $svc + ".service.local:" + $bp) } } }'
-          )" \
-          --public-endpoint "$(
-              jq -n --arg fp "$FP" \
-              '{ containerName: "frontend",
-                  containerPort: ($fp|tonumber),
-                  healthCheck: { path:"/", intervalSeconds:10, timeoutSeconds:5, healthyThreshold:2, unhealthyThreshold:5 } }'
-          )" \
-          >/dev/null
+            --region "${{ env.AWS_REGION }}" \
+            --service-name "${{ env.SERVICE_NAME }}" \
+            --containers "$CONTAINERS" \
+            --public-endpoint "$PUBLIC_ENDPOINT" \
+            >/dev/null
 
-          # Wait until service status is RUNNING and latest deployment is ACTIVE
+          # Wait for deployment to become active
           echo "⏳ Waiting for deployment to become ACTIVE..."
-          for i in {1..20}; do
-          STATUS=$(aws lightsail get-container-services \
-              --region "$REGION" --service-name "$SVC" \
-              --query 'containerServices[0].state' --output text)
+          for i in {1..30}; do
+            SERVICE_STATUS=$(aws lightsail get-container-services \
+              --region "${{ env.AWS_REGION }}" \
+              --service-name "${{ env.SERVICE_NAME }}" \
+              --query 'containerServices[0].state' \
+              --output text)
 
-          DEPLOY_STATUS=$(aws lightsail get-container-service-deployments \
-              --region "$REGION" --service-name "$SVC" \
-              --query 'deployments[0].state' --output text)
+            DEPLOYMENT_STATUS=$(aws lightsail get-container-service-deployments \
+              --region "${{ env.AWS_REGION }}" \
+              --service-name "${{ env.SERVICE_NAME }}" \
+              --query 'deployments[0].state' \
+              --output text)
 
-          echo "Attempt $i/20 → service:$STATUS, deployment:$DEPLOY_STATUS"
-          if [[ "$STATUS" == "RUNNING" && "$DEPLOY_STATUS" == "ACTIVE" ]]; then
+            echo "Attempt $i/30 → service: $SERVICE_STATUS, deployment: $DEPLOYMENT_STATUS"
+            
+            if [[ "$SERVICE_STATUS" == "RUNNING" && "$DEPLOYMENT_STATUS" == "ACTIVE" ]]; then
               break
-          fi
-          sleep 15
+            fi
+            sleep 10
           done
 
-          if [[ "$STATUS" != "RUNNING" || "$DEPLOY_STATUS" != "ACTIVE" ]]; then
-          echo "❌ Deployment did not become ACTIVE (service:$STATUS, deployment:$DEPLOY_STATUS)"
-          echo "🔎 Last operations:"
-          aws lightsail get-operations --region "$REGION" --query 'operations[0:5].[status,operationType,resourceName,createdAt]' --output table || true
-          exit 1
+          # Verify final status
+          if [[ "$SERVICE_STATUS" != "RUNNING" || "$DEPLOYMENT_STATUS" != "ACTIVE" ]]; then
+            echo "❌ Deployment failed (service: $SERVICE_STATUS, deployment: $DEPLOYMENT_STATUS)"
+            echo "Recent operations:"
+            aws lightsail get-operations \
+              --region "${{ env.AWS_REGION }}" \
+              --query 'operations[0:5].[status,operationType,resourceName,createdAt]' \
+              --output table || true
+            exit 1
           fi
 
-          URL=$(aws lightsail get-container-services \
-          --region "$REGION" --service-name "$SVC" \
-          --query 'containerServices[0].url' --output text)
+          # Get service URL
+          SERVICE_URL=$(aws lightsail get-container-services \
+            --region "${{ env.AWS_REGION }}" \
+            --service-name "${{ env.SERVICE_NAME }}" \
+            --query 'containerServices[0].url' \
+            --output text)
 
-          echo "✅ Deployment ACTIVE → $URL"
-          echo "URL=$URL" >> "$GITHUB_OUTPUT"
+          echo "✅ Deployment successful → $SERVICE_URL"
+          echo "URL=$SERVICE_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Map custom domain (ensure cert, then attach)
+      - name: Configure custom domain
         env:
-          AWS_REGION: ${{ env.AWS_REGION }}
-          SERVICE_NAME: ${{ env.SERVICE_NAME }}
           DOMAIN_NAME: ${{ secrets.LIGHTSCORE_DOMAIN }}
         run: |
           set -euo pipefail
 
-          if [ -z "${DOMAIN_NAME:-}" ]; then
-            echo "ℹ️ Skipping domain attach: LIGHTSCORE_DOMAIN not set"
+          if [[ -z "${DOMAIN_NAME:-}" ]]; then
+            echo "ℹ️ Skipping domain configuration: LIGHTSCORE_DOMAIN not set"
             exit 0
           fi
 
-          MAP_JSON=$(jq -n --arg d "$DOMAIN_NAME" '{($d):[$d]}')
-          # Try update; if it still 404s NotFound, sleep and retry once
+          echo "🌐 Configuring custom domain: $DOMAIN_NAME"
+
+          DOMAIN_CONFIG=$(jq -n --arg domain "$DOMAIN_NAME" '{($domain): [$domain]}')
+
+          # Attempt to update domain configuration with retry
           if ! aws lightsail update-container-service \
-              --region "$AWS_REGION" \
-              --service-name "$SERVICE_NAME" \
-              --public-domain-names "$MAP_JSON" >/dev/null; then
-            echo "⏳ Retry once after short wait..."
+              --region "${{ env.AWS_REGION }}" \
+              --service-name "${{ env.SERVICE_NAME }}" \
+              --public-domain-names "$DOMAIN_CONFIG" >/dev/null; then
+            echo "⏳ Retrying domain configuration..."
             sleep 10
             aws lightsail update-container-service \
-              --region "$AWS_REGION" \
-              --service-name "$SERVICE_NAME" \
-              --public-domain-names "$MAP_JSON" >/dev/null
+              --region "${{ env.AWS_REGION }}" \
+              --service-name "${{ env.SERVICE_NAME }}" \
+              --public-domain-names "$DOMAIN_CONFIG" >/dev/null
           fi
 
-          echo "🔎 Certificate status now:"
-          aws lightsail get-container-services \
-            --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
-            --query 'containerServices[0].publicEndpoint.certificate.{Domain:certificateDomainName,Status:certificateStatus,AltNames:certificateAlternativeNames}' \
-            --output table
-
-          SVC_URL=$(aws lightsail get-container-services \
-            --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
-            --query 'containerServices[0].url' --output text)
-          SVC_HOST=$(echo "$SVC_URL" | sed -E 's#https?://##' | cut -d/ -f1)
-          echo "➡️  DNS: keep/create CNAME"
-          echo "    $DOMAIN_NAME  CNAME  $SVC_HOST"
+          echo "✅ Custom domain configured successfully"
