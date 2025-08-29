@@ -309,29 +309,6 @@ jobs:
             exit 0
           fi
 
-          echo "🔎 Ensuring Lightsail certificate exists for ${DOMAIN_NAME}"
-          EXISTING_STATUS=$(aws lightsail get-certificates \
-            --region "$AWS_REGION" \
-            --query "certificates[?domainName=='${DOMAIN_NAME}'].status" \
-            --output text || true)
-
-          if [ -z "$EXISTING_STATUS" ]; then
-            echo "🆕 Creating certificate request for ${DOMAIN_NAME}"
-            aws lightsail create-certificate \
-              --region "$AWS_REGION" \
-              --certificate-name "${DOMAIN_NAME}" \
-              --domain-name "${DOMAIN_NAME}" >/dev/null
-            # (Optional) print validation records so you can add CNAMEs if needed
-            echo "📜 Validation records to add (if not using ACM-managed DNS):"
-            aws lightsail get-container-service-deployments \
-              --region "$AWS_REGION" --service-name "$SERVICE_NAME" \
-              --query 'deployments[0].publicEndpoint.certificateValidationRecords[].{Name:name,Type:type,Value:value,Status:status}' \
-              --output table || true
-          else
-            echo "✅ Certificate already requested (status: $EXISTING_STATUS)"
-          fi
-
-          echo "🔗 Mapping ${DOMAIN_NAME} to service ${SERVICE_NAME}"
           MAP_JSON=$(jq -n --arg d "$DOMAIN_NAME" '{($d):[$d]}')
           # Try update; if it still 404s NotFound, sleep and retry once
           if ! aws lightsail update-container-service \
