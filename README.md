@@ -25,13 +25,7 @@ source .venv/bin/activate
 
 ## Run (local)
 
-Option A (processes):
-
-```bash
-make start    # runs backend (uvicorn) + frontend (Flask) + cache gen
-```
-
-Option B (containers, Podman default):
+Containers (Podman default; set DOCKER=docker to use Docker):
 
 ```bash
 make build-images    # build images (or runs implicitly if stale)
@@ -86,7 +80,6 @@ MIT (see `LICENSE`).
 | Task             | Command             |
 | ---------------- | ------------------- |
 | Setup env        | `make dev-setup`    |
-| Run (process)    | `make start`        |
 | Build images     | `make build-images` |
 | Run (containers) | `make up`           |
 | Stop containers  | `make down`         |

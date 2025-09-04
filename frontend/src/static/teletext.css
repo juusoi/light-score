@@ -30,13 +30,106 @@ body {
 .ttx-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 4px 16px;
     padding: 8px 12px;
     background: #111;
     border: 2px solid #222;
     color: var(--accent);
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+.ttx-brand {
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.ttx-header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex: 1;
+}
+
+.ttx-season-line {
+    display: flex;
+    gap: 6px;
+    font-size: 14px;
+    color: #888;
+    order: 0;
+}
+
+.ttx-week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    font-size: 14px;
+    order: 1;
+}
+
+.ttx-week-label {
+    color: var(--warn);
+}
+
+.ttx-sep {
+    color: #444;
+}
+
+@media (min-width: 600px) {
+    .ttx-header {
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    /* Center the season line when enough width (three columns layout) */
+    .ttx-season-line {
+        font-size: 15px;
+        flex: 1 1 auto;
+        justify-content: center;
+        display: flex;
+    }
+
+    .ttx-week-nav {
+        font-size: 15px;
+    }
+
+    .ttx-brand {
+        font-size: 20px;
+    }
+}
+
+/* Allow header children to sit on one line when space; fallback wraps naturally */
+.ttx-header>.ttx-season-line {
+    order: 1;
+}
+
+.ttx-header>.ttx-week-nav {
+    order: 2;
+}
+
+@media (max-width: 599px) {
+
+    /* On narrow screens stack: brand, season line, then week nav */
+    .ttx-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .ttx-header>.ttx-season-line {
+        justify-content: flex-start;
+    }
+
+    .ttx-header>.ttx-week-nav {
+        justify-content: flex-start;
+    }
+}
+
+.ttx-sep-dot {
+    color: #555;
 }
 
 .ttx-grid {
@@ -46,11 +139,8 @@ body {
     margin-top: 12px;
 }
 
-@media (min-width: 800px) {
-    .ttx-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-}
+/* Always single column (previous 2-column layout removed) */
+/* @media (min-width: 800px) { .ttx-grid { grid-template-columns: 1fr 1fr; } } */
 
 .ttx-panel {
     border: 2px solid #222;

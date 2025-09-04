@@ -12,7 +12,7 @@ NC=\033[0m # No Color
 # Default target
 .DEFAULT_GOAL := help
 
-.PHONY: venv sync deps lint fmt ty test ci start build-images up down logs clean clean-containers clean-images clean-all clean-project prune help check-deps status restart dev-setup health security
+.PHONY: venv sync deps lint fmt ty test ci build-images up down logs clean clean-containers clean-images clean-all clean-project prune help check-deps status restart dev-setup health security
 
 venv:
 	@echo "$(BLUE)🏗️  Creating virtual environment...$(NC)"
@@ -70,16 +70,13 @@ security:
 	@$(PYTHON) -m pip_audit --desc && echo "$(GREEN)✅ Dependency audit passed!$(NC)" || (echo "$(YELLOW)⚠️  Found vulnerable dependencies$(NC)" && exit 1)
 	@echo "$(GREEN)✅ Security checks completed!$(NC)"
 
-start:
-	@echo "$(BLUE)🏃 Starting local development servers...$(NC)"
-	@./scripts/run-local.sh
 
 dev-setup: venv sync
 	@echo "$(BLUE)🔒 Installing security tools...$(NC)"
 	@uv pip install bandit[toml]>=1.8.0 pip-audit>=2.7.0
 	@echo "$(GREEN)🎉 Development environment setup complete!$(NC)"
 	@echo "$(YELLOW)💡 Next steps:$(NC)"
-	@echo "  • Run local servers: $(GREEN)make start$(NC)"
+	@echo "  • Run containers: $(GREEN)make up$(NC)"
 	@echo "  • Run containers: $(GREEN)make up$(NC)"
 	@echo "  • Run CI checks: $(GREEN)make ci$(NC)"
 	@echo "  • Run security checks: $(GREEN)make security$(NC)"
