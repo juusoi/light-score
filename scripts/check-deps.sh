@@ -13,11 +13,15 @@ echo "📋 Dependencies defined in pyproject.toml:"
 echo
 
 echo "Backend dependencies:"
-grep -A 15 "backend = \[" pyproject.toml | grep -E '^\s*".*"' | sed 's/.*"\(.*\)".*/  ✓ \1/' || true
+if ! grep -A 15 "backend = \[" pyproject.toml | grep -E '^\s*".*"' | sed 's/.*"\(.*\)".*/  ✓ \1/'; then
+    echo "  (none found or parsing failed)" >&2
+fi
 echo
 
 echo "Frontend dependencies:"
-grep -A 15 "frontend = \[" pyproject.toml | grep -E '^\s*".*"' | sed 's/.*"\(.*\)".*/  ✓ \1/' || true
+if ! grep -A 15 "frontend = \[" pyproject.toml | grep -E '^\s*".*"' | sed 's/.*"\(.*\)".*/  ✓ \1/'; then
+    echo "  (none found or parsing failed)" >&2
+fi
 echo
 
 # Detect container engine unless skipped
@@ -42,7 +46,15 @@ fi
 # Helper: find first container name matching a pattern
 find_container() {
     local pattern=$1
-    ${DOCKER_BIN} ps --format '{{.Names}}' | grep -E "${pattern}" | head -n1 || true
+    if [[ -z "${DOCKER_BIN}" ]]; then
+        return 0
+    fi
+    # If grep finds nothing, suppress error (expected) but still exit 0.
+    local out
+    if ! out=$(${DOCKER_BIN} ps --format '{{.Names}}' | grep -E "${pattern}" | head -n1 2>/dev/null); then
+        return 0
+    fi
+    printf '%s' "${out}"
 }
 
 print_runtime_deps() {
@@ -60,9 +72,14 @@ print_runtime_deps() {
         echo
         return 0
     fi
-    ${DOCKER_BIN} exec "${name}" pip freeze 2>/dev/null | grep -E "${grep_expr}" | while IFS= read -r dep; do
-        [[ -n "${dep}" ]] && echo "  ✓ ${dep}"
-    done || true
+    match_output=$(${DOCKER_BIN} exec "${name}" pip freeze 2>/dev/null | grep -E "${grep_expr}" || true)
+    if [[ -z "${match_output}" ]]; then
+        echo "  (no matching packages found)"
+    else
+        while IFS= read -r dep; do
+            [[ -n "${dep}" ]] && echo "  ✓ ${dep}"
+        done <<<"${match_output}"
+    fi
     echo
 }
 
