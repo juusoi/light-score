@@ -13,14 +13,30 @@ echo "📋 Dependencies defined in pyproject.toml:"
 echo
 
 echo "Backend dependencies:"
-if ! grep -A 15 "backend = \[" pyproject.toml | grep -E '^\s*".*"' | sed 's/.*"\(.*\)".*/  ✓ \1/'; then
-    echo "  (none found or parsing failed)" >&2
+backend_block=$(grep -A 15 'backend = \[' pyproject.toml 2>/dev/null || true)
+if [[ -z "${backend_block}" ]]; then
+    echo "  (section not found)" >&2
+else
+    backend_matches=$(printf '%s' "${backend_block}" | grep -E '^\s*".*"' || true)
+    if [[ -z "${backend_matches}" ]]; then
+        echo "  (no explicit pinned dependencies in backend extras)"
+    else
+        printf '%s\n' "${backend_matches}" | sed 's/.*"\(.*\)".*/  ✓ \1/'
+    fi
 fi
 echo
 
 echo "Frontend dependencies:"
-if ! grep -A 15 "frontend = \[" pyproject.toml | grep -E '^\s*".*"' | sed 's/.*"\(.*\)".*/  ✓ \1/'; then
-    echo "  (none found or parsing failed)" >&2
+frontend_block=$(grep -A 15 'frontend = \[' pyproject.toml 2>/dev/null || true)
+if [[ -z "${frontend_block}" ]]; then
+    echo "  (section not found)" >&2
+else
+    frontend_matches=$(printf '%s' "${frontend_block}" | grep -E '^\s*".*"' || true)
+    if [[ -z "${frontend_matches}" ]]; then
+        echo "  (no explicit pinned dependencies in frontend extras)"
+    else
+        printf '%s\n' "${frontend_matches}" | sed 's/.*"\(.*\)".*/  ✓ \1/'
+    fi
 fi
 echo
 
