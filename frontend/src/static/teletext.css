@@ -139,8 +139,7 @@ body {
     margin-top: 12px;
 }
 
-/* Always single column (previous 2-column layout removed) */
-/* @media (min-width: 800px) { .ttx-grid { grid-template-columns: 1fr 1fr; } } */
+/* Always single column layout enforced; historical two-column option removed. */
 
 .ttx-panel {
     border: 2px solid #222;

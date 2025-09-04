@@ -51,13 +51,14 @@ def test_home_route_with_navigation_params(mock_get, client):
     def mock_get_side_effect(url, **kwargs):
         if "weekly" in url and "context" not in url:
             return mock_weekly_response
-        if "context" in url:
+        elif "context" in url:
             return mock_context_response
-        if "standings/live" in url:
+        elif "standings/live" in url:
             return mock_standings_response
-        if "navigation" in url:
+        elif "navigation" in url:
             return mock_nav_response
-        return MagicMock(ok=False)
+        else:
+            return MagicMock(ok=False)
 
     mock_get.side_effect = mock_get_side_effect
 
@@ -88,13 +89,14 @@ def test_navigation_parameters_in_response(mock_get, client):
     def mock_get_side_effect(url, **kwargs):
         if "weekly" in url and "context" not in url:
             return mock_weekly_response
-        if "context" in url:
+        elif "context" in url:
             return mock_context_response
-        if "standings/live" in url:
+        elif "standings/live" in url:
             return mock_standings_response
-        if "navigation" in url:
+        elif "navigation" in url:
             return mock_nav_response
-        return MagicMock(ok=False)
+        else:
+            return MagicMock(ok=False)
 
     mock_get.side_effect = mock_get_side_effect
 
@@ -141,19 +143,20 @@ def test_schedule_panel_shows_final_and_upcoming(mock_get, client):
             r = MagicMock(ok=True)
             r.json.return_value = weekly
             return r
-        if url.endswith("/games/weekly/context"):
+        elif url.endswith("/games/weekly/context"):
             r = MagicMock(ok=True)
             r.json.return_value = ctx_json
             return r
-        if url.endswith("/standings/live"):
+        elif url.endswith("/standings/live"):
             r = MagicMock(ok=True)
             r.json.return_value = standings_json
             return r
-        if "/navigation" in url:
+        elif "/navigation" in url:
             r = MagicMock(ok=True)
             r.json.return_value = nav_json
             return r
-        return MagicMock(ok=False)
+        else:
+            return MagicMock(ok=False)
 
     mock_get.side_effect = side_effect
     resp = client.get("/?year=2025&seasonType=2&week=4")
