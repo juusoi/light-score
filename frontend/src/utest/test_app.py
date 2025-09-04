@@ -1,127 +1,178 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from flask_testing import TestCase
+import requests
 
 from ..app import app
 
 
-class MyTest(TestCase):
-    def create_app(self):
-        app.config["TESTING"] = True
-        return app
+@pytest.fixture
+def client():
+    app.config["TESTING"] = True
+    with app.test_client() as c:
+        yield c
 
-    def test_home_route(self):
-        response = self.client.get("/")
-        self.assertEqual(response.status_code, 200)
-        # Should render the teletext layout (offline variant when backend not reachable in tests)
-        self.assertIn(b"Light Score", response.data)
 
-    @patch("requests.get")
-    def test_home_route_with_navigation_params(self, mock_get):
-        """Test home route with navigation parameters."""
-        # Mock the backend responses
-        mock_weekly_response = MagicMock()
-        mock_weekly_response.ok = True
-        mock_weekly_response.json.return_value = [
-            {
-                "team_a": "Team 1",
-                "team_b": "Team 2",
-                "status": "upcoming",
-                "start_time": "2025-08-19T19:30:00Z",
-                "start_time_finnish": "22:30",
-                "start_date_time_finnish": "Tue 19.08. 22:30",
-                "game_time": None,
-                "score_a": None,
-                "score_b": None,
-            }
-        ]
+def test_home_route(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert b"Light Score" in response.data
 
-        mock_context_response = MagicMock()
-        mock_context_response.ok = True
-        mock_context_response.json.return_value = {
-            "year": 2025,
-            "week": 3,
-            "seasonType": 1,
+
+@patch("requests.get")
+def test_home_route_with_navigation_params(mock_get, client):
+    mock_weekly_response = MagicMock(ok=True)
+    mock_weekly_response.json.return_value = [
+        {
+            "team_a": "Team 1",
+            "team_b": "Team 2",
+            "status": "upcoming",
+            "start_time": "2025-08-19T19:30:00Z",
+            "start_time_finnish": "22:30",
+            "start_date_time_finnish": "Tue 19.08. 22:30",
+            "game_time": None,
+            "score_a": None,
+            "score_b": None,
         }
+    ]
+    mock_context_response = MagicMock(ok=True)
+    mock_context_response.json.return_value = {
+        "year": 2025,
+        "week": 3,
+        "seasonType": 1,
+    }
+    mock_standings_response = MagicMock(ok=True)
+    mock_standings_response.json.return_value = [
+        {"team": "Team 1", "wins": 2, "losses": 0, "division": "AFC East"}
+    ]
+    mock_nav_response = MagicMock(ok=True)
+    mock_nav_response.json.return_value = {"year": 2025, "week": 2, "seasonType": 1}
 
-        mock_standings_response = MagicMock()
-        mock_standings_response.ok = True
-        mock_standings_response.json.return_value = [
-            {"team": "Team 1", "wins": 2, "losses": 0, "division": "AFC East"}
-        ]
+    def mock_get_side_effect(url, **kwargs):
+        if "weekly" in url and "context" not in url:
+            return mock_weekly_response
+        if "context" in url:
+            return mock_context_response
+        if "standings/live" in url:
+            return mock_standings_response
+        if "navigation" in url:
+            return mock_nav_response
+        return MagicMock(ok=False)
 
-        mock_nav_response = MagicMock()
-        mock_nav_response.ok = True
-        mock_nav_response.json.return_value = {"year": 2025, "week": 2, "seasonType": 1}
+    mock_get.side_effect = mock_get_side_effect
 
-        # Configure mock to return different responses for different URLs
-        def mock_get_side_effect(url, **kwargs):
-            if "weekly" in url and "context" not in url:
-                return mock_weekly_response
-            elif "context" in url:
-                return mock_context_response
-            elif "standings/live" in url:
-                return mock_standings_response
-            elif "navigation" in url:
-                return mock_nav_response
-            return MagicMock(ok=False)
+    response = client.get("/?year=2025&seasonType=1&week=3")
+    assert response.status_code == 200
+    body = response.data
+    assert b"Light Score" in body
+    assert b"Prev" in body
+    assert b"Next" in body
+    assert b"Week 3" in body
 
-        mock_get.side_effect = mock_get_side_effect
 
-        # Test with specific week parameters
-        response = self.client.get("/?year=2025&seasonType=1&week=3")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Light Score", response.data)
-        # Should include navigation links in the response
-        self.assertIn(b"Prev week", response.data)
-        self.assertIn(b"Next week", response.data)
+@patch("requests.get")
+def test_navigation_parameters_in_response(mock_get, client):
+    mock_weekly_response = MagicMock(ok=True)
+    mock_weekly_response.json.return_value = []
+    mock_context_response = MagicMock(ok=True)
+    mock_context_response.json.return_value = {
+        "year": 2025,
+        "week": 1,
+        "seasonType": 2,
+    }
+    mock_standings_response = MagicMock(ok=True)
+    mock_standings_response.json.return_value = []
+    mock_nav_response = MagicMock(ok=True)
+    mock_nav_response.json.return_value = {"year": 2025, "week": 2, "seasonType": 2}
 
-    @patch("requests.get")
-    def test_navigation_parameters_in_response(self, mock_get):
-        """Test that navigation parameters are properly included in the response."""
-        # Mock the backend responses
-        mock_weekly_response = MagicMock()
-        mock_weekly_response.ok = True
-        mock_weekly_response.json.return_value = []
+    def mock_get_side_effect(url, **kwargs):
+        if "weekly" in url and "context" not in url:
+            return mock_weekly_response
+        if "context" in url:
+            return mock_context_response
+        if "standings/live" in url:
+            return mock_standings_response
+        if "navigation" in url:
+            return mock_nav_response
+        return MagicMock(ok=False)
 
-        mock_context_response = MagicMock()
-        mock_context_response.ok = True
-        mock_context_response.json.return_value = {
-            "year": 2025,
-            "week": 1,
-            "seasonType": 2,
-        }
+    mock_get.side_effect = mock_get_side_effect
 
-        mock_standings_response = MagicMock()
-        mock_standings_response.ok = True
-        mock_standings_response.json.return_value = []
+    response = client.get("/?year=2025&seasonType=2&week=1")
+    assert response.status_code == 200
+    text = response.data.decode("utf-8")
+    assert "Prev" in text
+    assert "Next" in text
+    assert "Week 1" in text
 
-        mock_nav_response = MagicMock()
-        mock_nav_response.ok = True
-        mock_nav_response.json.return_value = {"year": 2025, "week": 2, "seasonType": 2}
 
-        # Configure mock to return different responses for different URLs
-        def mock_get_side_effect(url, **kwargs):
-            if "weekly" in url and "context" not in url:
-                return mock_weekly_response
-            elif "context" in url:
-                return mock_context_response
-            elif "standings/live" in url:
-                return mock_standings_response
-            elif "navigation" in url:
-                return mock_nav_response
-            return MagicMock(ok=False)
+@patch("requests.get")
+def test_schedule_panel_shows_final_and_upcoming(mock_get, client):
+    weekly = [
+        {
+            "team_a": "A",
+            "team_b": "B",
+            "status": "final",
+            "start_time": "2025-08-10T18:00:00Z",
+            "start_time_finnish": None,
+            "start_date_time_finnish": None,
+            "game_time": None,
+            "score_a": 21,
+            "score_b": 17,
+        },
+        {
+            "team_a": "C",
+            "team_b": "D",
+            "status": "upcoming",
+            "start_time": "2025-08-11T18:00:00Z",
+            "start_time_finnish": "21:00",
+            "start_date_time_finnish": "Mon 11.08. 21:00",
+            "game_time": None,
+            "score_a": None,
+            "score_b": None,
+        },
+    ]
+    ctx_json = {"year": 2025, "week": 4, "seasonType": 2}
+    standings_json = []
+    nav_json = {"year": 2025, "week": 3, "seasonType": 2}
 
-        mock_get.side_effect = mock_get_side_effect
+    def side_effect(url, **kwargs):
+        if url.endswith("/games/weekly"):
+            r = MagicMock(ok=True)
+            r.json.return_value = weekly
+            return r
+        if url.endswith("/games/weekly/context"):
+            r = MagicMock(ok=True)
+            r.json.return_value = ctx_json
+            return r
+        if url.endswith("/standings/live"):
+            r = MagicMock(ok=True)
+            r.json.return_value = standings_json
+            return r
+        if "/navigation" in url:
+            r = MagicMock(ok=True)
+            r.json.return_value = nav_json
+            return r
+        return MagicMock(ok=False)
 
-        response = self.client.get("/?year=2025&seasonType=2&week=1")
-        self.assertEqual(response.status_code, 200)
+    mock_get.side_effect = side_effect
+    resp = client.get("/?year=2025&seasonType=2&week=4")
+    assert resp.status_code == 200
+    text = resp.data.decode()
+    assert "Schedule" in text
+    assert "A vs B" in text
+    assert "21 - 17" in text
+    assert "C vs D" in text
+    assert "Mon 11.08." in text or "21:00" in text
 
-        # The response should contain navigation links with mocked backend
-        response_text = response.data.decode("utf-8")
-        self.assertIn("Prev week", response_text)
-        self.assertIn("Next week", response_text)
+
+@patch("requests.get", side_effect=requests.RequestException)
+def test_offline_template_used_on_backend_error(_mock_get, client):
+    resp = client.get("/?year=2025&seasonType=2&week=1")
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert "Offline" in body
+    assert "No Data" in body
 
 
 def test_season_type_name():

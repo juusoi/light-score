@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Optional
 
 import requests
 from flask import Flask, render_template, request
@@ -10,10 +11,14 @@ app = Flask(__name__, static_url_path="/static", static_folder="static")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 
-def season_type_name(season_type: int) -> str:
-    """Convert season type number to readable name."""
+def season_type_name(season_type: Optional[int]) -> str:
+    """Convert season type number to readable name.
+
+    Accepts None for robustness (tests call with None)."""
+    if season_type is None:
+        return "Unknown"
     season_types = {1: "Preseason", 2: "Regular Season", 3: "Postseason"}
-    return season_types.get(season_type, "Unknown")
+    return season_types.get(int(season_type), "Unknown")
 
 
 @app.route("/")

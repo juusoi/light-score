@@ -24,6 +24,8 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -34,6 +36,10 @@ jobs:
         run: |
           uv venv
           ./scripts/uv-sync.sh --all
+
+      - name: Dependency declaration sanity check
+        run: |
+          bash scripts/check-deps.sh || true
 
       - name: Ruff lint
         run: .venv/bin/ruff check --output-format=github .
@@ -69,12 +75,13 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           version: latest
-
       - name: Run tests (PR-aware)
         working-directory: ${{ matrix.workdir }}
         shell: bash
@@ -100,6 +107,8 @@ jobs:
           cd ../..
           uv venv
           ./scripts/uv-sync.sh --all
+          # Basic dependency check without container inspection
+          SKIP_CONTAINER_CHECK=1 bash scripts/check-deps.sh || true
           cd - >/dev/null
           # Run tests
           ../../.venv/bin/python -m pytest -v
