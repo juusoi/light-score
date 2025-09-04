@@ -1,12 +1,13 @@
 name: Deploy to Production
 
 on:
+  # Manual trigger OR automatic after security checks succeed on main
   workflow_dispatch: {}
   workflow_run:
     workflows: ['Security checks']
     types: [completed]
     branches: [main]
-  # Note: direct pull_request not used to prevent premature deploy attempts; relies on security workflow completion.
+  # No pull_request trigger: deploy only after merge.
 
 permissions:
   id-token: write

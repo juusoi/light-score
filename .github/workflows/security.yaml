@@ -1,10 +1,10 @@
 name: Security checks
 
 on:
+  # Run directly on PRs targeting main for fast feedback
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+  # Run after CI completes (for merges/rebases) to gate deploy path
   workflow_run:
     workflows: ['CI']
     types: [completed]
@@ -17,9 +17,11 @@ permissions:
 jobs:
   security-scan:
     runs-on: ubuntu-latest
-    # Run on PRs directly, or after CI succeeds on main
-    if: |
-      github.event_name == 'pull_request' || 
+    # Run only when:
+    # 1. It's a PR event (target main) OR
+    # 2. A completed CI workflow_run on main concluded successfully
+    if: >-
+      github.event_name == 'pull_request' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     strategy:
       fail-fast: false
