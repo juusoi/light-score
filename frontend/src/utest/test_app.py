@@ -163,9 +163,12 @@ def test_schedule_panel_shows_final_and_upcoming(mock_get, client):
     assert resp.status_code == 200
     text = resp.data.decode()
     assert "Schedule" in text
-    assert "A vs B" in text
+    # Teams now rendered on separate lines without 'vs'
+    assert "A" in text and "B" in text
     assert "21 - 17" in text
-    assert "C vs D" in text
+    # Winner highlighting should apply (team A wins 21-17)
+    assert "ttx-winner" in text
+    assert "C" in text and "D" in text
     assert "Mon 11.08." in text or "21:00" in text
 
 

@@ -183,6 +183,22 @@ body {
     color: var(--fg);
 }
 
+/* Two-line team block */
+.ttx-teams {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.1;
+}
+
+
+
+@media (max-width: 420px) {
+    .ttx-teams {
+        font-size: 13px;
+    }
+}
+
 .ttx-score {
     color: var(--accent);
 }
@@ -197,6 +213,56 @@ body {
 
 .ttx-status-upcoming {
     color: var(--info);
+}
+
+/* Winner / tie highlighting in final games */
+.ttx-winner {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.ttx-tie {
+    color: var(--warn);
+    font-weight: 600;
+}
+
+/* Live meta (score + clock) container */
+.ttx-live-meta {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+/* Allow wrapping on very narrow screens so both pieces of info remain visible */
+@media (max-width: 420px) {
+    .ttx-item {
+        grid-template-columns: 1fr;
+        /* stack meta below teams */
+    }
+
+    .ttx-live-meta {
+        margin-top: 2px;
+        white-space: normal;
+        flex-wrap: wrap;
+        font-size: 12px;
+        gap: 4px 8px;
+    }
+
+    .ttx-live-meta .ttx-score,
+    .ttx-live-meta .ttx-status-live {
+        display: inline-block;
+    }
+}
+
+/* Slightly larger text on wider screens */
+@media (min-width: 600px) {
+    .ttx-live-meta {
+        font-size: 14px;
+    }
 }
 
 .muted {

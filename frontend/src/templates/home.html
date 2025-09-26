@@ -39,11 +39,20 @@
             {% if live_games and live_games|length > 0 %} {% for game in
             live_games %}
             <li class="ttx-item">
-              <div class="ttx-team">{{ game.team_a }} vs {{ game.team_b }}</div>
-              <div class="ttx-status-live">
-                {% if game.game_time %} {{ game.game_time }} {% elif
-                game.score_a is not none and game.score_b is not none %} {{
-                game.score_a }} - {{ game.score_b }} {% else %} live {% endif %}
+              <div class="ttx-teams" aria-label="Teams">
+                <div class="ttx-team ttx-team-a">{{ game.team_a }}</div>
+                <div class="ttx-team ttx-team-b">{{ game.team_b }}</div>
+              </div>
+              <div class="ttx-live-meta" aria-label="Score and game clock">
+                <span class="ttx-score">
+                  {% if game.score_a is not none and game.score_b is not none %}
+                  {{ game.score_a }} - {{ game.score_b }} {% else %} -- {% endif
+                  %}
+                </span>
+                <span class="ttx-status-live">
+                  {% if game.game_time %} {{ game.game_time }} {% else %} live
+                  {% endif %}
+                </span>
               </div>
             </li>
             {% endfor %} {% else %}
@@ -60,7 +69,18 @@
             {% if schedule_games and schedule_games|length > 0 %} {% for game in
             schedule_games %}
             <li class="ttx-item">
-              <div class="ttx-team">{{ game.team_a }} vs {{ game.team_b }}</div>
+              <div class="ttx-teams" aria-label="Teams">
+                <div
+                  class="ttx-team ttx-team-a {% if game.status == 'final' and game.score_a is not none and game.score_b is not none and game.score_a > game.score_b %}ttx-winner{% elif game.status == 'final' and game.score_a is not none and game.score_b is not none and game.score_a == game.score_b %}ttx-tie{% endif %}"
+                >
+                  {{ game.team_a }}
+                </div>
+                <div
+                  class="ttx-team ttx-team-b {% if game.status == 'final' and game.score_a is not none and game.score_b is not none and game.score_b > game.score_a %}ttx-winner{% elif game.status == 'final' and game.score_a is not none and game.score_b is not none and game.score_a == game.score_b %}ttx-tie{% endif %}"
+                >
+                  {{ game.team_b }}
+                </div>
+              </div>
               {% if game.status == 'final' %}
               <div class="ttx-status-final">
                 {% if game.score_a is not none and game.score_b is not none %}
