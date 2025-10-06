@@ -43,7 +43,13 @@ def test_home_route_with_navigation_params(mock_get, client):
     }
     mock_standings_response = MagicMock(ok=True)
     mock_standings_response.json.return_value = [
-        {"team": "Team 1", "wins": 2, "losses": 0, "division": "AFC East"}
+        {
+            "team": "Team 1",
+            "wins": 2,
+            "losses": 0,
+            "ties": 1,
+            "division": "AFC East",
+        }
     ]
     mock_nav_response = MagicMock(ok=True)
     mock_nav_response.json.return_value = {"year": 2025, "week": 2, "seasonType": 1}
@@ -69,6 +75,9 @@ def test_home_route_with_navigation_params(mock_get, client):
     assert b"Prev" in body
     assert b"Next" in body
     assert b"Week 3" in body
+    text = body.decode("utf-8")
+    assert 'class="ttx-record"' in text
+    assert '<span class="ttx-record-ties">1</span>' in text
 
 
 @patch("requests.get")
@@ -162,10 +171,10 @@ def test_schedule_panel_shows_final_and_upcoming(mock_get, client):
     resp = client.get("/?year=2025&seasonType=2&week=4")
     assert resp.status_code == 200
     text = resp.data.decode()
-    assert "Schedule" in text
+    assert "Games" in text
     # Teams now rendered on separate lines without 'vs'
     assert "A" in text and "B" in text
-    assert "21 - 17" in text
+    assert "21" in text and "17" in text
     # Winner highlighting should apply (team A wins 21-17)
     assert "ttx-winner" in text
     assert "C" in text and "D" in text

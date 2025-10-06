@@ -183,6 +183,40 @@ body {
     color: var(--fg);
 }
 
+.ttx-record {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.ttx-record-wins,
+.ttx-record-losses,
+.ttx-record-ties {
+    min-width: 12px;
+    text-align: center;
+}
+
+.ttx-record-wins {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.ttx-record-losses {
+    color: var(--error);
+    font-weight: 700;
+}
+
+.ttx-record-ties {
+    color: var(--warn);
+    font-weight: 600;
+}
+
+.ttx-record-sep {
+    padding: 0 2px;
+    color: var(--fg);
+}
+
 /* Two-line team block */
 .ttx-teams {
     display: flex;
@@ -191,11 +225,14 @@ body {
     line-height: 1.1;
 }
 
-
-
 @media (max-width: 420px) {
     .ttx-teams {
         font-size: 13px;
+    }
+
+    /* Align live meta to top when teams are stacked */
+    .ttx-item {
+        align-items: start;
     }
 }
 
@@ -237,15 +274,9 @@ body {
     white-space: nowrap;
 }
 
-/* Allow wrapping on very narrow screens so both pieces of info remain visible */
+/* Keep two-column layout on narrow screens but reduce font size */
 @media (max-width: 420px) {
-    .ttx-item {
-        grid-template-columns: 1fr;
-        /* stack meta below teams */
-    }
-
     .ttx-live-meta {
-        margin-top: 2px;
         white-space: normal;
         flex-wrap: wrap;
         font-size: 12px;

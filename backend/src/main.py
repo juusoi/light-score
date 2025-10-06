@@ -64,6 +64,7 @@ class Standings(BaseModel):
     team: str
     wins: int
     losses: int
+    ties: int = 0
     division: str | None = None
 
 
@@ -507,6 +508,7 @@ def _extract_minimal_standings(payload: dict) -> list[dict]:
             stats = {s.get("name"): s for s in e.get("stats", [])}
             wins = stats.get("wins", {}).get("value")
             losses = stats.get("losses", {}).get("value")
+            ties = stats.get("ties", {}).get("value")
             if team is not None and wins is not None and losses is not None:
                 # values can be strings or numbers
                 try:
@@ -515,11 +517,18 @@ def _extract_minimal_standings(payload: dict) -> list[dict]:
                 except (ValueError, TypeError):
                     # Skip entries with unparseable stats
                     continue
+                ties_int = 0
+                if ties is not None:
+                    try:
+                        ties_int = int(float(ties))
+                    except (ValueError, TypeError):
+                        ties_int = 0
                 result.append(
                     {
                         "team": team,
                         "wins": wins_int,
                         "losses": losses_int,
+                        "ties": ties_int,
                         "division": division_name,
                     }
                 )
