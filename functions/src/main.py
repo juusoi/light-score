@@ -31,14 +31,21 @@ def save_standings_cache(
 ):
     """Write a minimal standings cache JSON for the backend to serve.
 
-    The format is a list of objects: {"team": str, "wins": int, "losses": int}
+    The format is a list of objects: {"team": str, "wins": int, "losses": int, "ties": int}
     Saved to backend/src/data/standings_cache.json relative to repo root.
     """
     minimal: List[dict] = []
 
     def add_group(group: ConferenceGroup):
         for t in group.teams:
-            minimal.append({"team": t.name, "wins": t.wins, "losses": t.losses})
+            minimal.append(
+                {
+                    "team": t.name,
+                    "wins": t.wins,
+                    "losses": t.losses,
+                    "ties": t.ties,
+                }
+            )
 
     for g in parsed_afc:
         add_group(g)

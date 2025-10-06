@@ -62,7 +62,7 @@
         </div>
 
         <div class="ttx-panel">
-          <h2>Schedule</h2>
+          <h2>Games</h2>
           {% set schedule_games = (history_games or []) + (upcoming_games or [])
           %}
           <ul class="ttx-list">
@@ -84,8 +84,19 @@
               {% if game.status == 'final' %}
               <div class="ttx-status-final">
                 {% if game.score_a is not none and game.score_b is not none %}
-                {{ game.score_a }} - {{ game.score_b }} {% else %} final {%
-                endif %}
+                {% if game.score_a > game.score_b %}
+                <span class="ttx-record-wins">{{ game.score_a }}</span>
+                <span class="ttx-record-sep" aria-hidden="true">-</span>
+                <span class="ttx-record-losses">{{ game.score_b }}</span>
+                {% elif game.score_a < game.score_b %}
+                <span class="ttx-record-losses">{{ game.score_a }}</span>
+                <span class="ttx-record-sep" aria-hidden="true">-</span>
+                <span class="ttx-record-wins">{{ game.score_b }}</span>
+                {% else %}
+                <span class="ttx-record-ties">{{ game.score_a }}</span>
+                <span class="ttx-record-sep" aria-hidden="true">-</span>
+                <span class="ttx-record-ties">{{ game.score_b }}</span>
+                {% endif %} {% else %} final {% endif %}
               </div>
               {% else %}
               <div class="ttx-status-upcoming">
@@ -103,14 +114,26 @@
         </div>
 
         <div class="ttx-panel">
-          <h2>Standings (Live)</h2>
+          <h2>Standings</h2>
           {% if divisions %} {% for div_name, teams in divisions.items() %}
           <h3 class="ttx-subtitle">{{ div_name }}</h3>
           <ul class="ttx-list">
             {% for s in teams %}
             <li class="ttx-item">
               <div class="ttx-team">{{ s.team }}</div>
-              <div>{{ s.wins }}-{{ s.losses }}</div>
+              {% set has_ties = s.ties is defined and s.ties is not none %}
+              <div
+                class="ttx-record"
+                aria-label="Record {{ s.wins }} wins, {{ s.losses }} losses{% if has_ties %}, {{ s.ties }} ties{% endif %}"
+              >
+                <span class="ttx-record-wins">{{ s.wins }}</span>
+                <span class="ttx-record-sep" aria-hidden="true">-</span>
+                <span class="ttx-record-losses">{{ s.losses }}</span>
+                {% if has_ties %}
+                <span class="ttx-record-sep" aria-hidden="true">-</span>
+                <span class="ttx-record-ties">{{ s.ties }}</span>
+                {% endif %}
+              </div>
             </li>
             {% endfor %}
           </ul>
