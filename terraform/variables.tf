@@ -17,7 +17,7 @@ variable "scale" {
 }
 
 variable "subdomain" {
-  description = "Subdomain to point at the service (e.g. stg.lightscore.asennusvelho.fi)"
+  description = "Subdomain to point at the service"
   type        = string
-  default     = "stg.lightscore.asennusvelho.fi"
+  default     = "stg.lightscore.fi"
 }

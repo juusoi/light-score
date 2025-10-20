@@ -1,0 +1,32 @@
+{
+  "name": "lightscore-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:api": "playwright test tests/api/",
+    "test:chromium": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:mobile": "playwright test --project=mobile-chrome",
+    "test:ci": "CI=true playwright test --project=chromium --project=firefox",
+    "report": "playwright show-report",
+    "install": "playwright install --with-deps",
+    "lint": "eslint tests/ --ext .ts",
+    "lint:fix": "eslint tests/ --ext .ts --fix",
+    "type-check": "tsc --noEmit",
+    "fmt": "prettier --write tests/",
+    "fmt:check": "prettier --check tests/",
+    "ci": "bun run lint && bun run type-check"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "typescript": "^5.9.3",
+    "@types/node": "^20.19.22",
+    "@typescript-eslint/eslint-plugin": "^8.46.1",
+    "@typescript-eslint/parser": "^8.46.1",
+    "eslint": "^9.38.0",
+    "prettier": "^3.6.2"
+  }
+}

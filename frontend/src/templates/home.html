@@ -15,7 +15,11 @@
           <span class="ttx-sep-dot">•</span>
           <span class="ttx-year">{{ ctx.year }}</span>
         </div>
-        <div class="ttx-week-nav" aria-label="Week navigation">
+        <div
+          class="ttx-week-nav"
+          aria-label="Week navigation"
+          role="navigation"
+        >
           <a
             class="ttx-link ttx-prev"
             href="/?year={{ prev_week_params.year }}&seasonType={{ prev_week_params.seasonType }}&week={{ prev_week_params.week }}"
