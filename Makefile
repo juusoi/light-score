@@ -12,7 +12,7 @@ NC=\033[0m # No Color
 # Default target
 .DEFAULT_GOAL := help
 
-.PHONY: venv sync deps lint fmt ty test ci build-images up down logs clean clean-containers clean-images clean-all clean-project prune help check-deps status restart dev-setup health security
+.PHONY: venv sync deps lint fmt ty test ci build-images up down logs clean clean-containers clean-images clean-all clean-project prune help check-deps status restart dev-setup health security lint-e2e fmt-e2e ty-e2e test-e2e ci-e2e
 
 venv:
 	@echo "$(BLUE)🏗️  Creating virtual environment...$(NC)"
@@ -53,6 +53,42 @@ test:
 	@./scripts/run-tests.sh && echo "$(GREEN)✅ All tests passed!$(NC)" || (echo "$(RED)❌ Tests failed!$(NC)" && exit 1)
 
 ci: lint ty test
+
+# --- E2E Test Quality ---
+lint-e2e:
+	@echo "$(BLUE)🔍 Running E2E linting (ESLint)...$(NC)"
+	@if [ ! -d "e2e/node_modules" ]; then \
+		echo "$(YELLOW)📦 Installing E2E dependencies...$(NC)"; \
+		cd e2e && bun install; \
+	fi
+	@cd e2e && bun run lint && echo "$(GREEN)✅ E2E linting passed!$(NC)" || (echo "$(RED)❌ E2E linting failed!$(NC)" && exit 1)
+
+fmt-e2e:
+	@echo "$(BLUE)🎨 Formatting E2E code (Prettier)...$(NC)"
+	@if [ ! -d "e2e/node_modules" ]; then \
+		echo "$(YELLOW)📦 Installing E2E dependencies...$(NC)"; \
+		cd e2e && bun install; \
+	fi
+	@cd e2e && bun run fmt
+	@echo "$(GREEN)✅ E2E code formatted successfully!$(NC)"
+
+ty-e2e:
+	@echo "$(BLUE)🔎 Running E2E type checking...$(NC)"
+	@if [ ! -d "e2e/node_modules" ]; then \
+		echo "$(YELLOW)📦 Installing E2E dependencies...$(NC)"; \
+		cd e2e && bun install; \
+	fi
+	@cd e2e && bun run type-check && echo "$(GREEN)✅ E2E type checking passed!$(NC)" || (echo "$(YELLOW)⚠️  E2E type checking completed with warnings$(NC)" && exit 1)
+
+test-e2e:
+	@echo "$(BLUE)🧪 Running E2E tests...$(NC)"
+	@if [ ! -d "e2e/node_modules" ]; then \
+		echo "$(YELLOW)📦 Installing E2E dependencies...$(NC)"; \
+		cd e2e && bun install; \
+	fi
+	@cd e2e && bun run test:ci && echo "$(GREEN)✅ E2E tests passed!$(NC)" || (echo "$(RED)❌ E2E tests failed!$(NC)" && exit 1)
+
+ci-e2e: lint-e2e ty-e2e test-e2e
 
 security:
 	@echo "$(BLUE)🔒 Running security checks...$(NC)"
@@ -171,13 +207,22 @@ help:
 	@echo "  $(YELLOW)dev-setup$(NC)     Complete development environment setup (venv + sync)"
 	@echo "  $(YELLOW)start$(NC)         Start local development servers"
 	@echo ""
-	@echo "$(BLUE)🔍 Code Quality:$(NC)"
+	@echo "$(BLUE)🔍 Code Quality (Python):$(NC)"
 	@echo "  $(YELLOW)lint$(NC)          Run linting (ruff check)"
 	@echo "  $(YELLOW)fmt$(NC)           Format code (ruff format)"
 	@echo "  $(YELLOW)ty$(NC)            Run type checking"
 	@echo "  $(YELLOW)test$(NC)          Run all tests"
-	@echo "  $(YELLOW)ci$(NC)            Run full CI pipeline (lint + ty + test)"
 	@echo "  $(YELLOW)security$(NC)      Run security checks (bandit + pip-audit)"
+	@echo ""
+	@echo "$(BLUE)🎭 E2E Tests (TypeScript):$(NC)"
+	@echo "  $(YELLOW)lint-e2e$(NC)      Run E2E linting (ESLint)"
+	@echo "  $(YELLOW)fmt-e2e$(NC)       Format E2E code (Prettier)"
+	@echo "  $(YELLOW)ty-e2e$(NC)        Run E2E type checking (TypeScript)"
+	@echo "  $(YELLOW)test-e2e$(NC)      Run E2E tests (Playwright)"
+	@echo "  $(YELLOW)ci-e2e$(NC)        Run E2E CI pipeline (lint + ty + test)"
+	@echo ""
+	@echo "$(BLUE)🚀 Combined:$(NC)"
+	@echo "  $(YELLOW)ci$(NC)            Run full CI pipeline (Python + E2E)"
 	@echo ""
 	@echo "$(BLUE)🐳 Containers:$(NC)"
 	@echo "  $(YELLOW)build-images$(NC)  Build Docker/Podman images"

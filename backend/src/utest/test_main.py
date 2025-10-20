@@ -25,8 +25,17 @@ def test_get_games():
 
 def test_get_standings():
     response = client.get("/standings")
-    # Should return 503 since cache file doesn't exist in test environment
-    assert response.status_code == 503
+    if response.status_code == 503:
+        payload = response.json()
+        assert "detail" in payload
+        assert "Standings data not available" in payload["detail"]
+    else:
+        assert response.status_code == 200
+        payload = response.json()
+        assert isinstance(payload, list)
+        if payload:
+            row = payload[0]
+            assert "team" in row and "wins" in row and "losses" in row
 
 
 def test_get_weekly_games():

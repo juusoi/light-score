@@ -1,0 +1,58 @@
+[
+  {
+    "team": "Buffalo Bills",
+    "wins": 4,
+    "losses": 2,
+    "ties": 0,
+    "division": "AFC East"
+  },
+  {
+    "team": "Miami Dolphins",
+    "wins": 3,
+    "losses": 3,
+    "ties": 0,
+    "division": "AFC East"
+  },
+  {
+    "team": "New York Jets",
+    "wins": 2,
+    "losses": 4,
+    "ties": 0,
+    "division": "AFC East"
+  },
+  {
+    "team": "New England Patriots",
+    "wins": 1,
+    "losses": 5,
+    "ties": 0,
+    "division": "AFC East"
+  },
+  {
+    "team": "Baltimore Ravens",
+    "wins": 5,
+    "losses": 1,
+    "ties": 0,
+    "division": "AFC North"
+  },
+  {
+    "team": "Pittsburgh Steelers",
+    "wins": 4,
+    "losses": 2,
+    "ties": 0,
+    "division": "AFC North"
+  },
+  {
+    "team": "Cincinnati Bengals",
+    "wins": 2,
+    "losses": 4,
+    "ties": 0,
+    "division": "AFC North"
+  },
+  {
+    "team": "Cleveland Browns",
+    "wins": 1,
+    "losses": 5,
+    "ties": 0,
+    "division": "AFC North"
+  }
+]

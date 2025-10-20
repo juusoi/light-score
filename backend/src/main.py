@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -186,6 +187,9 @@ def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:
     return result
 
 
+ESPN_TIMEOUT_SECONDS = int(os.getenv("ESPN_TIMEOUT_SECONDS", "6"))
+
+
 def _get_weekly_games(
     *,
     year: int | None,
@@ -212,7 +216,7 @@ def _get_weekly_games(
             return data
 
     try:
-        resp = httpx.get(url, timeout=20)
+        resp = httpx.get(url, timeout=ESPN_TIMEOUT_SECONDS)
         resp.raise_for_status()
 
         data = resp.json()
@@ -361,7 +365,7 @@ def get_weekly_context(
         params.append(f"seasontype={seasonType}")
     url = base_url + ("?" + "&".join(params) if params else "")
     try:
-        resp = httpx.get(url, timeout=20)
+        resp = httpx.get(url, timeout=ESPN_TIMEOUT_SECONDS)
         resp.raise_for_status()
         payload = resp.json()
         if not isinstance(payload, dict):
@@ -438,7 +442,7 @@ def _get_all_teams(force_refresh: bool = False) -> list[dict]:
     try:
         resp = httpx.get(
             "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams",
-            timeout=20,
+            timeout=ESPN_TIMEOUT_SECONDS,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -557,7 +561,10 @@ def _get_live_standings(force_refresh: bool = False) -> list[dict]:
         return _live_cache_data
 
     try:
-        resp = httpx.get("https://cdn.espn.com/core/nfl/standings?xhr=1", timeout=20)
+        resp = httpx.get(
+            "https://cdn.espn.com/core/nfl/standings?xhr=1",
+            timeout=ESPN_TIMEOUT_SECONDS,
+        )
         resp.raise_for_status()
         data = resp.json()
         minimal = _extract_minimal_standings(data)
