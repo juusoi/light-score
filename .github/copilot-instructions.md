@@ -14,6 +14,13 @@
 - Tests fan out per package through `scripts/run-tests.sh` (invoked by `make test`) which runs pytest in `backend/src/utest`, `frontend/src/utest`, `functions/src/utest` with the root `.venv`.
 - Linting/formatting uses Ruff (`make lint`, `make fmt`); types via `make ty` (ty check); `make ci` runs lint + ty + test; `make security` runs Bandit and pip-audit.
 
+### E2E Testing (Playwright/TypeScript)
+
+- E2E tests live in `e2e/tests/` using Playwright with TypeScript; run with `make test-e2e` (requires services up via `make up`).
+- `make lint-e2e` runs ESLint, `make fmt-e2e` formats with Prettier, `make ty-e2e` runs TypeScript checks.
+- `make ci-e2e` runs the full E2E CI pipeline (lint + ty + test).
+- E2E tests use `bun` as the package manager; dependencies are installed automatically on first run.
+
 ## Backend Patterns (`backend/src/main.py`)
 
 - `_get_weekly_games` caches ESPN scoreboard responses for `_GAMES_TTL_SECONDS` (60s); always propagate stale cache when ESPN fails instead of raising new errors.
@@ -36,9 +43,19 @@
 
 ## Testing & Conventions
 
+### Python Unit Tests
+
 - Store new unit tests alongside code under the respective `utest/` package; prefer patching network calls and using fixture builders like `_scoreboard_payload()` from `backend/src/utest/test_main.py`.
 - Tests assume Helsinki timezone formatting helper functions (`format_finnish_time`, `format_finnish_date_time`) remain resilient to malformed inputs; keep try/except guards when modifying them.
 - Keep ESPN URLs configurable only where necessary; hard-coded constants live near the call sites so that tests can patch them.
+
+### E2E Tests (Playwright)
+
+- E2E tests in `e2e/tests/` follow the `<feature>.spec.ts` naming convention (e.g., `home.spec.ts`, `site-navigation.spec.ts`).
+- API-specific tests live in `e2e/tests/api/` (e.g., `backend.spec.ts`, `integration.spec.ts`); shared utilities in `e2e/tests/utils/`.
+- Use role-based locators (`getByRole`, `getByLabel`, `getByText`) for resilience and accessibility.
+- Use auto-retrying web-first assertions (`await expect(locator).toHaveText()`); avoid hard-coded waits.
+- Tests can run against different environments via `SERVICE_URL` (frontend) and `BACKEND_URL` env vars; local defaults to `localhost:5000` and `localhost:8000`.
 
 ## Deployment & Ops
 

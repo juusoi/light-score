@@ -1,6 +1,6 @@
 ---
-description: 'Playwright test generation instructions'
-applyTo: '**'
+description: 'Playwright test generation instructions for Light Score E2E tests'
+applyTo: 'e2e/**'
 ---
 
 ## Test Writing Guidelines
@@ -21,8 +21,10 @@ applyTo: '**'
 
 ### File Organization
 
-- **Location**: Store all test files in the `tests/` directory.
-- **Naming**: Use the convention `<feature-or-page>.spec.ts` (e.g., `login.spec.ts`, `search.spec.ts`).
+- **Location**: Store all test files in the `e2e/tests/` directory.
+- **Naming**: Use the convention `<feature-or-page>.spec.ts` (e.g., `home.spec.ts`, `site-navigation.spec.ts`).
+- **API Tests**: Place backend API tests in `e2e/tests/api/` (e.g., `backend.spec.ts`, `integration.spec.ts`).
+- **Utilities**: Shared helpers and utilities go in `e2e/tests/utils/` (e.g., `env.ts`).
 - **Scope**: Aim for one test file per major application feature or page.
 
 ### Assertion Best Practices
@@ -37,45 +39,44 @@ applyTo: '**'
 ```typescript
 import { test, expect } from '@playwright/test';
 
-test.describe('Movie Search Feature', () => {
+test.describe('Home Page', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the application before each test
-    await page.goto('https://debs-obrien.github.io/playwright-movies-app');
+    // baseURL is configured in playwright.config.js (defaults to localhost:5000)
+    await page.goto('/');
   });
 
-  test('Search for a movie by title', async ({ page }) => {
-    await test.step('Activate and perform search', async () => {
-      await page.getByRole('search').click();
-      const searchInput = page.getByRole('textbox', { name: 'Search Input' });
-      await searchInput.fill('Garfield');
-      await searchInput.press('Enter');
+  test('displays NFL scoreboard heading', async ({ page }) => {
+    await test.step('Verify page title and heading', async () => {
+      await expect(page).toHaveTitle(/Light Score/);
+      await expect(page.getByRole('heading', { level: 1 })).toContainText('NFL');
     });
+  });
 
-    await test.step('Verify search results', async () => {
-      // Verify the accessibility tree of the search results
-      await expect(page.getByRole('main')).toMatchAriaSnapshot(`
-        - main:
-          - heading "Garfield" [level=1]
-          - heading "search results" [level=2]
-          - list "movies":
-            - listitem "movie":
-              - link "poster of The Garfield Movie The Garfield Movie rating":
-                - /url: /playwright-movies-app/movie?id=tt5779228&page=1
-                - img "poster of The Garfield Movie"
-                - heading "The Garfield Movie" [level=2]
-      `);
+  test('shows navigation links', async ({ page }) => {
+    await test.step('Verify navigation is present', async () => {
+      const nav = page.getByRole('navigation');
+      await expect(nav).toBeVisible();
+      await expect(nav.getByRole('link')).toHaveCount.greaterThan(0);
     });
   });
 });
 ```
 
+## Environment Configuration
+
+- Tests use `SERVICE_URL` env var for frontend (defaults to `http://localhost:5000`).
+- Backend API tests use `BACKEND_URL` env var (defaults to `http://localhost:8000`).
+- Run `make up` before executing E2E tests to start local services.
+
 ## Test Execution Strategy
 
-1. **Initial Run**: Execute tests with `npx playwright test --project=chromium`
-2. **Debug Failures**: Analyze test failures and identify root causes
-3. **Iterate**: Refine locators, assertions, or test logic as needed
-4. **Validate**: Ensure tests pass consistently and cover the intended functionality
-5. **Report**: Provide feedback on test results and any issues discovered
+1. **Start services**: Run `make up` to start backend and frontend containers
+2. **Initial Run**: Execute tests with `make test-e2e` or `cd e2e && bun run test`
+3. **Single browser**: Run `cd e2e && bunx playwright test --project=chromium` for faster iteration
+4. **Debug Failures**: Use `bunx playwright test --debug` or check `e2e/playwright-report/`
+5. **Iterate**: Refine locators, assertions, or test logic as needed
+6. **Validate**: Ensure tests pass consistently before pushing
 
 ## Quality Checklist
 
@@ -85,4 +86,4 @@ Before finalizing tests, ensure:
 - [ ] Tests are grouped logically and follow a clear structure
 - [ ] Assertions are meaningful and reflect user expectations
 - [ ] Tests follow consistent naming conventions
-- [ ] Code is properly formatted and commented
+- [ ] Code is properly formatted (`make fmt-e2e`) and passes linting (`make lint-e2e`)
