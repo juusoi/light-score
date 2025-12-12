@@ -26,12 +26,71 @@ env:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
+  # Change Detection
+  # ─────────────────────────────────────────────────────────────────────────────
+  detect-changes:
+    name: Check if app files changed
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    outputs:
+      should-deploy: ${{ steps.changes.outputs.should_deploy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect deployable changes
+        id: changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.payload.workflow_run.head_sha;
+            const { owner, repo } = context.repo;
+
+            // Get the commit to find its parent
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner, repo, ref: sha
+            });
+
+            // Get files changed in this commit
+            const changedFiles = commit.files?.map(f => f.filename) || [];
+            core.info(`Changed files in ${sha}:`);
+            changedFiles.forEach(f => core.info(`  - ${f}`));
+
+            // Patterns that require deployment
+            const deployPatterns = [
+              /^backend\//,
+              /^frontend\//,
+              /^functions\//,
+              /^terraform\//,
+              /^compose\.yaml$/,
+              /^pyproject\.toml$/,
+              /^Makefile$/,
+              /^uv\.lock$/,
+            ];
+
+            const shouldDeploy = changedFiles.some(file =>
+              deployPatterns.some(pattern => pattern.test(file))
+            );
+
+            core.info(`\nShould deploy: ${shouldDeploy}`);
+            core.setOutput('should_deploy', String(shouldDeploy));
+
+            if (!shouldDeploy) {
+              core.info('ℹ️ No deployable changes detected. Skipping deployment.');
+            }
+
+  # ─────────────────────────────────────────────────────────────────────────────
   # Prerequisites Check
   # ─────────────────────────────────────────────────────────────────────────────
   check-prerequisites:
     name: Verify CI and Security passed
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    needs: [detect-changes]
+    if: |
+      github.event_name == 'workflow_run' && 
+      github.event.workflow_run.conclusion == 'success' &&
+      needs.detect-changes.outputs.should-deploy == 'true'
     outputs:
       deploy-ready: ${{ steps.check.outputs.ready }}
     steps:
@@ -71,10 +130,12 @@ jobs:
   terraform:
     name: Provision Lightsail Service
     runs-on: ubuntu-latest
-    needs: [check-prerequisites]
+    needs: [detect-changes, check-prerequisites]
     if: |
       github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'workflow_run' && needs.check-prerequisites.outputs.deploy-ready == 'true')
+      (github.event_name == 'workflow_run' && 
+       needs.detect-changes.outputs.should-deploy == 'true' &&
+       needs.check-prerequisites.outputs.deploy-ready == 'true')
     steps:
       - uses: actions/checkout@v4
 
@@ -117,10 +178,12 @@ jobs:
   deploy:
     name: Build and Deploy Containers
     runs-on: ubuntu-latest
-    needs: [check-prerequisites, terraform]
+    needs: [detect-changes, check-prerequisites, terraform]
     if: |
       github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'workflow_run' && needs.check-prerequisites.outputs.deploy-ready == 'true')
+      (github.event_name == 'workflow_run' && 
+       needs.detect-changes.outputs.should-deploy == 'true' &&
+       needs.check-prerequisites.outputs.deploy-ready == 'true')
     outputs:
       service_url: ${{ steps.deploy.outputs.URL }}
     steps:
