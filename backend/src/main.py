@@ -785,8 +785,12 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
         else:
             nfc_teams.append(team_status)
 
-    # Sort by wins (desc), then losses (asc)
     def sort_key(t: dict) -> tuple:
+        """Sort teams by wins (desc), losses (asc), then team name alphabetically.
+
+        Returns a tuple for Python's sort: negative wins for descending order,
+        positive losses for ascending order, and team name as tiebreaker.
+        """
         return (-t["wins"], t["losses"], t["team"])
 
     afc_teams.sort(key=sort_key)
