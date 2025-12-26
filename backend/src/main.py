@@ -817,14 +817,31 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
     nfc_teams.sort(key=sort_key)
 
     def assign_playoff_status(teams: list[dict]) -> None:
-        """Assign playoff status to teams in a conference."""
+        """Assign playoff status to teams in a conference.
+
+        Uses proper elimination logic:
+        - A team is eliminated if 7+ teams are guaranteed to finish ahead of them
+        - A team has clinched if they're guaranteed to finish in top 7
+        """
         if len(teams) < PLAYOFF_SPOTS:
             return
 
-        # Get 7th place team's wins (playoff cutoff)
-        seventh_place_wins = teams[PLAYOFF_SPOTS - 1]["wins"]
+        # For each team, count how many teams are guaranteed to beat them
+        # (those teams' current wins > this team's max possible wins)
+        for i, team in enumerate(teams):
+            teams_guaranteed_ahead = sum(
+                1 for other in teams if other["wins"] > team["max_possible_wins"]
+            )
+            team["_teams_ahead"] = teams_guaranteed_ahead
 
-        # Get 8th place team's max possible wins (for clinching calculation)
+            # Count how many teams this team is guaranteed to beat
+            teams_guaranteed_behind = sum(
+                1 for other in teams if team["wins"] > other["max_possible_wins"]
+            )
+            team["_teams_behind"] = teams_guaranteed_behind
+
+        # Get 7th and 8th place reference points
+        seventh_place_wins = teams[PLAYOFF_SPOTS - 1]["wins"]
         eighth_place_max = (
             teams[PLAYOFF_SPOTS]["max_possible_wins"]
             if len(teams) > PLAYOFF_SPOTS
@@ -832,12 +849,20 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
         )
 
         for i, team in enumerate(teams):
+            teams_ahead = team.get("_teams_ahead", 0)
+            teams_behind = team.get("_teams_behind", 0)
+
             if i < PLAYOFF_SPOTS:
                 # Top 7 teams - check if clinched
                 team["seed"] = i + 1
 
-                # Team has clinched if their wins > 8th place max possible wins
-                has_clinched = team["wins"] > eighth_place_max
+                # Clinched if guaranteed to finish in top 7
+                # (at least 9 teams guaranteed to finish behind = only 6 can be ahead)
+                has_clinched = teams_behind >= (len(teams) - PLAYOFF_SPOTS)
+
+                # Alternative: clinched if current wins > 8th place max
+                if not has_clinched:
+                    has_clinched = team["wins"] > eighth_place_max
 
                 if has_clinched:
                     if i == 0:
@@ -851,25 +876,21 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
                         team["status_detail"] = f"Clinched #{i + 1} seed"
                 else:
                     # In playoff position but not clinched
-                    if i < 4:
-                        team["status"] = "in_position"
-                        team["status_detail"] = f"#{i + 1} seed (not clinched)"
-                    else:
-                        team["status"] = "in_position"
-                        team["status_detail"] = f"#{i + 1} wild card (not clinched)"
+                    team["status"] = "in_position"
+                    team["status_detail"] = f"#{i + 1} seed (not clinched)"
             else:
                 # Teams 8-16: check if eliminated or in the hunt
-                # Eliminated if max possible wins < 7th place current wins
-                if team["max_possible_wins"] < seventh_place_wins:
+                # Eliminated if 7+ teams are guaranteed to finish ahead
+                if teams_ahead >= PLAYOFF_SPOTS:
                     team["status"] = "eliminated"
                     team["status_detail"] = "Eliminated from playoffs"
-                elif team["max_possible_wins"] == seventh_place_wins:
-                    # Could tie but likely eliminated due to tiebreakers
-                    team["status"] = "in_hunt"
-                    team["status_detail"] = "Slim playoff chances"
                 else:
+                    # Still has a chance
                     games_back = seventh_place_wins - team["wins"]
-                    if games_back > 0:
+                    if team["max_possible_wins"] == seventh_place_wins:
+                        team["status"] = "in_hunt"
+                        team["status_detail"] = "Slim playoff chances"
+                    elif games_back > 0:
                         team["status"] = "in_hunt"
                         team["status_detail"] = (
                             f"{games_back} game{'s' if games_back > 1 else ''} back"
@@ -877,6 +898,10 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
                     else:
                         team["status"] = "in_hunt"
                         team["status_detail"] = "In the hunt"
+
+            # Clean up temporary fields
+            team.pop("_teams_ahead", None)
+            team.pop("_teams_behind", None)
 
     assign_playoff_status(afc_teams)
     assign_playoff_status(nfc_teams)
