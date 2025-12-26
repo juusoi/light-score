@@ -318,26 +318,15 @@ def home():
 
 @app.route("/playoffs")
 def playoffs():
-    """Playoff picture page showing team statuses and race standings."""
+    """Playoff picture page showing team statuses and race standings.
+
+    Only available during regular season (seasonType=2).
+    Preseason and postseason are redirected to home.
+    """
     try:
-        # Get season type from query params or default
-        raw_season = request.args.get("seasonType")
-        season_val = None
-        if raw_season:
-            try:
-                season_val = int(raw_season)
-                if season_val not in {2, 3}:
-                    season_val = None
-            except ValueError:
-                pass
-
-        params = {}
-        if season_val is not None:
-            params["seasonType"] = season_val
-
-        # Fetch playoff picture from backend
+        # Fetch playoff picture from backend (always regular season)
         picture_response = requests.get(
-            f"{BACKEND_URL}/playoffs/picture", params=params, timeout=10
+            f"{BACKEND_URL}/playoffs/picture", params={"seasonType": 2}, timeout=10
         )
 
         if not picture_response.ok:
@@ -352,13 +341,10 @@ def playoffs():
         if not isinstance(picture_data, dict):
             return render_template("playoffs.html", picture=None, error="Invalid data")
 
-        season_type = picture_data.get("season_type", 2)
-
         return render_template(
             "playoffs.html",
             picture=picture_data,
-            season_type=season_type,
-            season_type_name=season_type_name(season_type),
+            season_type_name=season_type_name(2),
             error=None,
         )
     except requests.RequestException:

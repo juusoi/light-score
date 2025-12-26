@@ -462,7 +462,7 @@ def test_render_bracket_line():
 
 @patch("requests.get")
 def test_playoffs_route_loads(mock_get, client):
-    """Test that /playoffs route loads successfully."""
+    """Test that /playoffs route loads successfully with regular season data."""
     picture_json = {
         "season_year": 2024,
         "season_type": 2,
@@ -518,109 +518,8 @@ def test_playoffs_route_loads(mock_get, client):
     assert "Seedings" in text
     assert "AFC" in text
     assert "NFC" in text
-
-
-@patch("requests.get")
-def test_playoffs_route_regular_season(mock_get, client):
-    """Test /playoffs route with regular season view."""
-    picture_json = {
-        "season_year": 2024,
-        "season_type": 2,
-        "week": 15,
-        "afc_teams": [
-            {
-                "team": "Kansas City Chiefs",
-                "abbreviation": "KC",
-                "conference": "AFC",
-                "division": "AFC West",
-                "wins": 15,
-                "losses": 2,
-                "ties": 0,
-                "seed": 1,
-                "status": "division_leader",
-                "status_detail": "#1 seed (division leader)",
-                "eliminated_round": None,
-                "playoff_wins": 0,
-                "playoff_losses": 0,
-            }
-        ],
-        "nfc_teams": [],
-        "super_bowl_teams": [],
-    }
-
-    def side_effect(url, **kwargs):
-        if "playoffs/picture" in url:
-            r = MagicMock(ok=True)
-            r.json.return_value = picture_json
-            return r
-        return MagicMock(ok=False)
-
-    mock_get.side_effect = side_effect
-    resp = client.get("/playoffs?seasonType=2")
-    assert resp.status_code == 200
-    text = resp.data.decode()
     assert "Playoff Seeds" in text
     assert "KC" in text
-
-
-@patch("requests.get")
-def test_playoffs_route_postseason(mock_get, client):
-    """Test /playoffs route with postseason view."""
-    picture_json = {
-        "season_year": 2024,
-        "season_type": 3,
-        "week": 1,
-        "afc_teams": [
-            {
-                "team": "Kansas City Chiefs",
-                "abbreviation": "KC",
-                "conference": "AFC",
-                "division": "",
-                "wins": 0,
-                "losses": 0,
-                "ties": 0,
-                "seed": 1,
-                "status": "super_bowl",
-                "status_detail": "Super Bowl",
-                "eliminated_round": None,
-                "playoff_wins": 3,
-                "playoff_losses": 0,
-            }
-        ],
-        "nfc_teams": [
-            {
-                "team": "Philadelphia Eagles",
-                "abbreviation": "PHI",
-                "conference": "NFC",
-                "division": "",
-                "wins": 0,
-                "losses": 0,
-                "ties": 0,
-                "seed": 2,
-                "status": "super_bowl",
-                "status_detail": "Super Bowl",
-                "eliminated_round": None,
-                "playoff_wins": 3,
-                "playoff_losses": 0,
-            }
-        ],
-        "super_bowl_teams": ["Kansas City Chiefs", "Philadelphia Eagles"],
-    }
-
-    def side_effect(url, **kwargs):
-        if "playoffs/picture" in url:
-            r = MagicMock(ok=True)
-            r.json.return_value = picture_json
-            return r
-        return MagicMock(ok=False)
-
-    mock_get.side_effect = side_effect
-    resp = client.get("/playoffs?seasonType=3")
-    assert resp.status_code == 200
-    text = resp.data.decode()
-    assert "Super Bowl" in text
-    assert "KC" in text
-    assert "PHI" in text
 
 
 @patch("requests.get", side_effect=requests.RequestException)
