@@ -26,7 +26,9 @@ test.describe('Playoff Bracket - UI Structure', () => {
 
       // Either bracket is shown (postseason data available) or standings fallback
       const hasBracket = await bracketHeading.isVisible().catch(() => false);
-      const hasStandings = await standingsHeading.isVisible().catch(() => false);
+      const hasStandings = await standingsHeading
+        .isVisible()
+        .catch(() => false);
 
       // One of them must be visible
       expect(hasBracket || hasStandings).toBeTruthy();

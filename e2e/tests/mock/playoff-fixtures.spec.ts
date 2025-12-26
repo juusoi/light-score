@@ -10,7 +10,8 @@ import { test, expect } from '@playwright/test';
 import { FRONTEND_ENV_SET, BACKEND_ENV_SET } from '../utils/env';
 
 // Skip all mock tests unless MOCK_ESPN is set in the test environment
-const MOCK_MODE = process.env.MOCK_ESPN === 'true' || process.env.MOCK_ESPN === '1';
+const MOCK_MODE =
+  process.env.MOCK_ESPN === 'true' || process.env.MOCK_ESPN === '1';
 
 test.describe('Mock Fixtures - Playoff Bracket Data', () => {
   test.skip(!MOCK_MODE, 'MOCK_ESPN not set - skipping mock fixture tests');
@@ -39,9 +40,7 @@ test.describe('Mock Fixtures - Playoff Bracket Data', () => {
       'http://localhost:8000/playoffs/bracket',
     );
     const data = await response.json();
-    const seed1 = data.afc_seeds.find(
-      (s: { seed: number }) => s.seed === 1,
-    );
+    const seed1 = data.afc_seeds.find((s: { seed: number }) => s.seed === 1);
     expect(seed1.team).toBe('Kansas City Chiefs');
     expect(seed1.eliminated).toBe(false);
   });
@@ -202,4 +201,3 @@ test.describe('Mock Fixtures - UI Verification', () => {
     expect(count).toBeGreaterThan(0);
   });
 });
-
