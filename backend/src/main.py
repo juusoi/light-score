@@ -815,7 +815,12 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
             nfc_teams.append(team_status)
 
     def sort_key(t: dict) -> tuple:
-        """Sort teams by wins (desc), losses (asc), then team name alphabetically."""
+        """Sort teams by wins (desc), losses (asc), then team name alphabetically.
+
+        Note: This is a simplified sorting algorithm. Actual NFL tiebreakers
+        include head-to-head records, division records, conference records,
+        strength of victory, and more. See operations.nfl.com for full rules.
+        """
         return (-t["wins"], t["losses"], t["team"])
 
     def get_division_leaders(teams: list[dict]) -> dict[str, dict]:
