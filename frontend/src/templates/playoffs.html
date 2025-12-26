@@ -8,22 +8,6 @@
   </head>
   <body>
     {# Macros for reusable team display components #}
-    {% macro postseason_team(team, css_class) %}
-    <li class="ttx-playoff-team {{ css_class }}">
-      <span class="ttx-team-seed">#{{ team.seed }}</span>
-      <span class="ttx-team-name">{{ team.abbreviation }}</span>
-      <span class="ttx-team-record">{{ team.playoff_wins }}-{{ team.playoff_losses }}</span>
-    </li>
-    {% endmacro %}
-
-    {% macro eliminated_team(team) %}
-    <li class="ttx-playoff-team ttx-out-team">
-      <span class="ttx-team-seed">#{{ team.seed }}</span>
-      <span class="ttx-team-name">{{ team.abbreviation }}</span>
-      <span class="ttx-team-status">{{ team.status_detail }}</span>
-    </li>
-    {% endmacro %}
-
     {% macro seeded_team(team) %}
     <li class="ttx-playoff-team {% if team.status == 'division_leader' %}ttx-division-leader{% else %}ttx-wild-card{% endif %}">
       <span class="ttx-team-seed">#{{ team.seed }}</span>
@@ -47,12 +31,7 @@
         <div class="ttx-season-line">
           <span class="ttx-season">{{ season_type_name }}</span>
           <span class="ttx-sep-dot">•</span>
-          <span class="ttx-year">Current Seedings</span>
-        </div>
-        <div class="ttx-playoff-nav" role="navigation" aria-label="Season type filter">
-          <a href="/playoffs?seasonType=2" class="ttx-link{% if season_type == 2 %} ttx-active{% endif %}">Regular Season</a>
-          <span class="ttx-sep">|</span>
-          <a href="/playoffs?seasonType=3" class="ttx-link{% if season_type == 3 %} ttx-active{% endif %}">Postseason</a>
+          <span class="ttx-year">Playoff Seedings</span>
         </div>
       </header>
 
@@ -66,38 +45,6 @@
           <!-- AFC -->
           <div class="ttx-conference-panel">
             <h2 class="ttx-conference-title ttx-afc">AFC</h2>
-            {% if season_type == 3 %}
-            <!-- Postseason: Show bracket status -->
-            <div class="ttx-playoff-teams">
-              <h3 class="ttx-status-header ttx-super-bowl">Super Bowl</h3>
-              <ul class="ttx-team-list">
-                {% for team in picture.afc_teams if team.status == 'super_bowl' %}
-                {{ postseason_team(team, 'ttx-super-bowl-team') }}
-                {% else %}
-                <li class="ttx-playoff-team muted">No AFC team yet</li>
-                {% endfor %}
-              </ul>
-
-              <h3 class="ttx-status-header ttx-alive">Still Alive</h3>
-              <ul class="ttx-team-list">
-                {% for team in picture.afc_teams if team.status == 'alive' %}
-                {{ postseason_team(team, 'ttx-alive-team') }}
-                {% else %}
-                <li class="ttx-playoff-team muted">-</li>
-                {% endfor %}
-              </ul>
-
-              <h3 class="ttx-status-header ttx-out">Eliminated</h3>
-              <ul class="ttx-team-list">
-                {% for team in picture.afc_teams if team.status == 'eliminated' %}
-                {{ eliminated_team(team) }}
-                {% else %}
-                <li class="ttx-playoff-team muted">-</li>
-                {% endfor %}
-              </ul>
-            </div>
-            {% else %}
-            <!-- Regular Season: Show current seedings -->
             <div class="ttx-seedings">
               <h3 class="ttx-status-header">Playoff Seeds</h3>
               <ul class="ttx-team-list">
@@ -113,44 +60,11 @@
                 {% endfor %}
               </ul>
             </div>
-            {% endif %}
           </div>
 
           <!-- NFC -->
           <div class="ttx-conference-panel">
             <h2 class="ttx-conference-title ttx-nfc">NFC</h2>
-            {% if season_type == 3 %}
-            <!-- Postseason: Show bracket status -->
-            <div class="ttx-playoff-teams">
-              <h3 class="ttx-status-header ttx-super-bowl">Super Bowl</h3>
-              <ul class="ttx-team-list">
-                {% for team in picture.nfc_teams if team.status == 'super_bowl' %}
-                {{ postseason_team(team, 'ttx-super-bowl-team') }}
-                {% else %}
-                <li class="ttx-playoff-team muted">No NFC team yet</li>
-                {% endfor %}
-              </ul>
-
-              <h3 class="ttx-status-header ttx-alive">Still Alive</h3>
-              <ul class="ttx-team-list">
-                {% for team in picture.nfc_teams if team.status == 'alive' %}
-                {{ postseason_team(team, 'ttx-alive-team') }}
-                {% else %}
-                <li class="ttx-playoff-team muted">-</li>
-                {% endfor %}
-              </ul>
-
-              <h3 class="ttx-status-header ttx-out">Eliminated</h3>
-              <ul class="ttx-team-list">
-                {% for team in picture.nfc_teams if team.status == 'eliminated' %}
-                {{ eliminated_team(team) }}
-                {% else %}
-                <li class="ttx-playoff-team muted">-</li>
-                {% endfor %}
-              </ul>
-            </div>
-            {% else %}
-            <!-- Regular Season: Show current seedings -->
             <div class="ttx-seedings">
               <h3 class="ttx-status-header">Playoff Seeds</h3>
               <ul class="ttx-team-list">
@@ -166,25 +80,8 @@
                 {% endfor %}
               </ul>
             </div>
-            {% endif %}
           </div>
         </div>
-
-        {% if season_type == 3 and picture.super_bowl_teams %}
-        <div class="ttx-superbowl-matchup">
-          <h2>Super Bowl</h2>
-          <div class="ttx-superbowl-teams">
-            {% if picture.super_bowl_teams|length >= 2 %}
-            <span class="ttx-sb-team ttx-afc-team">{{ picture.super_bowl_teams[0] }}</span>
-            <span class="ttx-sb-vs">vs</span>
-            <span class="ttx-sb-team ttx-nfc-team">{{ picture.super_bowl_teams[1] }}</span>
-            {% elif picture.super_bowl_teams|length == 1 %}
-            <span class="ttx-sb-team">{{ picture.super_bowl_teams[0] }}</span>
-            <span class="ttx-sb-vs">vs TBD</span>
-            {% endif %}
-          </div>
-        </div>
-        {% endif %}
       </section>
       {% else %}
       <section class="ttx-error-panel">
