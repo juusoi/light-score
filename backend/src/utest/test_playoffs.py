@@ -9,6 +9,9 @@ from fastapi.testclient import TestClient
 
 from ..main import _detect_fixture_name, _load_fixture, app
 
+# Reusable patch decorator for mock mode tests
+mock_espn = patch("src.main.MOCK_ESPN", True)
+
 
 class TestFixtureLoading:
     """Tests for fixture loading mechanism."""
@@ -85,10 +88,10 @@ class TestFixtureDetection:
         assert _detect_fixture_name(2024, 1, 1) == "regular_season"
 
 
+@mock_espn
 class TestPlayoffBracketEndpoint:
     """Tests for the /playoffs/bracket endpoint."""
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_bracket_endpoint_mock_mode(self):
         """Test bracket endpoint returns data in mock mode."""
         client = TestClient(app)
@@ -100,7 +103,6 @@ class TestPlayoffBracketEndpoint:
         assert "nfc_seeds" in data
         assert "games" in data
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_bracket_seeds_structure(self):
         """Test bracket seeds have correct structure."""
         client = TestClient(app)
@@ -113,7 +115,6 @@ class TestPlayoffBracketEndpoint:
             assert "abbreviation" in seed
             assert "eliminated" in seed
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_bracket_games_structure(self):
         """Test bracket games have correct structure."""
         client = TestClient(app)
@@ -128,10 +129,10 @@ class TestPlayoffBracketEndpoint:
             assert "status" in game
 
 
+@mock_espn
 class TestMockModeGamesEndpoint:
     """Tests for games endpoint in mock mode."""
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_weekly_games_mock_mode(self):
         """Test weekly games endpoint returns fixture data in mock mode."""
         client = TestClient(app)
@@ -141,7 +142,6 @@ class TestMockModeGamesEndpoint:
         assert isinstance(games, list)
         assert len(games) > 0
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_weekly_games_fixture_override(self):
         """Test weekly games with explicit fixture parameter."""
         client = TestClient(app)
@@ -152,7 +152,6 @@ class TestMockModeGamesEndpoint:
         # Wildcard has 6 games
         assert len(games) == 6
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_weekly_context_mock_mode(self):
         """Test context endpoint returns fixture context in mock mode."""
         client = TestClient(app)
@@ -164,10 +163,10 @@ class TestMockModeGamesEndpoint:
         assert "seasonType" in ctx
 
 
+@mock_espn
 class TestMockModeStandingsEndpoint:
     """Tests for standings endpoint in mock mode."""
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_live_standings_mock_mode(self):
         """Test live standings endpoint returns fixture data in mock mode."""
         client = TestClient(app)
@@ -222,10 +221,10 @@ class TestFixtureFilesExist:
                 assert data is not None
 
 
+@mock_espn
 class TestPlayoffPictureEndpoint:
     """Test the /playoffs/picture endpoint."""
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_picture_endpoint_returns_valid_response(self):
         """Test playoff picture endpoint returns valid response."""
         client = TestClient(app)
@@ -238,7 +237,6 @@ class TestPlayoffPictureEndpoint:
         assert "nfc_teams" in data
         assert "super_bowl_teams" in data
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_picture_regular_season_mode(self):
         """Test playoff picture returns regular season data."""
         client = TestClient(app)
@@ -250,7 +248,6 @@ class TestPlayoffPictureEndpoint:
         assert len(data["afc_teams"]) == 16
         assert len(data["nfc_teams"]) == 16
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_picture_postseason_mode(self):
         """Test playoff picture returns postseason data."""
         client = TestClient(app)
@@ -262,7 +259,6 @@ class TestPlayoffPictureEndpoint:
         assert len(data["afc_teams"]) == 7
         assert len(data["nfc_teams"]) == 7
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_picture_team_status_fields(self):
         """Test playoff picture team objects have correct fields."""
         client = TestClient(app)
@@ -277,7 +273,6 @@ class TestPlayoffPictureEndpoint:
         assert "status_detail" in team
         assert "seed" in team
 
-    @patch.object(__import__("src.main", fromlist=["MOCK_ESPN"]), "MOCK_ESPN", True)
     def test_picture_super_bowl_teams(self):
         """Test playoff picture includes Super Bowl teams."""
         client = TestClient(app)
