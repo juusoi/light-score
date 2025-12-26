@@ -1088,7 +1088,9 @@ def _get_team_abbrev(team_name: str) -> str:
 
     # Fallback: use first 3 characters or "UNK" for empty names
     fallback = team_name[:3].upper() if team_name else "UNK"
-    logging.warning("Unknown team name '%s', using fallback abbreviation '%s'", team_name, fallback)
+    logging.warning(
+        "Unknown team name '%s', using fallback abbreviation '%s'", team_name, fallback
+    )
     return fallback
 
 
