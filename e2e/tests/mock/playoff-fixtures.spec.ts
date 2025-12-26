@@ -179,7 +179,7 @@ test.describe('Mock Fixtures - UI Verification', () => {
     // NFC: seeds 1, 3-7 eliminated (6 teams, but seed 1 DET lost in playoffs)
     // We use 5 as minimum threshold to avoid brittleness if fixture changes slightly
     const EXPECTED_MIN_ELIMINATED_TEAMS = 5;
-    expect(count).toBeGreaterThan(EXPECTED_MIN_ELIMINATED_TEAMS);
+    expect(count).toBeGreaterThanOrEqual(EXPECTED_MIN_ELIMINATED_TEAMS);
   });
 
   test('postseason view shows specific fixture teams', async ({ page }) => {
