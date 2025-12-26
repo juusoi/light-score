@@ -10,7 +10,7 @@
     "test:firefox": "playwright test --project=firefox",
     "test:webkit": "playwright test --project=webkit",
     "test:mobile": "playwright test --project=mobile-chrome",
-    "test:ci": "CI=true playwright test --project=chrome",
+    "test:ci": "CI=true playwright test --project=chrome --project=api",
     "test:smoke": "CI=true playwright test --grep @smoke --project=chrome",
     "report": "playwright show-report",
     "install": "playwright install --with-deps",
