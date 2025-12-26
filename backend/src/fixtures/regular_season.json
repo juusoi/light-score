@@ -1,0 +1,78 @@
+{
+  "season": {
+    "year": 2024,
+    "type": 2
+  },
+  "week": {
+    "number": 15
+  },
+  "games": [
+    {
+      "team_a": "Kansas City Chiefs",
+      "team_b": "Las Vegas Raiders",
+      "status": "final",
+      "start_time": "2024-12-13T01:20:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 19,
+      "score_b": 17
+    },
+    {
+      "team_a": "Buffalo Bills",
+      "team_b": "Detroit Lions",
+      "status": "final",
+      "start_time": "2024-12-15T18:00:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 42,
+      "score_b": 35
+    },
+    {
+      "team_a": "Green Bay Packers",
+      "team_b": "Seattle Seahawks",
+      "status": "live",
+      "start_time": "2024-12-15T21:25:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": "Q3 7:42",
+      "score_a": 21,
+      "score_b": 17
+    },
+    {
+      "team_a": "Philadelphia Eagles",
+      "team_b": "Pittsburgh Steelers",
+      "status": "live",
+      "start_time": "2024-12-15T21:25:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": "Q2 2:05",
+      "score_a": 14,
+      "score_b": 10
+    },
+    {
+      "team_a": "San Francisco 49ers",
+      "team_b": "Los Angeles Rams",
+      "status": "upcoming",
+      "start_time": "2024-12-16T01:20:00Z",
+      "start_time_finnish": "03:20",
+      "start_date_time_finnish": "Mon 16.12. 03:20",
+      "game_time": null,
+      "score_a": null,
+      "score_b": null
+    },
+    {
+      "team_a": "Dallas Cowboys",
+      "team_b": "Carolina Panthers",
+      "status": "upcoming",
+      "start_time": "2024-12-16T18:00:00Z",
+      "start_time_finnish": "20:00",
+      "start_date_time_finnish": "Mon 16.12. 20:00",
+      "game_time": null,
+      "score_a": null,
+      "score_b": null
+    }
+  ]
+}
+

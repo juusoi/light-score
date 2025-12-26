@@ -6,6 +6,8 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     image: light-score-backend:dev
+    environment:
+      - MOCK_ESPN=${MOCK_ESPN:-}
     ports:
       - '8000:8000'
     restart: unless-stopped

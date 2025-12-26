@@ -308,3 +308,394 @@ body {
 .ttx-link:hover {
     text-decoration: underline;
 }
+
+/* Playoff Bracket Styles */
+.ttx-bracket-panel {
+    overflow-x: auto;
+}
+
+.ttx-bracket-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 8px 10px;
+}
+
+@media (min-width: 768px) {
+    .ttx-bracket-container {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+}
+
+.ttx-bracket-conference {
+    flex: 1;
+    min-width: 200px;
+}
+
+.ttx-bracket-superbowl {
+    flex: 0 0 auto;
+    min-width: 180px;
+    text-align: center;
+    padding: 0 12px;
+    border-left: 1px solid #333;
+    border-right: 1px solid #333;
+}
+
+@media (max-width: 767px) {
+    .ttx-bracket-superbowl {
+        border-left: none;
+        border-right: none;
+        border-top: 1px solid #333;
+        border-bottom: 1px solid #333;
+        padding: 12px 0;
+    }
+}
+
+.ttx-seeds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin-bottom: 12px;
+    font-size: 11px;
+}
+
+.ttx-seed {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.ttx-seed-num {
+    color: var(--warn);
+    font-size: 10px;
+}
+
+.ttx-seed-team {
+    color: var(--fg);
+}
+
+.ttx-seed.ttx-eliminated {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+.ttx-bracket-games {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ttx-bracket-game {
+    border: 1px solid #333;
+    padding: 6px 8px;
+    background: #111;
+}
+
+.ttx-bracket-round {
+    font-size: 10px;
+    color: var(--info);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.ttx-bracket-matchup {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ttx-bracket-team {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.ttx-bracket-team .ttx-seed-num {
+    min-width: 20px;
+}
+
+.ttx-bracket-team .ttx-team-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ttx-bracket-team .ttx-game-score {
+    min-width: 20px;
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.ttx-bracket-team.ttx-winner {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.ttx-bracket-team.ttx-winner .ttx-game-score {
+    color: var(--accent);
+}
+
+.ttx-bracket-status {
+    font-size: 10px;
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+
+.ttx-bracket-status.ttx-status-final {
+    color: var(--error);
+}
+
+.ttx-bracket-status.ttx-status-live {
+    color: var(--warn);
+}
+
+.ttx-bracket-status.ttx-status-upcoming {
+    color: var(--info);
+}
+
+.ttx-superbowl-game {
+    border: 2px solid var(--warn);
+    background: #1a1a00;
+}
+
+.ttx-superbowl-game .ttx-bracket-matchup {
+    align-items: center;
+}
+
+.ttx-vs {
+    color: #666;
+    font-size: 10px;
+    padding: 2px 0;
+}
+
+/* --- Playoff Picture Page --- */
+.ttx-playoff-nav {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.ttx-playoff-nav .ttx-link.ttx-active {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.ttx-brand-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.ttx-brand-link:hover {
+    color: var(--accent);
+}
+
+.ttx-playoff-picture {
+    padding: 16px;
+}
+
+.ttx-conferences-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 700px) {
+    .ttx-conferences-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ttx-conference-panel {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    padding: 16px;
+}
+
+.ttx-conference-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+}
+
+.ttx-conference-title.ttx-afc {
+    color: #e11d48;
+}
+
+.ttx-conference-title.ttx-nfc {
+    color: #2563eb;
+}
+
+.ttx-playoff-teams,
+.ttx-playoff-race {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ttx-status-header {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin: 0;
+    padding: 4px 8px;
+    background: var(--border);
+}
+
+.ttx-status-header.ttx-super-bowl {
+    background: #854d0e;
+    color: #fef08a;
+}
+
+.ttx-status-header.ttx-alive {
+    background: #166534;
+    color: #bbf7d0;
+}
+
+.ttx-status-header.ttx-out {
+    background: #374151;
+    color: #9ca3af;
+}
+
+.ttx-team-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.ttx-playoff-team {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+}
+
+.ttx-playoff-team:last-child {
+    border-bottom: none;
+}
+
+.ttx-playoff-team .ttx-team-seed {
+    min-width: 24px;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.ttx-playoff-team .ttx-team-name {
+    min-width: 50px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.ttx-playoff-team .ttx-team-record {
+    min-width: 40px;
+    color: var(--fg);
+}
+
+.ttx-playoff-team .ttx-team-status {
+    flex: 1;
+    color: #888;
+    font-size: 11px;
+    text-align: right;
+}
+
+.ttx-super-bowl-team {
+    background: rgba(234, 179, 8, 0.1);
+}
+
+.ttx-super-bowl-team .ttx-team-name {
+    color: #fbbf24;
+}
+
+.ttx-alive-team .ttx-team-name {
+    color: var(--accent);
+}
+
+.ttx-division-leader .ttx-team-name {
+    color: var(--accent);
+}
+
+.ttx-wild-card .ttx-team-name {
+    color: #60a5fa;
+}
+
+.ttx-out-team {
+    opacity: 0.6;
+}
+
+.ttx-out-team .ttx-team-name {
+    color: #888;
+}
+
+.ttx-superbowl-matchup {
+    margin-top: 24px;
+    padding: 20px;
+    background: linear-gradient(135deg, #1a1a00 0%, #2a2000 100%);
+    border: 3px solid #854d0e;
+    text-align: center;
+}
+
+.ttx-superbowl-matchup h2 {
+    font-size: 20px;
+    color: #fbbf24;
+    margin-bottom: 16px;
+    letter-spacing: 3px;
+}
+
+.ttx-superbowl-teams {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.ttx-sb-team {
+    padding: 10px 20px;
+    border: 2px solid var(--border);
+    background: var(--bg);
+}
+
+.ttx-sb-team.ttx-afc-team {
+    border-color: #e11d48;
+}
+
+.ttx-sb-team.ttx-nfc-team {
+    border-color: #2563eb;
+}
+
+.ttx-sb-vs {
+    color: #666;
+    font-size: 16px;
+    font-weight: 400;
+}
+
+.ttx-error-panel {
+    padding: 40px;
+    text-align: center;
+}
+
+.ttx-footer {
+    padding: 16px;
+    text-align: center;
+    border-top: 2px solid var(--border);
+    margin-top: 20px;
+}
+
+.ttx-home-footer {
+    padding: 16px;
+    text-align: center;
+    border-top: 2px solid var(--border);
+    margin-top: 16px;
+}

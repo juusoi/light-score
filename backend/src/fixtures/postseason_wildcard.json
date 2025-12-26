@@ -1,0 +1,78 @@
+{
+  "season": {
+    "year": 2024,
+    "type": 3
+  },
+  "week": {
+    "number": 1
+  },
+  "games": [
+    {
+      "team_a": "Pittsburgh Steelers",
+      "team_b": "Buffalo Bills",
+      "status": "final",
+      "start_time": "2025-01-11T18:00:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 17,
+      "score_b": 31
+    },
+    {
+      "team_a": "Denver Broncos",
+      "team_b": "Baltimore Ravens",
+      "status": "final",
+      "start_time": "2025-01-11T21:30:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 7,
+      "score_b": 28
+    },
+    {
+      "team_a": "Los Angeles Chargers",
+      "team_b": "Houston Texans",
+      "status": "final",
+      "start_time": "2025-01-12T01:00:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 12,
+      "score_b": 32
+    },
+    {
+      "team_a": "Green Bay Packers",
+      "team_b": "Philadelphia Eagles",
+      "status": "final",
+      "start_time": "2025-01-12T18:00:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 10,
+      "score_b": 22
+    },
+    {
+      "team_a": "Washington Commanders",
+      "team_b": "Tampa Bay Buccaneers",
+      "status": "upcoming",
+      "start_time": "2025-01-12T21:30:00Z",
+      "start_time_finnish": "23:30",
+      "start_date_time_finnish": "Sun 12.01. 23:30",
+      "game_time": null,
+      "score_a": null,
+      "score_b": null
+    },
+    {
+      "team_a": "Minnesota Vikings",
+      "team_b": "Los Angeles Rams",
+      "status": "upcoming",
+      "start_time": "2025-01-13T01:00:00Z",
+      "start_time_finnish": "03:00",
+      "start_date_time_finnish": "Mon 13.01. 03:00",
+      "game_time": null,
+      "score_a": null,
+      "score_b": null
+    }
+  ]
+}
+

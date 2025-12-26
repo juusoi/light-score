@@ -191,7 +191,10 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
       // Tab through focusable elements to find navigation links
       let focusedElement = null;
       let tabCount = 0;
-      const maxTabs = 15; // Increased limit to account for more elements
+      // Max tabs accounts for: brand link, season type links, week nav links,
+      // playoff picture link, and any dynamically added focusable elements.
+      // This limit was increased from 10 to 15 after adding the /playoffs link.
+      const maxTabs = 15;
 
       // Tab through elements until we find a navigation link
       while (tabCount < maxTabs) {
@@ -216,8 +219,10 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
         }
       }
 
-      // Should have found a navigation link within reasonable tabs
-      expect(tabCount).toBeLessThan(maxTabs);
+      // The primary assertion is that we found a navigation link (an <A> tag).
+      // tabCount <= maxTabs confirms we didn't exceed the search limit.
+      // Equality is valid: finding the link on the last tab is still success.
+      expect(tabCount).toBeLessThanOrEqual(maxTabs);
       expect(focusedElement?.tagName).toBe('A');
     });
 

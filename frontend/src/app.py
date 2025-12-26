@@ -53,6 +53,34 @@ def season_type_name(season_type: Optional[int]) -> str:
     return season_types.get(int(season_type), "Unknown")
 
 
+def _fetch_playoff_bracket() -> Optional[dict[str, Any]]:
+    """Fetch playoff bracket data from backend."""
+    try:
+        response = requests.get(f"{BACKEND_URL}/playoffs/bracket", timeout=10)
+        if response.ok:
+            data = response.json()
+            if isinstance(data, dict) and "games" in data:
+                return data
+    except requests.RequestException:
+        logging.warning("Failed to fetch playoff bracket")
+    return None
+
+
+def render_bracket_line(
+    team1: str,
+    score1: Optional[int],
+    team2: str,
+    score2: Optional[int],
+    winner: Optional[str],
+) -> str:
+    """Render a bracket matchup as text."""
+    t1_marker = "►" if winner == team1 else " "
+    t2_marker = "►" if winner == team2 else " "
+    s1 = str(score1) if score1 is not None else "-"
+    s2 = str(score2) if score2 is not None else "-"
+    return f"{t1_marker}{team1[:16]:<16} {s1:>2}\n{t2_marker}{team2[:16]:<16} {s2:>2}"
+
+
 @app.route("/")
 def home():
     try:
@@ -268,6 +296,11 @@ def home():
             # If parsing fails, keep original order
             pass
 
+    # Fetch playoff bracket during postseason
+    bracket_data = None
+    if cur_type == 3:  # Postseason
+        bracket_data = _fetch_playoff_bracket()
+
     return render_template(
         "home.html",
         history_games=history,
@@ -279,7 +312,58 @@ def home():
         next_week_params=next_week_params,
         divisions=divisions,
         season_type_name=season_type_name(cur_type),
+        bracket=bracket_data,
     )
+
+
+@app.route("/playoffs")
+def playoffs():
+    """Playoff picture page showing team statuses and race standings."""
+    try:
+        # Get season type from query params or default
+        raw_season = request.args.get("seasonType")
+        season_val = None
+        if raw_season:
+            try:
+                season_val = int(raw_season)
+                if season_val not in {2, 3}:
+                    season_val = None
+            except ValueError:
+                pass
+
+        params = {}
+        if season_val is not None:
+            params["seasonType"] = season_val
+
+        # Fetch playoff picture from backend
+        picture_response = requests.get(
+            f"{BACKEND_URL}/playoffs/picture", params=params, timeout=10
+        )
+
+        if not picture_response.ok:
+            logging.warning(
+                "Playoff picture request failed (%s)", picture_response.status_code
+            )
+            return render_template(
+                "playoffs.html", picture=None, error="Data unavailable"
+            )
+
+        picture_data = picture_response.json()
+        if not isinstance(picture_data, dict):
+            return render_template("playoffs.html", picture=None, error="Invalid data")
+
+        season_type = picture_data.get("season_type", 2)
+
+        return render_template(
+            "playoffs.html",
+            picture=picture_data,
+            season_type=season_type,
+            season_type_name=season_type_name(season_type),
+            error=None,
+        )
+    except requests.RequestException:
+        logging.exception("Network error while fetching playoff picture")
+        return render_template("playoffs.html", picture=None, error="Network error")
 
 
 def main():

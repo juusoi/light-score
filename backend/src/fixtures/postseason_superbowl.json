@@ -1,0 +1,23 @@
+{
+  "season": {
+    "year": 2024,
+    "type": 3
+  },
+  "week": {
+    "number": 4
+  },
+  "games": [
+    {
+      "team_a": "Kansas City Chiefs",
+      "team_b": "Philadelphia Eagles",
+      "status": "upcoming",
+      "start_time": "2025-02-09T23:30:00Z",
+      "start_time_finnish": "01:30",
+      "start_date_time_finnish": "Mon 10.02. 01:30",
+      "game_time": null,
+      "score_a": null,
+      "score_b": null
+    }
+  ]
+}
+
