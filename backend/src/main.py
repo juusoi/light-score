@@ -728,7 +728,9 @@ class PlayoffTeamStatus(BaseModel):
     status: str  # "clinched_bye", "clinched_division", "clinched_wildcard",
     # "in_hunt", "eliminated", "alive", "super_bowl"
     status_detail: str  # Human-readable status
-    eliminated_round: str | None = None  # For postseason: "Wild Card", "Divisional", etc.
+    eliminated_round: str | None = (
+        None  # For postseason: "Wild Card", "Divisional", etc.
+    )
     playoff_wins: int = 0
     playoff_losses: int = 0
 
@@ -788,10 +790,10 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
             team["status_detail"] = "#1 seed, first-round bye"
         elif i < 4:
             team["status"] = "clinched_division"
-            team["status_detail"] = f"#{i+1} seed, division leader"
+            team["status_detail"] = f"#{i + 1} seed, division leader"
         else:
             team["status"] = "clinched_wildcard"
-            team["status_detail"] = f"#{i+1} seed, wild card"
+            team["status_detail"] = f"#{i + 1} seed, wild card"
 
     for i, team in enumerate(nfc_teams[:7]):
         team["seed"] = i + 1
@@ -800,10 +802,10 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
             team["status_detail"] = "#1 seed, first-round bye"
         elif i < 4:
             team["status"] = "clinched_division"
-            team["status_detail"] = f"#{i+1} seed, division leader"
+            team["status_detail"] = f"#{i + 1} seed, division leader"
         else:
             team["status"] = "clinched_wildcard"
-            team["status_detail"] = f"#{i+1} seed, wild card"
+            team["status_detail"] = f"#{i + 1} seed, wild card"
 
     # Teams 8-16 are in the hunt or eliminated
     for team in afc_teams[7:]:
@@ -849,7 +851,10 @@ def _compute_playoff_picture_from_bracket(bracket: dict) -> dict:
         playoff_losses = 0
 
         for game in games:
-            if game.get("conference") != "AFC" and game.get("conference") != "Super Bowl":
+            if (
+                game.get("conference") != "AFC"
+                and game.get("conference") != "Super Bowl"
+            ):
                 continue
             if game.get("status") != "final":
                 continue
@@ -870,26 +875,30 @@ def _compute_playoff_picture_from_bracket(bracket: dict) -> dict:
             status_detail = "Super Bowl"
         elif eliminated:
             status = "eliminated"
-            status_detail = f"Eliminated in {elim_round}" if elim_round else "Eliminated"
+            status_detail = (
+                f"Eliminated in {elim_round}" if elim_round else "Eliminated"
+            )
         else:
             status = "alive"
             status_detail = "Still alive"
 
-        afc_teams.append({
-            "team": team_name,
-            "abbreviation": seed_info.get("abbreviation", ""),
-            "conference": "AFC",
-            "division": "",
-            "wins": 0,
-            "losses": 0,
-            "ties": 0,
-            "seed": seed_info.get("seed"),
-            "status": status,
-            "status_detail": status_detail,
-            "eliminated_round": elim_round,
-            "playoff_wins": playoff_wins,
-            "playoff_losses": playoff_losses,
-        })
+        afc_teams.append(
+            {
+                "team": team_name,
+                "abbreviation": seed_info.get("abbreviation", ""),
+                "conference": "AFC",
+                "division": "",
+                "wins": 0,
+                "losses": 0,
+                "ties": 0,
+                "seed": seed_info.get("seed"),
+                "status": status,
+                "status_detail": status_detail,
+                "eliminated_round": elim_round,
+                "playoff_wins": playoff_wins,
+                "playoff_losses": playoff_losses,
+            }
+        )
 
     # Process NFC seeds
     for seed_info in nfc_seeds:
@@ -901,7 +910,10 @@ def _compute_playoff_picture_from_bracket(bracket: dict) -> dict:
         playoff_losses = 0
 
         for game in games:
-            if game.get("conference") != "NFC" and game.get("conference") != "Super Bowl":
+            if (
+                game.get("conference") != "NFC"
+                and game.get("conference") != "Super Bowl"
+            ):
                 continue
             if game.get("status") != "final":
                 continue
@@ -922,26 +934,30 @@ def _compute_playoff_picture_from_bracket(bracket: dict) -> dict:
             status_detail = "Super Bowl"
         elif eliminated:
             status = "eliminated"
-            status_detail = f"Eliminated in {elim_round}" if elim_round else "Eliminated"
+            status_detail = (
+                f"Eliminated in {elim_round}" if elim_round else "Eliminated"
+            )
         else:
             status = "alive"
             status_detail = "Still alive"
 
-        nfc_teams.append({
-            "team": team_name,
-            "abbreviation": seed_info.get("abbreviation", ""),
-            "conference": "NFC",
-            "division": "",
-            "wins": 0,
-            "losses": 0,
-            "ties": 0,
-            "seed": seed_info.get("seed"),
-            "status": status,
-            "status_detail": status_detail,
-            "eliminated_round": elim_round,
-            "playoff_wins": playoff_wins,
-            "playoff_losses": playoff_losses,
-        })
+        nfc_teams.append(
+            {
+                "team": team_name,
+                "abbreviation": seed_info.get("abbreviation", ""),
+                "conference": "NFC",
+                "division": "",
+                "wins": 0,
+                "losses": 0,
+                "ties": 0,
+                "seed": seed_info.get("seed"),
+                "status": status,
+                "status_detail": status_detail,
+                "eliminated_round": elim_round,
+                "playoff_wins": playoff_wins,
+                "playoff_losses": playoff_losses,
+            }
+        )
 
     return {
         "afc_teams": afc_teams,

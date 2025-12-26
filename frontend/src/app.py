@@ -344,7 +344,9 @@ def playoffs():
             logging.warning(
                 "Playoff picture request failed (%s)", picture_response.status_code
             )
-            return render_template("playoffs.html", picture=None, error="Data unavailable")
+            return render_template(
+                "playoffs.html", picture=None, error="Data unavailable"
+            )
 
         picture_data = picture_response.json()
         if not isinstance(picture_data, dict):
