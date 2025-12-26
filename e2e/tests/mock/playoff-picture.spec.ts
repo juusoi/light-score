@@ -2,11 +2,17 @@
  * Mock-specific E2E tests for the Playoff Picture page.
  * These tests verify specific mock fixture data values.
  * Only run with MOCK_ESPN=true.
+ *
+ * Run with: MOCK_ESPN=true make mock-up && MOCK_ESPN=true SERVICE_URL=http://localhost:5000 make test-e2e
  */
 import { test, expect } from "@playwright/test";
 import { FRONTEND_URL, BACKEND_URL, REQUIRE_FRONTEND } from "../utils/env";
 
+// Skip all mock tests unless MOCK_ESPN is set in the test environment
+const MOCK_MODE = process.env.MOCK_ESPN === "true" || process.env.MOCK_ESPN === "1";
+
 test.describe("Playoff Picture - Mock Data Verification", () => {
+  test.skip(!MOCK_MODE, "MOCK_ESPN not set - skipping mock tests");
   test.skip(!REQUIRE_FRONTEND(), "SERVICE_URL not set");
   const frontendUrl = FRONTEND_URL;
   const backendUrl = BACKEND_URL;

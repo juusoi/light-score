@@ -4,12 +4,16 @@
  * These tests require MOCK_ESPN=true on the backend and verify specific
  * fixture data. They will FAIL against production or live data.
  *
- * Run with: make mock-up && make test-e2e
+ * Run with: MOCK_ESPN=true make mock-up && MOCK_ESPN=true SERVICE_URL=http://localhost:5000 make test-e2e
  */
 import { test, expect } from '@playwright/test';
 import { FRONTEND_ENV_SET, BACKEND_ENV_SET } from '../utils/env';
 
+// Skip all mock tests unless MOCK_ESPN is set in the test environment
+const MOCK_MODE = process.env.MOCK_ESPN === 'true' || process.env.MOCK_ESPN === '1';
+
 test.describe('Mock Fixtures - Playoff Bracket Data', () => {
+  test.skip(!MOCK_MODE, 'MOCK_ESPN not set - skipping mock fixture tests');
   test.skip(!BACKEND_ENV_SET, 'Backend not available - skipping mock tests');
 
   test('returns exactly 7 AFC seeds from fixture', async ({ request }) => {
@@ -53,6 +57,7 @@ test.describe('Mock Fixtures - Playoff Bracket Data', () => {
 });
 
 test.describe('Mock Fixtures - Games Data', () => {
+  test.skip(!MOCK_MODE, 'MOCK_ESPN not set - skipping mock fixture tests');
   test.skip(!BACKEND_ENV_SET, 'Backend not available - skipping mock tests');
 
   test('regular season fixture has 6 games', async ({ request }) => {
@@ -114,6 +119,7 @@ test.describe('Mock Fixtures - Games Data', () => {
 });
 
 test.describe('Mock Fixtures - Standings Data', () => {
+  test.skip(!MOCK_MODE, 'MOCK_ESPN not set - skipping mock fixture tests');
   test.skip(!BACKEND_ENV_SET, 'Backend not available - skipping mock tests');
 
   test('standings fixture has exactly 32 teams', async ({ request }) => {
@@ -156,6 +162,7 @@ test.describe('Mock Fixtures - Standings Data', () => {
 });
 
 test.describe('Mock Fixtures - UI Verification', () => {
+  test.skip(!MOCK_MODE, 'MOCK_ESPN not set - skipping mock fixture tests');
   test.skip(!FRONTEND_ENV_SET, 'SERVICE_URL not set - skipping UI tests');
 
   test('postseason view shows eliminated teams with strikethrough', async ({

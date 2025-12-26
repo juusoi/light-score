@@ -26,17 +26,17 @@ test.describe("Playoff Picture Page", () => {
 
   test("regular season view shows playoff race categories", async ({ page }) => {
     await page.goto(`${frontendUrl}/playoffs?seasonType=2`);
-    // Regular season should show clinched, in the hunt, and eliminated categories
-    await expect(page.getByText("Clinched")).toBeVisible();
-    await expect(page.getByText("In the Hunt")).toBeVisible();
+    // Regular season should show clinched, in the hunt, and eliminated categories (once per conference)
+    await expect(page.getByRole("heading", { name: "Clinched" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "In the Hunt" }).first()).toBeVisible();
   });
 
   test("postseason view shows bracket status categories", async ({ page }) => {
     await page.goto(`${frontendUrl}/playoffs?seasonType=3`);
-    // Postseason should show Super Bowl, Still Alive, and Eliminated categories
-    await expect(page.getByText("Super Bowl")).toBeVisible();
-    await expect(page.getByText("Still Alive")).toBeVisible();
-    await expect(page.getByText("Eliminated")).toBeVisible();
+    // Postseason should show Super Bowl, Still Alive, and Eliminated categories (once per conference)
+    await expect(page.getByRole("heading", { name: "Super Bowl" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Still Alive" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Eliminated" }).first()).toBeVisible();
   });
 
   test("back to scores link works", async ({ page }) => {
