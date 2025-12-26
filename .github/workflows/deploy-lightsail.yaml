@@ -459,33 +459,33 @@ jobs:
           echo "✅ Custom domain configured successfully"
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Post-Deployment Smoke Tests
+  # Post-Deployment Smoke Tests (uses Playwright Docker image for speed)
   # ─────────────────────────────────────────────────────────────────────────────
   e2e-smoke:
     name: E2E Smoke Tests
     needs: [deploy]
     runs-on: ubuntu-latest
     environment: production
+    container:
+      image: mcr.microsoft.com/playwright:v1.57.0-noble
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Install Bun
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
 
       - name: Install E2E dependencies
         working-directory: ./e2e
-        run: bun install
-
-      - name: Install Playwright browsers
-        working-directory: ./e2e
-        run: bunx playwright install chrome --with-deps
+        run: $HOME/.bun/bin/bun install --ignore-scripts
 
       - name: Run smoke tests
         working-directory: ./e2e
         env:
-          # Use PRODUCTION_URL from environment secrets, fallback to deploy output
           SERVICE_URL: ${{ secrets.PRODUCTION_URL || needs.deploy.outputs.service_url }}
-        run: bun run test:smoke
+          CI: 'true'
+        run: $HOME/.bun/bin/bun run test:smoke
 
       - name: Upload smoke test artifacts
         if: failure()
