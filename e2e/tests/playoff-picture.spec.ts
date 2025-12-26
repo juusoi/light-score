@@ -8,8 +8,9 @@ test.describe("Playoff Picture Page", () => {
 
   test("playoff picture page loads successfully", async ({ page }) => {
     await page.goto(`${frontendUrl}/playoffs`);
-    await expect(page).toHaveTitle(/Light Score/);
-    await expect(page.getByText("Playoff Picture")).toBeVisible();
+    await expect(page).toHaveTitle(/Light Score.*Playoff Seedings/);
+    // Check that the page header shows "Current Seedings"
+    await expect(page.getByText("Current Seedings")).toBeVisible();
   });
 
   test("playoff picture has season type navigation", async ({ page }) => {
@@ -24,11 +25,11 @@ test.describe("Playoff Picture Page", () => {
     await expect(page.getByRole("heading", { name: "NFC" })).toBeVisible();
   });
 
-  test("regular season view shows playoff race categories", async ({ page }) => {
+  test("regular season view shows playoff seedings", async ({ page }) => {
     await page.goto(`${frontendUrl}/playoffs?seasonType=2`);
-    // Regular season should show clinched, in the hunt, and eliminated categories (once per conference)
-    await expect(page.getByRole("heading", { name: "Clinched" }).first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "In the Hunt" }).first()).toBeVisible();
+    // Regular season shows Playoff Seeds (1-7) and Outside Playoffs categories
+    await expect(page.getByRole("heading", { name: "Playoff Seeds" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Outside Playoffs" }).first()).toBeVisible();
   });
 
   test("postseason view shows bracket status categories", async ({ page }) => {

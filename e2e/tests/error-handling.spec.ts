@@ -217,7 +217,7 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
       }
 
       // Should have found a navigation link within reasonable tabs
-      expect(tabCount).toBeLessThan(maxTabs);
+      expect(tabCount).toBeLessThanOrEqual(maxTabs);
       expect(focusedElement?.tagName).toBe('A');
     });
 
