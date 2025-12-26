@@ -414,8 +414,8 @@ def test_playoffs_route_loads(mock_get, client):
                 "losses": 2,
                 "ties": 0,
                 "seed": 1,
-                "status": "clinched_bye",
-                "status_detail": "#1 seed, first-round bye",
+                "status": "division_leader",
+                "status_detail": "#1 seed (division leader)",
                 "eliminated_round": None,
                 "playoff_wins": 0,
                 "playoff_losses": 0,
@@ -431,8 +431,8 @@ def test_playoffs_route_loads(mock_get, client):
                 "losses": 3,
                 "ties": 0,
                 "seed": 1,
-                "status": "clinched_bye",
-                "status_detail": "#1 seed, first-round bye",
+                "status": "division_leader",
+                "status_detail": "#1 seed (division leader)",
                 "eliminated_round": None,
                 "playoff_wins": 0,
                 "playoff_losses": 0,
@@ -452,7 +452,7 @@ def test_playoffs_route_loads(mock_get, client):
     resp = client.get("/playoffs")
     assert resp.status_code == 200
     text = resp.data.decode()
-    assert "Playoff Picture" in text
+    assert "Seedings" in text
     assert "AFC" in text
     assert "NFC" in text
 
@@ -474,8 +474,8 @@ def test_playoffs_route_regular_season(mock_get, client):
                 "losses": 2,
                 "ties": 0,
                 "seed": 1,
-                "status": "clinched_bye",
-                "status_detail": "#1 seed, first-round bye",
+                "status": "division_leader",
+                "status_detail": "#1 seed (division leader)",
                 "eliminated_round": None,
                 "playoff_wins": 0,
                 "playoff_losses": 0,
@@ -496,7 +496,7 @@ def test_playoffs_route_regular_season(mock_get, client):
     resp = client.get("/playoffs?seasonType=2")
     assert resp.status_code == 200
     text = resp.data.decode()
-    assert "Clinched" in text
+    assert "Playoff Seeds" in text
     assert "KC" in text
 
 

@@ -560,24 +560,9 @@ body {
     color: #bbf7d0;
 }
 
-.ttx-status-header.ttx-clinched {
-    background: #166534;
-    color: #bbf7d0;
-}
-
-.ttx-status-header.ttx-position {
-    background: #1e40af;
-    color: #bfdbfe;
-}
-
-.ttx-status-header.ttx-hunt {
-    background: #a16207;
-    color: #fef08a;
-}
-
-.ttx-status-header.ttx-eliminated {
-    background: #7f1d1d;
-    color: #fecaca;
+.ttx-status-header.ttx-out {
+    background: #374151;
+    color: #9ca3af;
 }
 
 .ttx-team-list {
@@ -636,29 +621,20 @@ body {
     color: var(--accent);
 }
 
-.ttx-clinched-team .ttx-team-name {
+.ttx-division-leader .ttx-team-name {
     color: var(--accent);
 }
 
-.ttx-position-team {
-    background: rgba(59, 130, 246, 0.1);
-}
-
-.ttx-position-team .ttx-team-name {
+.ttx-wild-card .ttx-team-name {
     color: #60a5fa;
 }
 
-.ttx-hunt-team .ttx-team-name {
-    color: #fbbf24;
-}
-
-.ttx-eliminated-team {
+.ttx-out-team {
     opacity: 0.6;
 }
 
-.ttx-eliminated-team .ttx-team-name {
+.ttx-out-team .ttx-team-name {
     color: #888;
-    text-decoration: line-through;
 }
 
 .ttx-superbowl-matchup {

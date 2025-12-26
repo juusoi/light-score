@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Light Score — Playoff Picture</title>
+    <title>Light Score — Playoff Seedings</title>
     <link rel="stylesheet" href="/static/teletext.css" />
   </head>
   <body>
@@ -13,7 +13,7 @@
         <div class="ttx-season-line">
           <span class="ttx-season">{{ season_type_name }}</span>
           <span class="ttx-sep-dot">•</span>
-          <span class="ttx-year">Playoff Picture</span>
+          <span class="ttx-year">Current Seedings</span>
         </div>
         <div class="ttx-playoff-nav" role="navigation" aria-label="Season type filter">
           <a href="/playoffs?seasonType=2" class="ttx-link{% if season_type == 2 %} ttx-active{% endif %}">Regular Season</a>
@@ -42,7 +42,6 @@
                   <span class="ttx-team-seed">#{{ team.seed }}</span>
                   <span class="ttx-team-name">{{ team.abbreviation }}</span>
                   <span class="ttx-team-record">{{ team.playoff_wins }}-{{ team.playoff_losses }}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
                 </li>
                 {% else %}
                 <li class="ttx-playoff-team muted">No AFC team yet</li>
@@ -56,20 +55,18 @@
                   <span class="ttx-team-seed">#{{ team.seed }}</span>
                   <span class="ttx-team-name">{{ team.abbreviation }}</span>
                   <span class="ttx-team-record">{{ team.playoff_wins }}-{{ team.playoff_losses }}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
                 </li>
                 {% else %}
                 <li class="ttx-playoff-team muted">-</li>
                 {% endfor %}
               </ul>
 
-              <h3 class="ttx-status-header ttx-eliminated">Eliminated</h3>
+              <h3 class="ttx-status-header ttx-out">Eliminated</h3>
               <ul class="ttx-team-list">
                 {% for team in picture.afc_teams if team.status == 'eliminated' %}
-                <li class="ttx-playoff-team ttx-eliminated-team">
+                <li class="ttx-playoff-team ttx-out-team">
                   <span class="ttx-team-seed">#{{ team.seed }}</span>
                   <span class="ttx-team-name">{{ team.abbreviation }}</span>
-                  <span class="ttx-team-record">{{ team.playoff_wins }}-{{ team.playoff_losses }}</span>
                   <span class="ttx-team-status">{{ team.status_detail }}</span>
                 </li>
                 {% else %}
@@ -78,59 +75,28 @@
               </ul>
             </div>
             {% else %}
-            <!-- Regular Season: Show playoff race -->
-            <div class="ttx-playoff-race">
-              <h3 class="ttx-status-header ttx-clinched">Clinched Playoff Spot</h3>
+            <!-- Regular Season: Show current seedings -->
+            <div class="ttx-seedings">
+              <h3 class="ttx-status-header">Playoff Seeds</h3>
               <ul class="ttx-team-list">
-                {% for team in picture.afc_teams if team.status in ['clinched_bye', 'clinched_division', 'clinched_wildcard'] %}
-                <li class="ttx-playoff-team ttx-clinched-team">
+                {% for team in picture.afc_teams if team.seed %}
+                <li class="ttx-playoff-team {% if team.status == 'division_leader' %}ttx-division-leader{% else %}ttx-wild-card{% endif %}">
                   <span class="ttx-team-seed">#{{ team.seed }}</span>
                   <span class="ttx-team-name">{{ team.abbreviation }}</span>
                   <span class="ttx-team-record">{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
+                  <span class="ttx-team-status">{% if team.status == 'division_leader' %}DIV{% else %}WC{% endif %}</span>
                 </li>
-                {% else %}
-                <li class="ttx-playoff-team muted">No teams clinched yet</li>
                 {% endfor %}
               </ul>
 
-              <h3 class="ttx-status-header ttx-position">In Playoff Position</h3>
+              <h3 class="ttx-status-header ttx-out">Outside Playoffs</h3>
               <ul class="ttx-team-list">
-                {% for team in picture.afc_teams if team.status == 'in_position' %}
-                <li class="ttx-playoff-team ttx-position-team">
-                  <span class="ttx-team-seed">#{{ team.seed }}</span>
+                {% for team in picture.afc_teams if not team.seed %}
+                <li class="ttx-playoff-team ttx-out-team">
                   <span class="ttx-team-name">{{ team.abbreviation }}</span>
                   <span class="ttx-team-record">{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
+                  <span class="ttx-team-status muted">{{ team.status_detail }}</span>
                 </li>
-                {% else %}
-                <li class="ttx-playoff-team muted">-</li>
-                {% endfor %}
-              </ul>
-
-              <h3 class="ttx-status-header ttx-hunt">In the Hunt</h3>
-              <ul class="ttx-team-list">
-                {% for team in picture.afc_teams if team.status == 'in_hunt' %}
-                <li class="ttx-playoff-team ttx-hunt-team">
-                  <span class="ttx-team-name">{{ team.abbreviation }}</span>
-                  <span class="ttx-team-record">{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
-                </li>
-                {% else %}
-                <li class="ttx-playoff-team muted">-</li>
-                {% endfor %}
-              </ul>
-
-              <h3 class="ttx-status-header ttx-eliminated">Eliminated</h3>
-              <ul class="ttx-team-list">
-                {% for team in picture.afc_teams if team.status == 'eliminated' %}
-                <li class="ttx-playoff-team ttx-eliminated-team">
-                  <span class="ttx-team-name">{{ team.abbreviation }}</span>
-                  <span class="ttx-team-record">{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
-                </li>
-                {% else %}
-                <li class="ttx-playoff-team muted">No teams eliminated yet</li>
                 {% endfor %}
               </ul>
             </div>
@@ -150,7 +116,6 @@
                   <span class="ttx-team-seed">#{{ team.seed }}</span>
                   <span class="ttx-team-name">{{ team.abbreviation }}</span>
                   <span class="ttx-team-record">{{ team.playoff_wins }}-{{ team.playoff_losses }}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
                 </li>
                 {% else %}
                 <li class="ttx-playoff-team muted">No NFC team yet</li>
@@ -164,20 +129,18 @@
                   <span class="ttx-team-seed">#{{ team.seed }}</span>
                   <span class="ttx-team-name">{{ team.abbreviation }}</span>
                   <span class="ttx-team-record">{{ team.playoff_wins }}-{{ team.playoff_losses }}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
                 </li>
                 {% else %}
                 <li class="ttx-playoff-team muted">-</li>
                 {% endfor %}
               </ul>
 
-              <h3 class="ttx-status-header ttx-eliminated">Eliminated</h3>
+              <h3 class="ttx-status-header ttx-out">Eliminated</h3>
               <ul class="ttx-team-list">
                 {% for team in picture.nfc_teams if team.status == 'eliminated' %}
-                <li class="ttx-playoff-team ttx-eliminated-team">
+                <li class="ttx-playoff-team ttx-out-team">
                   <span class="ttx-team-seed">#{{ team.seed }}</span>
                   <span class="ttx-team-name">{{ team.abbreviation }}</span>
-                  <span class="ttx-team-record">{{ team.playoff_wins }}-{{ team.playoff_losses }}</span>
                   <span class="ttx-team-status">{{ team.status_detail }}</span>
                 </li>
                 {% else %}
@@ -186,59 +149,28 @@
               </ul>
             </div>
             {% else %}
-            <!-- Regular Season: Show playoff race -->
-            <div class="ttx-playoff-race">
-              <h3 class="ttx-status-header ttx-clinched">Clinched Playoff Spot</h3>
+            <!-- Regular Season: Show current seedings -->
+            <div class="ttx-seedings">
+              <h3 class="ttx-status-header">Playoff Seeds</h3>
               <ul class="ttx-team-list">
-                {% for team in picture.nfc_teams if team.status in ['clinched_bye', 'clinched_division', 'clinched_wildcard'] %}
-                <li class="ttx-playoff-team ttx-clinched-team">
+                {% for team in picture.nfc_teams if team.seed %}
+                <li class="ttx-playoff-team {% if team.status == 'division_leader' %}ttx-division-leader{% else %}ttx-wild-card{% endif %}">
                   <span class="ttx-team-seed">#{{ team.seed }}</span>
                   <span class="ttx-team-name">{{ team.abbreviation }}</span>
                   <span class="ttx-team-record">{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
+                  <span class="ttx-team-status">{% if team.status == 'division_leader' %}DIV{% else %}WC{% endif %}</span>
                 </li>
-                {% else %}
-                <li class="ttx-playoff-team muted">No teams clinched yet</li>
                 {% endfor %}
               </ul>
 
-              <h3 class="ttx-status-header ttx-position">In Playoff Position</h3>
+              <h3 class="ttx-status-header ttx-out">Outside Playoffs</h3>
               <ul class="ttx-team-list">
-                {% for team in picture.nfc_teams if team.status == 'in_position' %}
-                <li class="ttx-playoff-team ttx-position-team">
-                  <span class="ttx-team-seed">#{{ team.seed }}</span>
+                {% for team in picture.nfc_teams if not team.seed %}
+                <li class="ttx-playoff-team ttx-out-team">
                   <span class="ttx-team-name">{{ team.abbreviation }}</span>
                   <span class="ttx-team-record">{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
+                  <span class="ttx-team-status muted">{{ team.status_detail }}</span>
                 </li>
-                {% else %}
-                <li class="ttx-playoff-team muted">-</li>
-                {% endfor %}
-              </ul>
-
-              <h3 class="ttx-status-header ttx-hunt">In the Hunt</h3>
-              <ul class="ttx-team-list">
-                {% for team in picture.nfc_teams if team.status == 'in_hunt' %}
-                <li class="ttx-playoff-team ttx-hunt-team">
-                  <span class="ttx-team-name">{{ team.abbreviation }}</span>
-                  <span class="ttx-team-record">{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
-                </li>
-                {% else %}
-                <li class="ttx-playoff-team muted">-</li>
-                {% endfor %}
-              </ul>
-
-              <h3 class="ttx-status-header ttx-eliminated">Eliminated</h3>
-              <ul class="ttx-team-list">
-                {% for team in picture.nfc_teams if team.status == 'eliminated' %}
-                <li class="ttx-playoff-team ttx-eliminated-team">
-                  <span class="ttx-team-name">{{ team.abbreviation }}</span>
-                  <span class="ttx-team-record">{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}</span>
-                  <span class="ttx-team-status">{{ team.status_detail }}</span>
-                </li>
-                {% else %}
-                <li class="ttx-playoff-team muted">No teams eliminated yet</li>
                 {% endfor %}
               </ul>
             </div>
@@ -274,4 +206,3 @@
     </div>
   </body>
 </html>
-

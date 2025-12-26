@@ -737,8 +737,7 @@ class PlayoffTeamStatus(BaseModel):
     games_remaining: int = 0  # Remaining regular season games
     max_possible_wins: int = 0  # Wins + remaining games
     seed: int | None = None  # Current/projected seed (1-7 if in playoffs)
-    status: str  # "clinched_bye", "clinched_division", "clinched_wildcard",
-    # "in_position", "in_hunt", "eliminated", "alive", "super_bowl"
+    status: str  # "division_leader", "wild_card", "out", "alive", "super_bowl"
     status_detail: str  # Human-readable status
     eliminated_round: str | None = (
         None  # For postseason: "Wild Card", "Divisional", etc.
@@ -835,11 +834,15 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
                 leaders[div] = div_teams[0]
         return leaders
 
-    def assign_playoff_status(teams: list[dict]) -> list[dict]:
-        """Assign playoff status using proper NFL seeding rules.
+    def assign_playoff_seeding(teams: list[dict]) -> list[dict]:
+        """Assign current playoff seeding based on NFL rules.
 
-        Seeds 1-4: Division winners sorted by record
-        Seeds 5-7: Best non-division-winners (wild cards)
+        Simple current standings view:
+        - Seeds 1-4: Division leaders sorted by record
+        - Seeds 5-7: Best non-division-leaders (wild cards)
+        - Rest: Teams outside playoff position, sorted by record
+
+        No complex clinching/elimination logic - just current seedings.
         """
         if len(teams) < PLAYOFF_SPOTS:
             return teams
@@ -848,143 +851,42 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
         division_leaders = get_division_leaders(teams)
         leader_names = {t["team"] for t in division_leaders.values()}
 
-        # Separate division winners from wild card contenders
-        div_winners = [t for t in teams if t["team"] in leader_names]
-        non_winners = [t for t in teams if t["team"] not in leader_names]
+        # Separate division leaders from wild card contenders
+        div_leaders = [t for t in teams if t["team"] in leader_names]
+        non_leaders = [t for t in teams if t["team"] not in leader_names]
 
         # Sort each group by record
-        div_winners.sort(key=sort_key)
-        non_winners.sort(key=sort_key)
+        div_leaders.sort(key=sort_key)
+        non_leaders.sort(key=sort_key)
 
-        # Calculate reference points for clinching/elimination
-        if len(non_winners) >= WILD_CARD_SPOTS:
-            # 7th seed is the 3rd wild card
-            seventh_place = non_winners[WILD_CARD_SPOTS - 1]
-            seventh_place_wins = seventh_place["wins"]
-        else:
-            seventh_place_wins = 0
-
-        # 8th place (first team out) for clinching calculation
-        if len(non_winners) > WILD_CARD_SPOTS:
-            eighth_place_max = non_winners[WILD_CARD_SPOTS]["max_possible_wins"]
-        else:
-            eighth_place_max = 0
-
-        # Assign seeds to division winners (1-4)
-        for i, team in enumerate(div_winners[:DIVISION_WINNER_SPOTS]):
+        # Assign seeds to division leaders (1-4)
+        for i, team in enumerate(div_leaders[:DIVISION_WINNER_SPOTS]):
             team["seed"] = i + 1
-            # Division winner has clinched if they lead their division
-            # (simplified: if they're the division leader, they've clinched division)
-            div_second_place = [
-                t
-                for t in teams
-                if t["division"] == team["division"] and t["team"] != team["team"]
-            ]
-            div_second_max = max(
-                (t["max_possible_wins"] for t in div_second_place), default=0
-            )
-
-            if team["wins"] > div_second_max:
-                if i == 0:
-                    team["status"] = "clinched_bye"
-                    team["status_detail"] = "Clinched #1 seed"
-                else:
-                    team["status"] = "clinched_division"
-                    team["status_detail"] = f"Clinched division (#{i + 1} seed)"
-            else:
-                team["status"] = "in_position"
-                team["status_detail"] = f"Division leader (#{i + 1} seed)"
+            team["status"] = "division_leader"
+            team["status_detail"] = f"#{i + 1} seed (division leader)"
 
         # Assign seeds to wild cards (5-7)
-        for i, team in enumerate(non_winners[:WILD_CARD_SPOTS]):
+        for i, team in enumerate(non_leaders[:WILD_CARD_SPOTS]):
             seed = DIVISION_WINNER_SPOTS + i + 1
             team["seed"] = seed
+            team["status"] = "wild_card"
+            team["status_detail"] = f"#{seed} seed (wild card)"
 
-            # Wild card has clinched if wins > 8th place max possible
-            if team["wins"] > eighth_place_max:
-                team["status"] = "clinched_wildcard"
-                team["status_detail"] = f"Clinched wild card (#{seed} seed)"
-            else:
-                team["status"] = "in_position"
-                team["status_detail"] = f"Wild card (#{seed} seed)"
+        # Teams outside playoff position
+        for i, team in enumerate(non_leaders[WILD_CARD_SPOTS:]):
+            team["seed"] = None
+            team["status"] = "out"
+            team["status_detail"] = f"#{8 + i} in conference"
 
-        # Assign status to teams outside playoffs
-        for team in non_winners[WILD_CARD_SPOTS:]:
-            # First check: can this team still win their division?
-            # If yes, they have a path to playoffs via division title
-            div_leader = division_leaders.get(team["division"])
-            can_win_division = (
-                div_leader is not None
-                and team["max_possible_wins"] >= div_leader["wins"]
-            )
-
-            if can_win_division:
-                # Team can still win division - they're in the hunt
-                games_back = div_leader["wins"] - team["wins"]
-                if games_back > 0:
-                    team["status"] = "in_hunt"
-                    team["status_detail"] = (
-                        f"{games_back} game{'s' if games_back > 1 else ''} back in division"
-                    )
-                else:
-                    team["status"] = "in_hunt"
-                    team["status_detail"] = "In division race"
-                continue
-
-            # Team cannot win division - must compete for wild card
-            # Per NFL rules, elimination is only when there's NO mathematical path
-            #
-            # Count teams STRICTLY ahead (wins > max) - can't catch these
-            # Count teams at same level (wins == max) - would need tiebreaker
-            strictly_ahead = sum(
-                1
-                for other in non_winners
-                if other["team"] != team["team"]
-                and other["wins"] > team["max_possible_wins"]
-            )
-            at_same_level = sum(
-                1
-                for other in non_winners
-                if other["team"] != team["team"]
-                and other["wins"] == team["max_possible_wins"]
-            )
-
-            # Eliminated: 3+ teams are STRICTLY ahead (can't even tie them)
-            # Slim chances: can only tie some teams, needs tiebreaker help
-            # In hunt: realistic path exists
-            if strictly_ahead >= WILD_CARD_SPOTS:
-                # 3+ teams have more wins than our max - no path
-                team["status"] = "eliminated"
-                team["status_detail"] = "Eliminated from playoffs"
-            elif strictly_ahead + at_same_level >= WILD_CARD_SPOTS:
-                # Can tie some teams but 3+ total are at or ahead
-                # Need help + tiebreaker wins - very slim chances
-                team["status"] = "in_hunt"
-                team["status_detail"] = "Long shot (needs help + tiebreakers)"
-            elif team["max_possible_wins"] < seventh_place_wins:
-                # Can't reach current 7th place
-                team["status"] = "eliminated"
-                team["status_detail"] = "Eliminated from playoffs"
-            else:
-                games_back = seventh_place_wins - team["wins"]
-                if games_back > 0:
-                    team["status"] = "in_hunt"
-                    team["status_detail"] = (
-                        f"{games_back} game{'s' if games_back > 1 else ''} back"
-                    )
-                else:
-                    team["status"] = "in_hunt"
-                    team["status_detail"] = "In wild card hunt"
-
-        # Return teams sorted by seed, then by status
+        # Return teams sorted by seed, then by record
         seeded = [t for t in teams if t["seed"] is not None]
         seeded.sort(key=lambda t: t["seed"] or 99)
         unseeded = [t for t in teams if t["seed"] is None]
         unseeded.sort(key=sort_key)
         return seeded + unseeded
 
-    afc_teams = assign_playoff_status(afc_teams)
-    nfc_teams = assign_playoff_status(nfc_teams)
+    afc_teams = assign_playoff_seeding(afc_teams)
+    nfc_teams = assign_playoff_seeding(nfc_teams)
 
     return {
         "afc_teams": afc_teams,
