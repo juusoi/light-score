@@ -10,7 +10,7 @@ test.describe('Light Score - Home Page', () => {
     await page.goto('/', { waitUntil: 'networkidle' });
   });
 
-  test('displays core page structure and branding', async ({ page }) => {
+  test('displays core page structure and branding @smoke', async ({ page }) => {
     await test.step('verify page title and brand', async () => {
       await expect(page).toHaveTitle(/Light Score/);
       await expect(page.getByText('Light Score')).toBeVisible();
@@ -32,7 +32,7 @@ test.describe('Light Score - Home Page', () => {
     });
   });
 
-  test('shows week navigation controls', async ({ page }) => {
+  test('shows week navigation controls @smoke', async ({ page }) => {
     await test.step('verify navigation elements are present', async () => {
       // Look for the navigation element by aria-label instead of role
       const weekNav = page.locator('[aria-label*="Week navigation"]');

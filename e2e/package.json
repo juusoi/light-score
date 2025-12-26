@@ -11,6 +11,7 @@
     "test:webkit": "playwright test --project=webkit",
     "test:mobile": "playwright test --project=mobile-chrome",
     "test:ci": "CI=true playwright test --project=chromium --project=firefox",
+    "test:smoke": "CI=true playwright test --grep @smoke --project=chromium",
     "report": "playwright show-report",
     "install": "playwright install --with-deps",
     "lint": "eslint tests/ --ext .ts",

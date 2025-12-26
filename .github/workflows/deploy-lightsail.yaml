@@ -457,3 +457,39 @@ jobs:
           fi
 
           echo "✅ Custom domain configured successfully"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Post-Deployment Smoke Tests
+  # ─────────────────────────────────────────────────────────────────────────────
+  e2e-smoke:
+    name: E2E Smoke Tests
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install E2E dependencies
+        working-directory: ./e2e
+        run: bun install
+
+      - name: Install Playwright browsers
+        working-directory: ./e2e
+        run: bunx playwright install chromium --with-deps
+
+      - name: Run smoke tests
+        working-directory: ./e2e
+        env:
+          # Use PRODUCTION_URL from environment secrets, fallback to deploy output
+          SERVICE_URL: ${{ secrets.PRODUCTION_URL || needs.deploy.outputs.service_url }}
+        run: bun run test:smoke
+
+      - name: Upload smoke test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: e2e/playwright-report/
