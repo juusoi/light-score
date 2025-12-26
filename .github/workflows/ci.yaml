@@ -15,6 +15,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Change Detection - Skip E2E for docs-only changes
+  # ─────────────────────────────────────────────────────────────────────────────
+  detect-e2e-changes:
+    name: Detect E2E-relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      should-run-e2e: ${{ steps.changes.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for E2E-relevant changes
+        id: changes
+        run: |
+          # Always run on workflow_dispatch or push to main
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "ℹ️ Running E2E tests (event: $GITHUB_EVENT_NAME)"
+            exit 0
+          fi
+
+          # For PRs, check if relevant files changed
+          if [ -n "$GITHUB_BASE_REF" ]; then
+            git fetch origin "$GITHUB_BASE_REF" --depth=1 || true
+            BASE_REF="origin/$GITHUB_BASE_REF"
+          else
+            git fetch origin main --depth=1 || true
+            BASE_REF="origin/main"
+          fi
+
+          # Patterns that require E2E tests
+          E2E_PATTERNS="^(backend|frontend|functions|e2e)/|^compose\.yaml$|^pyproject\.toml$|^uv\.lock$"
+
+          CHANGED_FILES=$(git diff --name-only "$BASE_REF"...HEAD)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          if echo "$CHANGED_FILES" | grep -E "$E2E_PATTERNS" -q; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "✅ E2E-relevant changes detected"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "⏭️ No E2E-relevant changes - skipping E2E tests"
+          fi
+
   lint:
     name: Lint, format, and type-check
     runs-on: ubuntu-latest
@@ -117,7 +164,8 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   e2e-mock:
     name: E2E Tests (Mock)
-    needs: [lint]
+    needs: [lint, detect-e2e-changes]
+    if: needs.detect-e2e-changes.outputs.should-run-e2e == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -163,7 +211,8 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   e2e-local:
     name: E2E Tests (Integration)
-    needs: [lint, tests, e2e-mock]
+    needs: [lint, tests, e2e-mock, detect-e2e-changes]
+    if: needs.detect-e2e-changes.outputs.should-run-e2e == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -207,13 +256,32 @@ jobs:
   ci-success:
     name: CI Pipeline Success
     runs-on: ubuntu-latest
-    needs: [lint, tests, e2e-local]
+    needs: [lint, tests, e2e-local, detect-e2e-changes]
     if: always()
     steps:
       - name: Check all jobs
         run: |
-          if [ "${{ needs.lint.result }}" != "success" ] || [ "${{ needs.tests.result }}" != "success" ] || [ "${{ needs.e2e-local.result }}" != "success" ]; then
-            echo "❌ CI pipeline failed"
+          LINT="${{ needs.lint.result }}"
+          TESTS="${{ needs.tests.result }}"
+          E2E="${{ needs.e2e-local.result }}"
+          E2E_SHOULD_RUN="${{ needs.detect-e2e-changes.outputs.should-run-e2e }}"
+
+          echo "Results: lint=$LINT, tests=$TESTS, e2e=$E2E, e2e_should_run=$E2E_SHOULD_RUN"
+
+          # Lint and tests must pass
+          if [ "$LINT" != "success" ] || [ "$TESTS" != "success" ]; then
+            echo "❌ CI pipeline failed (lint or tests)"
             exit 1
           fi
-          echo "✅ CI pipeline completed successfully"
+
+          # E2E must pass if it was supposed to run, or be skipped if not
+          if [ "$E2E_SHOULD_RUN" = "true" ] && [ "$E2E" != "success" ]; then
+            echo "❌ CI pipeline failed (e2e)"
+            exit 1
+          fi
+
+          if [ "$E2E_SHOULD_RUN" = "false" ]; then
+            echo "✅ CI pipeline completed (E2E skipped - no relevant changes)"
+          else
+            echo "✅ CI pipeline completed successfully"
+          fi
