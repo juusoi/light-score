@@ -849,6 +849,11 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
         - Rest: Teams outside playoff position, sorted by record
 
         No complex clinching/elimination logic - just current seedings.
+
+        Note: Seedings shown may differ from official NFL.com standings when
+        teams are tied in record. NFL uses complex tiebreakers (head-to-head,
+        division record, conference record, etc.) that we don't have data for.
+        See sort_key() docstring and operations.nfl.com for details.
         """
         if len(teams) < PLAYOFF_SPOTS:
             return teams
