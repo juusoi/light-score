@@ -2,7 +2,7 @@
 Light Score Backend API
 
 API Design Notes:
-- Query parameters use camelCase (e.g., seasonType, startTime) to match ESPN API
+- Query parameters use camelCase (e.g., seasonType, fixture) to match ESPN API
   conventions and JavaScript/JSON naming standards for frontend compatibility.
 - Internal Python code uses snake_case per PEP 8 conventions.
 - This is an intentional design choice for API consistency with external services.
