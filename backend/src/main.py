@@ -856,12 +856,6 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
         div_winners.sort(key=sort_key)
         non_winners.sort(key=sort_key)
 
-        # Build playoff picture: 4 division winners + 3 best wild cards
-        playoff_teams = (
-            div_winners[:DIVISION_WINNER_SPOTS] + non_winners[:WILD_CARD_SPOTS]
-        )
-        non_playoff_teams = non_winners[WILD_CARD_SPOTS:]
-
         # Calculate reference points for clinching/elimination
         if len(non_winners) >= WILD_CARD_SPOTS:
             # 7th seed is the 3rd wild card
@@ -875,9 +869,6 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
             eighth_place_max = non_winners[WILD_CARD_SPOTS]["max_possible_wins"]
         else:
             eighth_place_max = 0
-
-        # Get the worst division winner's wins (for wild card comparison)
-        worst_div_winner_wins = div_winners[-1]["wins"] if div_winners else 0
 
         # Assign seeds to division winners (1-4)
         for i, team in enumerate(div_winners[:DIVISION_WINNER_SPOTS]):
@@ -919,15 +910,40 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
 
         # Assign status to teams outside playoffs
         for team in non_winners[WILD_CARD_SPOTS:]:
-            # Count teams guaranteed to finish ahead
-            teams_guaranteed_ahead = sum(
-                1 for other in teams if other["wins"] > team["max_possible_wins"]
+            # First check: can this team still win their division?
+            # If yes, they have a path to playoffs via division title
+            div_leader = division_leaders.get(team["division"])
+            can_win_division = (
+                div_leader is not None
+                and team["max_possible_wins"] >= div_leader["wins"]
             )
 
-            # Also count division winners that can't be caught
-            # (wild cards must compete with other non-winners)
+            if can_win_division:
+                # Team can still win division - they're in the hunt
+                games_back = div_leader["wins"] - team["wins"]
+                if games_back > 0:
+                    team["status"] = "in_hunt"
+                    team["status_detail"] = (
+                        f"{games_back} game{'s' if games_back > 1 else ''} back in division"
+                    )
+                else:
+                    team["status"] = "in_hunt"
+                    team["status_detail"] = "In division race"
+                continue
 
-            if teams_guaranteed_ahead >= PLAYOFF_SPOTS:
+            # Team cannot win division - must compete for wild card
+            # Count non-division-winners with current wins >= this team's max
+            # (teams that are guaranteed to finish at or ahead)
+            wild_card_teams_ahead = sum(
+                1
+                for other in non_winners
+                if other["team"] != team["team"]
+                and other["wins"] >= team["max_possible_wins"]
+            )
+
+            # If 3+ wild card competitors are guaranteed to finish ahead/tied,
+            # this team is eliminated (can't crack top 3 wild cards)
+            if wild_card_teams_ahead >= WILD_CARD_SPOTS:
                 team["status"] = "eliminated"
                 team["status_detail"] = "Eliminated from playoffs"
             elif team["max_possible_wins"] < seventh_place_wins:
@@ -935,7 +951,7 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
                 team["status_detail"] = "Eliminated from playoffs"
             elif team["max_possible_wins"] == seventh_place_wins:
                 team["status"] = "in_hunt"
-                team["status_detail"] = "Slim playoff chances"
+                team["status_detail"] = "Slim playoff chances (tiebreaker needed)"
             else:
                 games_back = seventh_place_wins - team["wins"]
                 if games_back > 0:
