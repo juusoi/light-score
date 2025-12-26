@@ -80,7 +80,7 @@
             {% else %}
             <!-- Regular Season: Show playoff race -->
             <div class="ttx-playoff-race">
-              <h3 class="ttx-status-header ttx-clinched">Clinched</h3>
+              <h3 class="ttx-status-header ttx-clinched">Clinched Playoff Spot</h3>
               <ul class="ttx-team-list">
                 {% for team in picture.afc_teams if team.status in ['clinched_bye', 'clinched_division', 'clinched_wildcard'] %}
                 <li class="ttx-playoff-team ttx-clinched-team">
@@ -90,7 +90,21 @@
                   <span class="ttx-team-status">{{ team.status_detail }}</span>
                 </li>
                 {% else %}
-                <li class="ttx-playoff-team muted">No teams clinched</li>
+                <li class="ttx-playoff-team muted">No teams clinched yet</li>
+                {% endfor %}
+              </ul>
+
+              <h3 class="ttx-status-header ttx-position">In Playoff Position</h3>
+              <ul class="ttx-team-list">
+                {% for team in picture.afc_teams if team.status == 'in_position' %}
+                <li class="ttx-playoff-team ttx-position-team">
+                  <span class="ttx-team-seed">#{{ team.seed }}</span>
+                  <span class="ttx-team-name">{{ team.abbreviation }}</span>
+                  <span class="ttx-team-record">{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}</span>
+                  <span class="ttx-team-status">{{ team.status_detail }}</span>
+                </li>
+                {% else %}
+                <li class="ttx-playoff-team muted">-</li>
                 {% endfor %}
               </ul>
 
@@ -116,7 +130,7 @@
                   <span class="ttx-team-status">{{ team.status_detail }}</span>
                 </li>
                 {% else %}
-                <li class="ttx-playoff-team muted">No teams eliminated</li>
+                <li class="ttx-playoff-team muted">No teams eliminated yet</li>
                 {% endfor %}
               </ul>
             </div>
@@ -174,7 +188,7 @@
             {% else %}
             <!-- Regular Season: Show playoff race -->
             <div class="ttx-playoff-race">
-              <h3 class="ttx-status-header ttx-clinched">Clinched</h3>
+              <h3 class="ttx-status-header ttx-clinched">Clinched Playoff Spot</h3>
               <ul class="ttx-team-list">
                 {% for team in picture.nfc_teams if team.status in ['clinched_bye', 'clinched_division', 'clinched_wildcard'] %}
                 <li class="ttx-playoff-team ttx-clinched-team">
@@ -184,7 +198,21 @@
                   <span class="ttx-team-status">{{ team.status_detail }}</span>
                 </li>
                 {% else %}
-                <li class="ttx-playoff-team muted">No teams clinched</li>
+                <li class="ttx-playoff-team muted">No teams clinched yet</li>
+                {% endfor %}
+              </ul>
+
+              <h3 class="ttx-status-header ttx-position">In Playoff Position</h3>
+              <ul class="ttx-team-list">
+                {% for team in picture.nfc_teams if team.status == 'in_position' %}
+                <li class="ttx-playoff-team ttx-position-team">
+                  <span class="ttx-team-seed">#{{ team.seed }}</span>
+                  <span class="ttx-team-name">{{ team.abbreviation }}</span>
+                  <span class="ttx-team-record">{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}</span>
+                  <span class="ttx-team-status">{{ team.status_detail }}</span>
+                </li>
+                {% else %}
+                <li class="ttx-playoff-team muted">-</li>
                 {% endfor %}
               </ul>
 
@@ -210,7 +238,7 @@
                   <span class="ttx-team-status">{{ team.status_detail }}</span>
                 </li>
                 {% else %}
-                <li class="ttx-playoff-team muted">No teams eliminated</li>
+                <li class="ttx-playoff-team muted">No teams eliminated yet</li>
                 {% endfor %}
               </ul>
             </div>

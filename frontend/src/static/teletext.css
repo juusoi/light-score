@@ -565,6 +565,11 @@ body {
     color: #bbf7d0;
 }
 
+.ttx-status-header.ttx-position {
+    background: #1e40af;
+    color: #bfdbfe;
+}
+
 .ttx-status-header.ttx-hunt {
     background: #a16207;
     color: #fef08a;
@@ -633,6 +638,14 @@ body {
 
 .ttx-clinched-team .ttx-team-name {
     color: var(--accent);
+}
+
+.ttx-position-team {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.ttx-position-team .ttx-team-name {
+    color: #60a5fa;
 }
 
 .ttx-hunt-team .ttx-team-name {

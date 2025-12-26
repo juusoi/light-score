@@ -734,9 +734,11 @@ class PlayoffTeamStatus(BaseModel):
     wins: int
     losses: int
     ties: int = 0
+    games_remaining: int = 0  # Remaining regular season games
+    max_possible_wins: int = 0  # Wins + remaining games
     seed: int | None = None  # Current/projected seed (1-7 if in playoffs)
     status: str  # "clinched_bye", "clinched_division", "clinched_wildcard",
-    # "in_hunt", "eliminated", "alive", "super_bowl"
+    # "in_position", "in_hunt", "eliminated", "alive", "super_bowl"
     status_detail: str  # Human-readable status
     eliminated_round: str | None = (
         None  # For postseason: "Wild Card", "Divisional", etc.
@@ -755,7 +757,17 @@ class PlayoffPicture(BaseModel):
 
 
 def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
-    """Compute playoff picture from standings data during regular season."""
+    """Compute playoff picture from standings data during regular season.
+
+    Determines clinched/in-hunt/eliminated status based on:
+    - Current standings position
+    - Maximum possible wins (remaining games)
+    - 7th place team's current wins (playoff cutoff)
+    """
+    # NFL regular season is 17 games
+    TOTAL_GAMES = 17
+    PLAYOFF_SPOTS = 7
+
     # Group by conference
     afc_teams = []
     nfc_teams = []
@@ -763,15 +775,23 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
     for team in standings:
         division = team.get("division", "")
         conf = "AFC" if division.startswith("AFC") else "NFC"
+        wins = team.get("wins", 0)
+        losses = team.get("losses", 0)
+        ties = team.get("ties", 0)
+        games_played = wins + losses + ties
+        games_remaining = max(0, TOTAL_GAMES - games_played)
+        max_possible_wins = wins + games_remaining
 
         team_status = {
             "team": team.get("team", "Unknown"),
             "abbreviation": _get_team_abbrev(team.get("team", "")),
             "conference": conf,
             "division": division,
-            "wins": team.get("wins", 0),
-            "losses": team.get("losses", 0),
-            "ties": team.get("ties", 0),
+            "wins": wins,
+            "losses": losses,
+            "ties": ties,
+            "games_remaining": games_remaining,
+            "max_possible_wins": max_possible_wins,
             "seed": None,
             "status": "in_hunt",
             "status_detail": "In the hunt",
@@ -796,39 +816,70 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
     afc_teams.sort(key=sort_key)
     nfc_teams.sort(key=sort_key)
 
-    # Assign seeds (top 7 make playoffs)
-    for i, team in enumerate(afc_teams[:7]):
-        team["seed"] = i + 1
-        if i == 0:
-            team["status"] = "clinched_bye"
-            team["status_detail"] = "#1 seed, first-round bye"
-        elif i < 4:
-            team["status"] = "clinched_division"
-            team["status_detail"] = f"#{i + 1} seed, division leader"
-        else:
-            team["status"] = "clinched_wildcard"
-            team["status_detail"] = f"#{i + 1} seed, wild card"
+    def assign_playoff_status(teams: list[dict]) -> None:
+        """Assign playoff status to teams in a conference."""
+        if len(teams) < PLAYOFF_SPOTS:
+            return
 
-    for i, team in enumerate(nfc_teams[:7]):
-        team["seed"] = i + 1
-        if i == 0:
-            team["status"] = "clinched_bye"
-            team["status_detail"] = "#1 seed, first-round bye"
-        elif i < 4:
-            team["status"] = "clinched_division"
-            team["status_detail"] = f"#{i + 1} seed, division leader"
-        else:
-            team["status"] = "clinched_wildcard"
-            team["status_detail"] = f"#{i + 1} seed, wild card"
+        # Get 7th place team's wins (playoff cutoff)
+        seventh_place_wins = teams[PLAYOFF_SPOTS - 1]["wins"]
 
-    # Teams 8-16 are in the hunt or eliminated
-    for team in afc_teams[7:]:
-        team["status"] = "in_hunt"
-        team["status_detail"] = "In the hunt"
+        # Get 8th place team's max possible wins (for clinching calculation)
+        eighth_place_max = (
+            teams[PLAYOFF_SPOTS]["max_possible_wins"]
+            if len(teams) > PLAYOFF_SPOTS
+            else 0
+        )
 
-    for team in nfc_teams[7:]:
-        team["status"] = "in_hunt"
-        team["status_detail"] = "In the hunt"
+        for i, team in enumerate(teams):
+            if i < PLAYOFF_SPOTS:
+                # Top 7 teams - check if clinched
+                team["seed"] = i + 1
+
+                # Team has clinched if their wins > 8th place max possible wins
+                has_clinched = team["wins"] > eighth_place_max
+
+                if has_clinched:
+                    if i == 0:
+                        team["status"] = "clinched_bye"
+                        team["status_detail"] = "Clinched #1 seed"
+                    elif i < 4:
+                        team["status"] = "clinched_division"
+                        team["status_detail"] = f"Clinched #{i + 1} seed"
+                    else:
+                        team["status"] = "clinched_wildcard"
+                        team["status_detail"] = f"Clinched #{i + 1} seed"
+                else:
+                    # In playoff position but not clinched
+                    if i < 4:
+                        team["status"] = "in_position"
+                        team["status_detail"] = f"#{i + 1} seed (not clinched)"
+                    else:
+                        team["status"] = "in_position"
+                        team["status_detail"] = f"#{i + 1} wild card (not clinched)"
+            else:
+                # Teams 8-16: check if eliminated or in the hunt
+                # Eliminated if max possible wins < 7th place current wins
+                if team["max_possible_wins"] < seventh_place_wins:
+                    team["status"] = "eliminated"
+                    team["status_detail"] = "Eliminated from playoffs"
+                elif team["max_possible_wins"] == seventh_place_wins:
+                    # Could tie but likely eliminated due to tiebreakers
+                    team["status"] = "in_hunt"
+                    team["status_detail"] = "Slim playoff chances"
+                else:
+                    games_back = seventh_place_wins - team["wins"]
+                    if games_back > 0:
+                        team["status"] = "in_hunt"
+                        team["status_detail"] = (
+                            f"{games_back} game{'s' if games_back > 1 else ''} back"
+                        )
+                    else:
+                        team["status"] = "in_hunt"
+                        team["status_detail"] = "In the hunt"
+
+    assign_playoff_status(afc_teams)
+    assign_playoff_status(nfc_teams)
 
     return {
         "afc_teams": afc_teams,
