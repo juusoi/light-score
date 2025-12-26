@@ -1018,7 +1018,8 @@ _TEAM_ABBREVS = {
 
 
 def _get_team_abbrev(team_name: str) -> str:
-    return _TEAM_ABBREVS.get(team_name, team_name[:3].upper())
+    """Get team abbreviation from full name, with fallback for unknown teams."""
+    return _TEAM_ABBREVS.get(team_name, team_name[:3].upper() if team_name else "UNK")
 
 
 def _get_playoff_picture(season_type: int | None = None) -> dict:
