@@ -96,6 +96,22 @@ Tests that require `MOCK_ESPN=true` for fixture data:
 test.skip(!MOCK_MODE, 'MOCK_ESPN not set - skipping mock fixture tests');
 ```
 
+## Manual E2E Trigger
+
+Run E2E tests manually via GitHub Actions:
+
+1. Go to **Actions > E2E Tests (Manual)**
+2. Click **Run workflow**
+3. Configure options:
+   - **Target**: `localhost`, `production`, or `custom` URL
+   - **Test suite**: `all`, `smoke`, or `mock`
+   - **Browser**: `chromium`, `firefox`, `webkit`, or `all`
+
+This is useful for:
+- Testing against staging/preview environments
+- Debugging production issues
+- Running specific test suites on-demand
+
 ## npm Scripts
 
 | Script | Description |
