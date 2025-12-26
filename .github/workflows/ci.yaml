@@ -182,7 +182,7 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: ./e2e
-        run: bunx playwright install chromium --with-deps
+        run: bunx playwright install chrome --with-deps
 
       # Phase 1: Mock tests with fixture data
       - name: Start mock services
@@ -194,7 +194,7 @@ jobs:
           SERVICE_URL: http://localhost:5000
           BACKEND_URL: http://localhost:8000
           MOCK_ESPN: 'true'
-        run: bun run test --project=chromium
+        run: bun run test --project=chrome
 
       - name: Stop mock services
         run: docker compose down

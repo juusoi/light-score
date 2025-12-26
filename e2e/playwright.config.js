@@ -76,8 +76,8 @@ export default defineConfig({
   // Test projects for different browsers and scenarios
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: 'chrome',
+      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
     },
     {
       name: 'firefox',
@@ -90,7 +90,7 @@ export default defineConfig({
     // Mobile testing
     {
       name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
+      use: { ...devices['Pixel 5'], channel: 'chrome' },
     },
     // API testing
     {
