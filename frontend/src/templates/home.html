@@ -134,7 +134,7 @@
                 {% endfor %}
               </div>
               <div class="ttx-bracket-games">
-                {% for game in bracket.games if game.conference == 'AFC' %}
+                {% for game in bracket.games|selectattr('conference', 'equalto', 'AFC')|sort(attribute='round_number', reverse=true) %}
                 <div class="ttx-bracket-game ttx-round-{{ game.round_number }}">
                   <div class="ttx-bracket-round">{{ game.round }}</div>
                   <div class="ttx-bracket-matchup">
@@ -188,7 +188,7 @@
                 {% endfor %}
               </div>
               <div class="ttx-bracket-games">
-                {% for game in bracket.games if game.conference == 'NFC' %}
+                {% for game in bracket.games|selectattr('conference', 'equalto', 'NFC')|sort(attribute='round_number', reverse=true) %}
                 <div class="ttx-bracket-game ttx-round-{{ game.round_number }}">
                   <div class="ttx-bracket-round">{{ game.round }}</div>
                   <div class="ttx-bracket-matchup">

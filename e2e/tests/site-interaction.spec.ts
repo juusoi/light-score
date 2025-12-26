@@ -212,7 +212,9 @@ test.describe('External NFL Site - Structure and Interactions', () => {
       ]);
 
       if (popupPage) {
-        await popupPage.waitForLoadState('load', { timeout: 15_000 }).catch(() => {});
+        await popupPage
+          .waitForLoadState('load', { timeout: 15_000 })
+          .catch(() => {});
 
         const popupUrl = popupPage.url();
         expect(popupUrl.length).toBeGreaterThan(0);
