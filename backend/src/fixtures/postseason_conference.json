@@ -1,0 +1,34 @@
+{
+  "season": {
+    "year": 2024,
+    "type": 3
+  },
+  "week": {
+    "number": 3
+  },
+  "games": [
+    {
+      "team_a": "Buffalo Bills",
+      "team_b": "Kansas City Chiefs",
+      "status": "final",
+      "start_time": "2025-01-26T21:00:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 29,
+      "score_b": 32
+    },
+    {
+      "team_a": "Washington Commanders",
+      "team_b": "Philadelphia Eagles",
+      "status": "final",
+      "start_time": "2025-01-27T00:30:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 23,
+      "score_b": 55
+    }
+  ]
+}
+

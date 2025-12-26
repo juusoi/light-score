@@ -1,0 +1,56 @@
+{
+  "season": {
+    "year": 2024,
+    "type": 3
+  },
+  "week": {
+    "number": 2
+  },
+  "games": [
+    {
+      "team_a": "Houston Texans",
+      "team_b": "Kansas City Chiefs",
+      "status": "final",
+      "start_time": "2025-01-18T21:30:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 14,
+      "score_b": 23
+    },
+    {
+      "team_a": "Baltimore Ravens",
+      "team_b": "Buffalo Bills",
+      "status": "final",
+      "start_time": "2025-01-19T18:00:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 25,
+      "score_b": 27
+    },
+    {
+      "team_a": "Los Angeles Rams",
+      "team_b": "Philadelphia Eagles",
+      "status": "final",
+      "start_time": "2025-01-19T21:00:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 15,
+      "score_b": 28
+    },
+    {
+      "team_a": "Washington Commanders",
+      "team_b": "Detroit Lions",
+      "status": "final",
+      "start_time": "2025-01-20T01:00:00Z",
+      "start_time_finnish": null,
+      "start_date_time_finnish": null,
+      "game_time": null,
+      "score_a": 45,
+      "score_b": 31
+    }
+  ]
+}
+

@@ -53,6 +53,34 @@ def season_type_name(season_type: Optional[int]) -> str:
     return season_types.get(int(season_type), "Unknown")
 
 
+def _fetch_playoff_bracket() -> Optional[dict[str, Any]]:
+    """Fetch playoff bracket data from backend."""
+    try:
+        response = requests.get(f"{BACKEND_URL}/playoffs/bracket", timeout=10)
+        if response.ok:
+            data = response.json()
+            if isinstance(data, dict) and "games" in data:
+                return data
+    except requests.RequestException:
+        logging.warning("Failed to fetch playoff bracket")
+    return None
+
+
+def render_bracket_line(
+    team1: str,
+    score1: Optional[int],
+    team2: str,
+    score2: Optional[int],
+    winner: Optional[str],
+) -> str:
+    """Render a bracket matchup as text."""
+    t1_marker = "►" if winner == team1 else " "
+    t2_marker = "►" if winner == team2 else " "
+    s1 = str(score1) if score1 is not None else "-"
+    s2 = str(score2) if score2 is not None else "-"
+    return f"{t1_marker}{team1[:16]:<16} {s1:>2}\n{t2_marker}{team2[:16]:<16} {s2:>2}"
+
+
 @app.route("/")
 def home():
     try:
@@ -268,6 +296,11 @@ def home():
             # If parsing fails, keep original order
             pass
 
+    # Fetch playoff bracket during postseason
+    bracket_data = None
+    if cur_type == 3:  # Postseason
+        bracket_data = _fetch_playoff_bracket()
+
     return render_template(
         "home.html",
         history_games=history,
@@ -279,6 +312,7 @@ def home():
         next_week_params=next_week_params,
         divisions=divisions,
         season_type_name=season_type_name(cur_type),
+        bracket=bracket_data,
     )
 
 

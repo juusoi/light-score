@@ -117,6 +117,101 @@
           </ul>
         </div>
 
+        {% if ctx.seasonType == 3 and bracket %}
+        <!-- Playoff Bracket -->
+        <div class="ttx-panel ttx-bracket-panel">
+          <h2>Playoff Bracket</h2>
+          <div class="ttx-bracket-container">
+            <!-- AFC Bracket -->
+            <div class="ttx-bracket-conference">
+              <h3 class="ttx-subtitle">AFC</h3>
+              <div class="ttx-seeds">
+                {% for seed in bracket.afc_seeds %}
+                <div class="ttx-seed {% if seed.eliminated %}ttx-eliminated{% endif %}">
+                  <span class="ttx-seed-num">({{ seed.seed }})</span>
+                  <span class="ttx-seed-team">{{ seed.abbreviation }}</span>
+                </div>
+                {% endfor %}
+              </div>
+              <div class="ttx-bracket-games">
+                {% for game in bracket.games if game.conference == 'AFC' %}
+                <div class="ttx-bracket-game ttx-round-{{ game.round_number }}">
+                  <div class="ttx-bracket-round">{{ game.round }}</div>
+                  <div class="ttx-bracket-matchup">
+                    <div class="ttx-bracket-team {% if game.winner == game.away_team %}ttx-winner{% endif %}">
+                      {% if game.away_seed %}<span class="ttx-seed-num">({{ game.away_seed }})</span>{% endif %}
+                      <span class="ttx-team-name">{{ game.away_team }}</span>
+                      <span class="ttx-game-score">{{ game.away_score if game.away_score is not none else '-' }}</span>
+                    </div>
+                    <div class="ttx-bracket-team {% if game.winner == game.home_team %}ttx-winner{% endif %}">
+                      {% if game.home_seed %}<span class="ttx-seed-num">({{ game.home_seed }})</span>{% endif %}
+                      <span class="ttx-team-name">{{ game.home_team }}</span>
+                      <span class="ttx-game-score">{{ game.home_score if game.home_score is not none else '-' }}</span>
+                    </div>
+                  </div>
+                  <div class="ttx-bracket-status ttx-status-{{ game.status }}">{{ game.status }}</div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Super Bowl -->
+            <div class="ttx-bracket-superbowl">
+              <h3 class="ttx-subtitle">Super Bowl</h3>
+              {% for game in bracket.games if game.conference == 'Super Bowl' %}
+              <div class="ttx-bracket-game ttx-superbowl-game">
+                <div class="ttx-bracket-matchup">
+                  <div class="ttx-bracket-team {% if game.winner == game.away_team %}ttx-winner{% endif %}">
+                    <span class="ttx-team-name">{{ game.away_team }}</span>
+                    <span class="ttx-game-score">{{ game.away_score if game.away_score is not none else '-' }}</span>
+                  </div>
+                  <div class="ttx-vs">vs</div>
+                  <div class="ttx-bracket-team {% if game.winner == game.home_team %}ttx-winner{% endif %}">
+                    <span class="ttx-team-name">{{ game.home_team }}</span>
+                    <span class="ttx-game-score">{{ game.home_score if game.home_score is not none else '-' }}</span>
+                  </div>
+                </div>
+                <div class="ttx-bracket-status ttx-status-{{ game.status }}">{{ game.status }}</div>
+              </div>
+              {% endfor %}
+            </div>
+
+            <!-- NFC Bracket -->
+            <div class="ttx-bracket-conference">
+              <h3 class="ttx-subtitle">NFC</h3>
+              <div class="ttx-seeds">
+                {% for seed in bracket.nfc_seeds %}
+                <div class="ttx-seed {% if seed.eliminated %}ttx-eliminated{% endif %}">
+                  <span class="ttx-seed-num">({{ seed.seed }})</span>
+                  <span class="ttx-seed-team">{{ seed.abbreviation }}</span>
+                </div>
+                {% endfor %}
+              </div>
+              <div class="ttx-bracket-games">
+                {% for game in bracket.games if game.conference == 'NFC' %}
+                <div class="ttx-bracket-game ttx-round-{{ game.round_number }}">
+                  <div class="ttx-bracket-round">{{ game.round }}</div>
+                  <div class="ttx-bracket-matchup">
+                    <div class="ttx-bracket-team {% if game.winner == game.away_team %}ttx-winner{% endif %}">
+                      {% if game.away_seed %}<span class="ttx-seed-num">({{ game.away_seed }})</span>{% endif %}
+                      <span class="ttx-team-name">{{ game.away_team }}</span>
+                      <span class="ttx-game-score">{{ game.away_score if game.away_score is not none else '-' }}</span>
+                    </div>
+                    <div class="ttx-bracket-team {% if game.winner == game.home_team %}ttx-winner{% endif %}">
+                      {% if game.home_seed %}<span class="ttx-seed-num">({{ game.home_seed }})</span>{% endif %}
+                      <span class="ttx-team-name">{{ game.home_team }}</span>
+                      <span class="ttx-game-score">{{ game.home_score if game.home_score is not none else '-' }}</span>
+                    </div>
+                  </div>
+                  <div class="ttx-bracket-status ttx-status-{{ game.status }}">{{ game.status }}</div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <!-- Regular Standings -->
         <div class="ttx-panel">
           <h2>Standings</h2>
           {% if divisions %} {% for div_name, teams in divisions.items() %}
@@ -149,6 +244,7 @@
           </ul>
           {% endif %}
         </div>
+        {% endif %}
       </section>
     </div>
   </body>

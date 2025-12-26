@@ -308,3 +308,166 @@ body {
 .ttx-link:hover {
     text-decoration: underline;
 }
+
+/* Playoff Bracket Styles */
+.ttx-bracket-panel {
+    overflow-x: auto;
+}
+
+.ttx-bracket-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 8px 10px;
+}
+
+@media (min-width: 768px) {
+    .ttx-bracket-container {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+}
+
+.ttx-bracket-conference {
+    flex: 1;
+    min-width: 200px;
+}
+
+.ttx-bracket-superbowl {
+    flex: 0 0 auto;
+    min-width: 180px;
+    text-align: center;
+    padding: 0 12px;
+    border-left: 1px solid #333;
+    border-right: 1px solid #333;
+}
+
+@media (max-width: 767px) {
+    .ttx-bracket-superbowl {
+        border-left: none;
+        border-right: none;
+        border-top: 1px solid #333;
+        border-bottom: 1px solid #333;
+        padding: 12px 0;
+    }
+}
+
+.ttx-seeds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin-bottom: 12px;
+    font-size: 11px;
+}
+
+.ttx-seed {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.ttx-seed-num {
+    color: var(--warn);
+    font-size: 10px;
+}
+
+.ttx-seed-team {
+    color: var(--fg);
+}
+
+.ttx-seed.ttx-eliminated {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+.ttx-bracket-games {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ttx-bracket-game {
+    border: 1px solid #333;
+    padding: 6px 8px;
+    background: #111;
+}
+
+.ttx-bracket-round {
+    font-size: 10px;
+    color: var(--info);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.ttx-bracket-matchup {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ttx-bracket-team {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.ttx-bracket-team .ttx-seed-num {
+    min-width: 20px;
+}
+
+.ttx-bracket-team .ttx-team-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ttx-bracket-team .ttx-game-score {
+    min-width: 20px;
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.ttx-bracket-team.ttx-winner {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.ttx-bracket-team.ttx-winner .ttx-game-score {
+    color: var(--accent);
+}
+
+.ttx-bracket-status {
+    font-size: 10px;
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+
+.ttx-bracket-status.ttx-status-final {
+    color: var(--error);
+}
+
+.ttx-bracket-status.ttx-status-live {
+    color: var(--warn);
+}
+
+.ttx-bracket-status.ttx-status-upcoming {
+    color: var(--info);
+}
+
+.ttx-superbowl-game {
+    border: 2px solid var(--warn);
+    background: #1a1a00;
+}
+
+.ttx-superbowl-game .ttx-bracket-matchup {
+    align-items: center;
+}
+
+.ttx-vs {
+    color: #666;
+    font-size: 10px;
+    padding: 2px 0;
+}

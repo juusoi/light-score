@@ -10,6 +10,10 @@ import httpx
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
+# Mock ESPN mode for testing
+MOCK_ESPN = os.getenv("MOCK_ESPN", "").lower() in ("1", "true")
+FIXTURES_PATH = Path(__file__).parent / "fixtures"
+
 # Timezone utilities
 FINNISH_TZ = ZoneInfo("Europe/Helsinki")
 
@@ -49,6 +53,32 @@ def extract_game_time(game_data: dict) -> str | None:
         return None
     except (KeyError, TypeError, AttributeError):
         return None
+
+
+def _load_fixture(name: str) -> dict | list:
+    """Load a JSON fixture file by name."""
+    fixture_path = FIXTURES_PATH / f"{name}.json"
+    if not fixture_path.exists():
+        raise HTTPException(status_code=404, detail=f"Fixture '{name}' not found")
+    return json.loads(fixture_path.read_text())
+
+
+def _detect_fixture_name(
+    year: int | None, week: int | None, season_type: int | None
+) -> str:
+    """Detect which fixture to use based on parameters."""
+    # Use season type to determine fixture
+    if season_type == 3:  # Postseason
+        if week == 1:
+            return "postseason_wildcard"
+        elif week == 2:
+            return "postseason_divisional"
+        elif week == 3:
+            return "postseason_conference"
+        elif week == 4:
+            return "postseason_superbowl"
+        return "postseason_wildcard"  # Default for postseason
+    return "regular_season"  # Default for regular/preseason
 
 
 app = FastAPI()
@@ -93,8 +123,10 @@ def read_root():
         "status": "ok",
         "endpoints": [
             "/games",
+            "/games/weekly",
             "/standings",
             "/standings/live",
+            "/playoffs/bracket",
         ],
     }
 
@@ -196,7 +228,16 @@ def _get_weekly_games(
     week: int | None,
     season_type: int | None,
     force_refresh: bool = False,
+    fixture: str | None = None,
 ) -> list[dict]:
+    # Mock mode: load from fixture files
+    if MOCK_ESPN:
+        fixture_name = fixture or _detect_fixture_name(year, week, season_type)
+        fixture_data = _load_fixture(fixture_name)
+        if isinstance(fixture_data, dict):
+            return fixture_data.get("games", [])
+        return []
+
     now = time.monotonic()
     base_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
     # Build URL with params only when provided
@@ -260,8 +301,13 @@ def get_weekly_games(
     seasonType: int | None = Query(
         default=None, description="Season type: 1=pre, 2=reg, 3=post"
     ),
+    fixture: str | None = Query(
+        default=None, description="Mock fixture name (only when MOCK_ESPN=true)"
+    ),
 ):
-    return _get_weekly_games(year=year, week=week, season_type=seasonType)
+    return _get_weekly_games(
+        year=year, week=week, season_type=seasonType, fixture=fixture
+    )
 
 
 class WeeklyContext(BaseModel):
@@ -354,7 +400,20 @@ def get_weekly_context(
     year: int | None = Query(default=None),
     week: int | None = Query(default=None),
     seasonType: int | None = Query(default=None),
+    fixture: str | None = Query(default=None),
 ):
+    # Mock mode: extract context from fixture file
+    if MOCK_ESPN:
+        fixture_name = fixture or _detect_fixture_name(year, week, seasonType)
+        fixture_data = _load_fixture(fixture_name)
+        if isinstance(fixture_data, dict):
+            return {
+                "year": fixture_data.get("season", {}).get("year", 2024),
+                "week": fixture_data.get("week", {}).get("number", 1),
+                "seasonType": fixture_data.get("season", {}).get("type", 2),
+            }
+        return {"year": 2024, "week": 1, "seasonType": 2}
+
     base_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
     params: list[str] = []
     if year is not None:
@@ -550,6 +609,11 @@ def _extract_minimal_standings(payload: dict) -> list[dict]:
 
 
 def _get_live_standings(force_refresh: bool = False) -> list[dict]:
+    # Mock mode: load from fixture file
+    if MOCK_ESPN:
+        data = _load_fixture("standings")
+        return data if isinstance(data, list) else []
+
     global _live_cache_ts, _live_cache_data
     now = time.monotonic()
     if (
@@ -596,3 +660,55 @@ def _get_live_standings(force_refresh: bool = False) -> list[dict]:
 @app.get("/standings/live", response_model=List[Standings])
 def get_standings_live():
     return _get_live_standings()
+
+
+# --- Playoff Bracket ---
+class PlayoffSeed(BaseModel):
+    seed: int
+    team: str
+    abbreviation: str
+    eliminated: bool
+
+
+class PlayoffGame(BaseModel):
+    round: str  # "Wild Card", "Divisional", "Conference", "Super Bowl"
+    round_number: int
+    conference: str  # "AFC", "NFC", or "Super Bowl"
+    home_team: str
+    home_seed: int | None
+    home_score: int | None
+    away_team: str
+    away_seed: int | None
+    away_score: int | None
+    status: str  # "final", "live", "upcoming"
+    winner: str | None
+
+
+class PlayoffBracket(BaseModel):
+    season_year: int
+    afc_seeds: List[PlayoffSeed]
+    nfc_seeds: List[PlayoffSeed]
+    games: List[PlayoffGame]
+
+
+def _get_playoff_bracket() -> dict:
+    """Get playoff bracket data."""
+    empty_bracket: dict = {
+        "season_year": 2024,
+        "afc_seeds": [],
+        "nfc_seeds": [],
+        "games": [],
+    }
+    if MOCK_ESPN:
+        data = _load_fixture("playoff_seeds")
+        return data if isinstance(data, dict) else empty_bracket
+
+    # In production, this would fetch from ESPN's playoff bracket API
+    # For now, return empty bracket when not mocking
+    return empty_bracket
+
+
+@app.get("/playoffs/bracket", response_model=PlayoffBracket)
+def get_playoff_bracket():
+    """Get the playoff bracket with seeds and game results."""
+    return _get_playoff_bracket()
