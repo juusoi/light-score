@@ -9,6 +9,7 @@ API Design Notes:
 """
 
 import json
+import logging
 import os
 import time
 from datetime import datetime
@@ -1082,7 +1083,13 @@ _TEAM_ABBREVS = {
 
 def _get_team_abbrev(team_name: str) -> str:
     """Get team abbreviation from full name, with fallback for unknown teams."""
-    return _TEAM_ABBREVS.get(team_name, team_name[:3].upper() if team_name else "UNK")
+    if team_name in _TEAM_ABBREVS:
+        return _TEAM_ABBREVS[team_name]
+
+    # Fallback: use first 3 characters or "UNK" for empty names
+    fallback = team_name[:3].upper() if team_name else "UNK"
+    logging.warning("Unknown team name '%s', using fallback abbreviation '%s'", team_name, fallback)
+    return fallback
 
 
 def _get_playoff_picture(season_type: int | None = None) -> dict:
