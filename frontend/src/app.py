@@ -350,7 +350,7 @@ def playoffs():
         if not isinstance(picture_data, dict):
             return render_template("playoffs.html", picture=None, error="Invalid data")
 
-        season_type = picture_data.get("seasonType", 2)
+        season_type = picture_data.get("season_type", 2)
 
         return render_template(
             "playoffs.html",

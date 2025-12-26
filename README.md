@@ -32,6 +32,19 @@ make build-images    # build images (or runs implicitly if stale)
 make up              # backend:8000 frontend:5000
 ```
 
+### Mock Mode (Development)
+
+Run with mock ESPN data for testing playoff brackets and standings:
+
+```bash
+make mock-up         # backend:8000 frontend:5000 with mock data
+```
+
+Access mock views:
+- Regular season: `http://localhost:5000/?seasonType=2`
+- Postseason: `http://localhost:5000/?seasonType=3`
+- Playoff picture: `http://localhost:5000/playoffs`
+
 Parser (standings cache) manually:
 
 ```bash
@@ -82,11 +95,14 @@ MIT (see `LICENSE`).
 | Setup env        | `make dev-setup`    |
 | Build images     | `make build-images` |
 | Run (containers) | `make up`           |
+| Run (mock data)  | `make mock-up`      |
 | Stop containers  | `make down`         |
 | Lint / Format    | `make lint fmt`     |
 | Types            | `make ty`           |
 | Tests            | `make test`         |
+| E2E Tests        | `make test-e2e`     |
 | Full CI locally  | `make ci`           |
+| E2E CI           | `make ci-e2e`       |
 | Security scan    | `make security`     |
 | Health check     | `make health`       |
 | Cleanup          | `make clean`        |
