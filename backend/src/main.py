@@ -932,26 +932,39 @@ def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
                 continue
 
             # Team cannot win division - must compete for wild card
-            # Count non-division-winners with current wins >= this team's max
-            # (teams that are guaranteed to finish at or ahead)
-            wild_card_teams_ahead = sum(
+            # Per NFL rules, elimination is only when there's NO mathematical path
+            #
+            # Count teams STRICTLY ahead (wins > max) - can't catch these
+            # Count teams at same level (wins == max) - would need tiebreaker
+            strictly_ahead = sum(
                 1
                 for other in non_winners
                 if other["team"] != team["team"]
-                and other["wins"] >= team["max_possible_wins"]
+                and other["wins"] > team["max_possible_wins"]
+            )
+            at_same_level = sum(
+                1
+                for other in non_winners
+                if other["team"] != team["team"]
+                and other["wins"] == team["max_possible_wins"]
             )
 
-            # If 3+ wild card competitors are guaranteed to finish ahead/tied,
-            # this team is eliminated (can't crack top 3 wild cards)
-            if wild_card_teams_ahead >= WILD_CARD_SPOTS:
+            # Eliminated: 3+ teams are STRICTLY ahead (can't even tie them)
+            # Slim chances: can only tie some teams, needs tiebreaker help
+            # In hunt: realistic path exists
+            if strictly_ahead >= WILD_CARD_SPOTS:
+                # 3+ teams have more wins than our max - no path
                 team["status"] = "eliminated"
                 team["status_detail"] = "Eliminated from playoffs"
-            elif team["max_possible_wins"] < seventh_place_wins:
-                team["status"] = "eliminated"
-                team["status_detail"] = "Eliminated from playoffs"
-            elif team["max_possible_wins"] == seventh_place_wins:
+            elif strictly_ahead + at_same_level >= WILD_CARD_SPOTS:
+                # Can tie some teams but 3+ total are at or ahead
+                # Need help + tiebreaker wins - very slim chances
                 team["status"] = "in_hunt"
-                team["status_detail"] = "Slim playoff chances (tiebreaker needed)"
+                team["status_detail"] = "Long shot (needs help + tiebreakers)"
+            elif team["max_possible_wins"] < seventh_place_wins:
+                # Can't reach current 7th place
+                team["status"] = "eliminated"
+                team["status_detail"] = "Eliminated from playoffs"
             else:
                 games_back = seventh_place_wins - team["wins"]
                 if games_back > 0:
