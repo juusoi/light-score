@@ -759,10 +759,18 @@ class PlayoffPicture(BaseModel):
 def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
     """Compute playoff picture from standings data during regular season.
 
-    NFL Playoff Format (per foxsports.com/stories/nfl/nfl-playoff-format):
-    - Seeds 1-4: Division winners (sorted by record)
-    - Seeds 5-7: Best 3 non-division-winners (wild cards)
-    - Division winners are GUARANTEED playoff spots regardless of record
+    NFL Playoff Seeding (per operations.nfl.com/the-rules/nfl-tie-breaking-procedures):
+    1. Division champion with best record
+    2. Division champion with second-best record
+    3. Division champion with third-best record
+    4. Division champion with fourth-best record
+    5. Wild card club with best record
+    6. Wild card club with second-best record
+    7. Wild card club with third-best record
+
+    Note: Full NFL tiebreaker rules are complex (head-to-head, division record,
+    common games, conference record, strength of victory, etc.). This implementation
+    uses a simplified wins-losses-name tiebreaker for display purposes.
     """
     # NFL regular season is 17 games
     TOTAL_GAMES = 17
