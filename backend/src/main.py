@@ -127,6 +127,7 @@ def read_root():
             "/standings",
             "/standings/live",
             "/playoffs/bracket",
+            "/playoffs/picture",
         ],
     }
 
@@ -712,3 +713,321 @@ def _get_playoff_bracket() -> dict:
 def get_playoff_bracket():
     """Get the playoff bracket with seeds and game results."""
     return _get_playoff_bracket()
+
+
+# --- Playoff Picture (Race + Status) ---
+class PlayoffTeamStatus(BaseModel):
+    team: str
+    abbreviation: str
+    conference: str
+    division: str
+    wins: int
+    losses: int
+    ties: int = 0
+    seed: int | None = None  # Current/projected seed (1-7 if in playoffs)
+    status: str  # "clinched_bye", "clinched_division", "clinched_wildcard",
+    # "in_hunt", "eliminated", "alive", "super_bowl"
+    status_detail: str  # Human-readable status
+    eliminated_round: str | None = None  # For postseason: "Wild Card", "Divisional", etc.
+    playoff_wins: int = 0
+    playoff_losses: int = 0
+
+
+class PlayoffPicture(BaseModel):
+    season_year: int
+    season_type: int  # 2=regular, 3=postseason
+    week: int
+    afc_teams: List[PlayoffTeamStatus]
+    nfc_teams: List[PlayoffTeamStatus]
+    super_bowl_teams: List[str]  # Teams in Super Bowl (0-2)
+
+
+def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
+    """Compute playoff picture from standings data during regular season."""
+    # Group by conference
+    afc_teams = []
+    nfc_teams = []
+
+    for team in standings:
+        division = team.get("division", "")
+        conf = "AFC" if division.startswith("AFC") else "NFC"
+
+        team_status = {
+            "team": team.get("team", "Unknown"),
+            "abbreviation": _get_team_abbrev(team.get("team", "")),
+            "conference": conf,
+            "division": division,
+            "wins": team.get("wins", 0),
+            "losses": team.get("losses", 0),
+            "ties": team.get("ties", 0),
+            "seed": None,
+            "status": "in_hunt",
+            "status_detail": "In the hunt",
+            "eliminated_round": None,
+            "playoff_wins": 0,
+            "playoff_losses": 0,
+        }
+
+        if conf == "AFC":
+            afc_teams.append(team_status)
+        else:
+            nfc_teams.append(team_status)
+
+    # Sort by wins (desc), then losses (asc)
+    def sort_key(t: dict) -> tuple:
+        return (-t["wins"], t["losses"], t["team"])
+
+    afc_teams.sort(key=sort_key)
+    nfc_teams.sort(key=sort_key)
+
+    # Assign seeds (top 7 make playoffs)
+    for i, team in enumerate(afc_teams[:7]):
+        team["seed"] = i + 1
+        if i == 0:
+            team["status"] = "clinched_bye"
+            team["status_detail"] = "#1 seed, first-round bye"
+        elif i < 4:
+            team["status"] = "clinched_division"
+            team["status_detail"] = f"#{i+1} seed, division leader"
+        else:
+            team["status"] = "clinched_wildcard"
+            team["status_detail"] = f"#{i+1} seed, wild card"
+
+    for i, team in enumerate(nfc_teams[:7]):
+        team["seed"] = i + 1
+        if i == 0:
+            team["status"] = "clinched_bye"
+            team["status_detail"] = "#1 seed, first-round bye"
+        elif i < 4:
+            team["status"] = "clinched_division"
+            team["status_detail"] = f"#{i+1} seed, division leader"
+        else:
+            team["status"] = "clinched_wildcard"
+            team["status_detail"] = f"#{i+1} seed, wild card"
+
+    # Teams 8-16 are in the hunt or eliminated
+    for team in afc_teams[7:]:
+        team["status"] = "in_hunt"
+        team["status_detail"] = "In the hunt"
+
+    for team in nfc_teams[7:]:
+        team["status"] = "in_hunt"
+        team["status_detail"] = "In the hunt"
+
+    return {
+        "afc_teams": afc_teams,
+        "nfc_teams": nfc_teams,
+    }
+
+
+def _compute_playoff_picture_from_bracket(bracket: dict) -> dict:
+    """Compute playoff picture from bracket data during postseason."""
+    afc_teams = []
+    nfc_teams = []
+
+    afc_seeds = bracket.get("afc_seeds", [])
+    nfc_seeds = bracket.get("nfc_seeds", [])
+    games = bracket.get("games", [])
+
+    # Find Super Bowl teams
+    super_bowl_teams = []
+    for game in games:
+        if game.get("conference") == "Super Bowl":
+            if game.get("home_team"):
+                super_bowl_teams.append(game["home_team"])
+            if game.get("away_team"):
+                super_bowl_teams.append(game["away_team"])
+
+    # Process AFC seeds
+    for seed_info in afc_seeds:
+        team_name = seed_info.get("team", "")
+        eliminated = seed_info.get("eliminated", False)
+
+        # Find elimination round
+        elim_round = None
+        playoff_wins = 0
+        playoff_losses = 0
+
+        for game in games:
+            if game.get("conference") != "AFC" and game.get("conference") != "Super Bowl":
+                continue
+            if game.get("status") != "final":
+                continue
+
+            home = game.get("home_team", "")
+            away = game.get("away_team", "")
+            winner = game.get("winner", "")
+
+            if team_name in [home, away]:
+                if winner == team_name:
+                    playoff_wins += 1
+                else:
+                    playoff_losses += 1
+                    elim_round = game.get("round")
+
+        if team_name in super_bowl_teams:
+            status = "super_bowl"
+            status_detail = "Super Bowl"
+        elif eliminated:
+            status = "eliminated"
+            status_detail = f"Eliminated in {elim_round}" if elim_round else "Eliminated"
+        else:
+            status = "alive"
+            status_detail = "Still alive"
+
+        afc_teams.append({
+            "team": team_name,
+            "abbreviation": seed_info.get("abbreviation", ""),
+            "conference": "AFC",
+            "division": "",
+            "wins": 0,
+            "losses": 0,
+            "ties": 0,
+            "seed": seed_info.get("seed"),
+            "status": status,
+            "status_detail": status_detail,
+            "eliminated_round": elim_round,
+            "playoff_wins": playoff_wins,
+            "playoff_losses": playoff_losses,
+        })
+
+    # Process NFC seeds
+    for seed_info in nfc_seeds:
+        team_name = seed_info.get("team", "")
+        eliminated = seed_info.get("eliminated", False)
+
+        elim_round = None
+        playoff_wins = 0
+        playoff_losses = 0
+
+        for game in games:
+            if game.get("conference") != "NFC" and game.get("conference") != "Super Bowl":
+                continue
+            if game.get("status") != "final":
+                continue
+
+            home = game.get("home_team", "")
+            away = game.get("away_team", "")
+            winner = game.get("winner", "")
+
+            if team_name in [home, away]:
+                if winner == team_name:
+                    playoff_wins += 1
+                else:
+                    playoff_losses += 1
+                    elim_round = game.get("round")
+
+        if team_name in super_bowl_teams:
+            status = "super_bowl"
+            status_detail = "Super Bowl"
+        elif eliminated:
+            status = "eliminated"
+            status_detail = f"Eliminated in {elim_round}" if elim_round else "Eliminated"
+        else:
+            status = "alive"
+            status_detail = "Still alive"
+
+        nfc_teams.append({
+            "team": team_name,
+            "abbreviation": seed_info.get("abbreviation", ""),
+            "conference": "NFC",
+            "division": "",
+            "wins": 0,
+            "losses": 0,
+            "ties": 0,
+            "seed": seed_info.get("seed"),
+            "status": status,
+            "status_detail": status_detail,
+            "eliminated_round": elim_round,
+            "playoff_wins": playoff_wins,
+            "playoff_losses": playoff_losses,
+        })
+
+    return {
+        "afc_teams": afc_teams,
+        "nfc_teams": nfc_teams,
+        "super_bowl_teams": super_bowl_teams,
+    }
+
+
+# Team abbreviation lookup (simplified)
+_TEAM_ABBREVS = {
+    "Kansas City Chiefs": "KC",
+    "Buffalo Bills": "BUF",
+    "Baltimore Ravens": "BAL",
+    "Houston Texans": "HOU",
+    "Los Angeles Chargers": "LAC",
+    "Pittsburgh Steelers": "PIT",
+    "Denver Broncos": "DEN",
+    "Miami Dolphins": "MIA",
+    "Cincinnati Bengals": "CIN",
+    "Cleveland Browns": "CLE",
+    "Indianapolis Colts": "IND",
+    "Jacksonville Jaguars": "JAX",
+    "Tennessee Titans": "TEN",
+    "Las Vegas Raiders": "LV",
+    "New York Jets": "NYJ",
+    "New England Patriots": "NE",
+    "Detroit Lions": "DET",
+    "Philadelphia Eagles": "PHI",
+    "Los Angeles Rams": "LAR",
+    "Tampa Bay Buccaneers": "TB",
+    "Minnesota Vikings": "MIN",
+    "Washington Commanders": "WAS",
+    "Green Bay Packers": "GB",
+    "Seattle Seahawks": "SEA",
+    "San Francisco 49ers": "SF",
+    "Dallas Cowboys": "DAL",
+    "Arizona Cardinals": "ARI",
+    "Atlanta Falcons": "ATL",
+    "New Orleans Saints": "NO",
+    "Carolina Panthers": "CAR",
+    "Chicago Bears": "CHI",
+    "New York Giants": "NYG",
+}
+
+
+def _get_team_abbrev(team_name: str) -> str:
+    return _TEAM_ABBREVS.get(team_name, team_name[:3].upper())
+
+
+def _get_playoff_picture(season_type: int | None = None) -> dict:
+    """Get playoff picture based on season type."""
+    # Determine season type from context if not provided
+    if season_type is None:
+        season_type = 2  # Default to regular season
+
+    if season_type == 3:
+        # Postseason: use bracket data
+        bracket = _get_playoff_bracket()
+        picture = _compute_playoff_picture_from_bracket(bracket)
+        return {
+            "season_year": bracket.get("season_year", 2024),
+            "season_type": 3,
+            "week": 1,
+            "afc_teams": picture["afc_teams"],
+            "nfc_teams": picture["nfc_teams"],
+            "super_bowl_teams": picture.get("super_bowl_teams", []),
+        }
+    else:
+        # Regular season: use standings data
+        standings = _get_live_standings()
+        picture = _compute_playoff_picture_from_standings(standings)
+        return {
+            "season_year": 2024,
+            "season_type": 2,
+            "week": 15,
+            "afc_teams": picture["afc_teams"],
+            "nfc_teams": picture["nfc_teams"],
+            "super_bowl_teams": [],
+        }
+
+
+@app.get("/playoffs/picture", response_model=PlayoffPicture)
+def get_playoff_picture(
+    seasonType: int | None = Query(
+        default=None, description="Season type: 2=regular, 3=postseason"
+    ),
+):
+    """Get the playoff picture with team statuses and race standings."""
+    return _get_playoff_picture(seasonType)
