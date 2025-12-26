@@ -229,7 +229,12 @@ def home():
 
     cur_year = to_int(ctx.get("year"), DEFAULT_CONTEXT["year"])
     cur_week = to_int(ctx.get("week"), DEFAULT_CONTEXT["week"])
-    cur_type = to_int(ctx.get("seasonType"), DEFAULT_CONTEXT["seasonType"])
+    # Respect user's explicit seasonType request (ESPN might return different value)
+    cur_type = (
+        season_val
+        if season_val is not None
+        else to_int(ctx.get("seasonType"), DEFAULT_CONTEXT["seasonType"])
+    )
 
     try:
         prev_response = requests.get(
