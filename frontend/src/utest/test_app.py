@@ -328,6 +328,69 @@ def test_bracket_panel_shown_in_postseason(mock_get, client):
 
 
 @patch("requests.get")
+def test_bracket_fallback_to_standings_on_error(mock_get, client):
+    """Test that standings are shown when bracket fetch fails in postseason."""
+    weekly = [
+        {
+            "team_a": "Pittsburgh Steelers",
+            "team_b": "Buffalo Bills",
+            "status": "final",
+            "start_time": "2025-01-11T18:00:00Z",
+            "start_time_finnish": None,
+            "start_date_time_finnish": None,
+            "game_time": None,
+            "score_a": 17,
+            "score_b": 31,
+        },
+    ]
+    ctx_json = {"year": 2024, "week": 1, "seasonType": 3}
+    standings_json = [
+        {
+            "team": "Kansas City Chiefs",
+            "wins": 15,
+            "losses": 2,
+            "ties": 0,
+            "division": "AFC West",
+        }
+    ]
+    nav_json = {"year": 2024, "week": 2, "seasonType": 3}
+
+    def side_effect(url, **kwargs):
+        if "playoffs/bracket" in url:
+            # Simulate network error or invalid response
+            r = MagicMock(ok=False)
+            return r
+        elif "weekly" in url and "context" not in url:
+            r = MagicMock(ok=True)
+            r.json.return_value = weekly
+            return r
+        elif "context" in url:
+            r = MagicMock(ok=True)
+            r.json.return_value = ctx_json
+            return r
+        elif "standings/live" in url:
+            r = MagicMock(ok=True)
+            r.json.return_value = standings_json
+            return r
+        elif "/navigation" in url:
+            r = MagicMock(ok=True)
+            r.json.return_value = nav_json
+            return r
+        else:
+            return MagicMock(ok=False)
+
+    mock_get.side_effect = side_effect
+    resp = client.get("/?year=2024&seasonType=3&week=1")
+    assert resp.status_code == 200
+    text = resp.data.decode()
+    # Bracket panel should NOT be shown (bracket fetch failed)
+    assert "Playoff Bracket" not in text
+    # Standings should be shown as fallback
+    assert "Standings" in text
+    assert "Kansas City Chiefs" in text
+
+
+@patch("requests.get")
 def test_standings_panel_shown_in_regular_season(mock_get, client):
     """Test that standings panel appears when seasonType!=3."""
     weekly = []
