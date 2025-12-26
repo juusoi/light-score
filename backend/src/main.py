@@ -1103,10 +1103,11 @@ def _get_team_abbrev(team_name: str) -> str:
     if team_name in _TEAM_ABBREVS:
         return _TEAM_ABBREVS[team_name]
 
-    # Fallback: use first 3 characters or "UNK" for empty names
-    # This ensures the UI doesn't break, but the abbreviation may be confusing
-    # (e.g., "Los Angeles Rams" -> "LOS" instead of "LAR")
+    # Fallback: use first 3 characters, or "UNK" for empty names
     fallback = team_name[:3].upper() if team_name else "UNK"
+
+    # Log warning to help identify missing team mappings.
+    # Note: fallback may be confusing (e.g., "Los Angeles Rams" -> "LOS" not "LAR")
     logging.warning(
         "Unknown team name '%s', using fallback abbreviation '%s'. "
         "Consider adding this team to _TEAM_ABBREVS.",
