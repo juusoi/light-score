@@ -1082,14 +1082,31 @@ _TEAM_ABBREVS = {
 
 
 def _get_team_abbrev(team_name: str) -> str:
-    """Get team abbreviation from full name, with fallback for unknown teams."""
+    """Get team abbreviation from full name, with fallback for unknown teams.
+
+    The fallback scenario would occur in production when:
+    - ESPN API returns a team name not in our lookup table (e.g., future expansion teams)
+    - ESPN uses a different naming convention than expected (e.g., "LA Rams" vs "Los Angeles Rams")
+    - Malformed or unexpected data from ESPN API
+
+    In mock mode, this could occur if fixture data uses team names not matching
+    the _TEAM_ABBREVS lookup table.
+
+    When fallback is used, a WARNING is logged to aid debugging and help identify
+    missing team mappings that should be added to _TEAM_ABBREVS.
+    """
     if team_name in _TEAM_ABBREVS:
         return _TEAM_ABBREVS[team_name]
 
     # Fallback: use first 3 characters or "UNK" for empty names
+    # This ensures the UI doesn't break, but the abbreviation may be confusing
+    # (e.g., "Los Angeles Rams" -> "LOS" instead of "LAR")
     fallback = team_name[:3].upper() if team_name else "UNK"
     logging.warning(
-        "Unknown team name '%s', using fallback abbreviation '%s'", team_name, fallback
+        "Unknown team name '%s', using fallback abbreviation '%s'. "
+        "Consider adding this team to _TEAM_ABBREVS.",
+        team_name,
+        fallback,
     )
     return fallback
 
