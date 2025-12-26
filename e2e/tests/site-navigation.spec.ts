@@ -29,7 +29,7 @@ test.describe('External NFL Site - Navigation and Health Checks', () => {
     });
   });
 
-  test('external site loads successfully and has basic structure', async ({
+  test('external site loads successfully and has basic structure @smoke', async ({
     page,
   }, testInfo) => {
     await test.step('navigate to external site', async () => {

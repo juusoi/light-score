@@ -1,103 +1,181 @@
 # E2E Tests CI/CD Integration
 
-## Phase 1: Verify Tests Pass Locally
+## Overview
 
-Before implementing CI changes, verify E2E tests pass against localhost:
+E2E tests are integrated into the CI/CD pipeline at three stages:
 
-1. Start services: `make up`
-2. Install E2E dependencies: `cd e2e && bun install`
-3. Install Playwright browsers: `bunx playwright install chromium --with-deps`
-4. Run tests: `SERVICE_URL=http://localhost:5000 BACKEND_URL=http://localhost:8000 bun run test --project=chromium`
-5. Fix any failing tests before proceeding to Phase 2
+1. **Mock Tests (CI)** - Deterministic tests against fixture data
+2. **Integration Tests (CI)** - Full tests against live localhost services
+3. **Smoke Tests (Post-Deploy)** - Critical path verification against production
 
-## Phase 2: CI/CD Implementation
-
-### 1. Update CI Workflow (`ci.yaml`)
-
-Add new `e2e` job that:
-- Depends on `lint` job (same as unit tests)
-- Starts backend and frontend containers using `compose.yaml`
-- Waits for services to be healthy
-- Installs Bun and Playwright browsers
-- Runs E2E tests with `SERVICE_URL=http://localhost:5000`
-
-```yaml
-e2e:
-  name: E2E Tests
-  needs: [lint]
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v4
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Start services
-      run: docker compose up -d --build --wait
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
-    - name: Install dependencies
-      working-directory: ./e2e
-      run: bun install && bunx playwright install chromium --with-deps
-    - name: Run E2E tests
-      working-directory: ./e2e
-      env:
-        SERVICE_URL: http://localhost:5000
-        BACKEND_URL: http://localhost:8000
-      run: bun run test --project=chromium
-    - name: Upload test artifacts
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: playwright-report
-        path: e2e/playwright-report/
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│    Lint     │────▶│   E2E Mock  │────▶│  E2E Local  │
+└─────────────┘     └─────────────┘     └─────────────┘
+       │                                       │
+       ▼                                       ▼
+┌─────────────┐                         ┌─────────────┐
+│ Unit Tests  │────────────────────────▶│  ci-success │
+└─────────────┘                         └─────────────┘
+                                               │
+                                               ▼
+                                        ┌─────────────┐
+                                        │   Deploy    │
+                                        └─────────────┘
+                                               │
+                                               ▼
+                                        ┌─────────────┐
+                                        │ E2E Smoke   │
+                                        └─────────────┘
 ```
 
-Update `ci-success` job to also depend on `e2e`.
+## CI Pipeline Jobs
 
-### 2. Update Deploy Workflow (`deploy-lightsail.yaml`)
+### E2E Mock Tests (`e2e-mock`)
 
-Add `e2e-gate` job after `deploy` that:
-- Runs E2E tests against the deployed production URL
-- Uses the deployed `service_url` output from deploy job
+Runs against Docker Compose with `MOCK_ESPN=true` for predictable fixture data.
 
-```yaml
-e2e-gate:
-  name: E2E Smoke Tests (Production)
-  needs: [deploy]
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v4
-    - uses: oven-sh/setup-bun@v2
-    - name: Install and run tests
-      working-directory: ./e2e
-      env:
-        SERVICE_URL: ${{ needs.deploy.outputs.service_url }}
-      run: |
-        bun install
-        bunx playwright install chromium --with-deps
-        bun run test --project=chromium
+- **Depends on**: `lint`
+- **Runs in parallel with**: `tests`
+- **Purpose**: Verify business logic with deterministic data
+
+```bash
+# Local equivalent
+MOCK_ESPN=true make up
+MOCK_ESPN=true SERVICE_URL=http://localhost:5000 BACKEND_URL=http://localhost:8000 make test-e2e
 ```
 
-### 3. Update E2E package.json
+### E2E Integration Tests (`e2e-local`)
 
-Update `test:ci` script to use Chromium only:
+Full test suite against localhost services with live ESPN data simulation.
 
-```json
-"test:ci": "CI=true playwright test --project=chromium"
+- **Depends on**: `lint`, `tests`, `e2e-mock`
+- **Purpose**: Final pre-deploy gate ensuring full integration works
+
+```bash
+# Local equivalent
+make up
+SERVICE_URL=http://localhost:5000 BACKEND_URL=http://localhost:8000 make test-e2e
 ```
 
-## Files to Modify
+### E2E Smoke Tests (`e2e-smoke`)
 
-| File | Change |
-|------|--------|
-| `.github/workflows/ci.yaml` | Add `e2e` job, update `ci-success` dependencies |
-| `.github/workflows/deploy-lightsail.yaml` | Add `e2e-gate` job after deploy |
-| `e2e/package.json` | Update `test:ci` to Chromium only |
+Lightweight critical path tests against production after deployment.
 
-## Implementation Todos
+- **Depends on**: `deploy`
+- **Environment**: `production`
+- **Purpose**: Verify deployment succeeded and critical paths work
 
-- [ ] Start services and run E2E tests locally to verify they pass
-- [ ] Fix any failing E2E tests
-- [ ] Add E2E job to ci.yaml with Docker Compose, Bun, Playwright setup
-- [ ] Update ci-success job to depend on e2e job
-- [ ] Add e2e-gate job to deploy-lightsail.yaml
-- [ ] Update test:ci script to use Chromium only
+```bash
+# Local equivalent (against production)
+SERVICE_URL=https://your-production-url.com bun run test:smoke
+```
+
+## Test Organization
+
+### Smoke Tests (`@smoke` tag)
+
+Tag critical tests with `@smoke` in the test name for post-deploy verification:
+
+```typescript
+test('displays core page structure and branding @smoke', async ({ page }) => {
+  // Critical path test
+});
+```
+
+Run smoke tests:
+```bash
+bun run test:smoke
+```
+
+### Mock Tests (`e2e/tests/mock/`)
+
+Tests that require `MOCK_ESPN=true` for fixture data:
+
+```typescript
+test.skip(!MOCK_MODE, 'MOCK_ESPN not set - skipping mock fixture tests');
+```
+
+## Manual E2E Trigger
+
+Run E2E tests manually via GitHub Actions:
+
+1. Go to **Actions > E2E Tests (Manual)**
+2. Click **Run workflow**
+3. Configure options:
+   - **Target**: `localhost`, `production`, or `custom` URL
+   - **Test suite**: `all`, `smoke`, or `mock`
+   - **Browser**: `chromium`, `firefox`, `webkit`, or `all`
+
+This is useful for:
+- Testing against staging/preview environments
+- Debugging production issues
+- Running specific test suites on-demand
+
+## npm Scripts
+
+| Script | Description |
+|--------|-------------|
+| `test` | Run all tests |
+| `test:ci` | CI mode (Chromium + Firefox) |
+| `test:smoke` | Smoke tests only (`@smoke` tagged) |
+| `test:chromium` | Chromium only |
+
+## GitHub Configuration
+
+### Required Secrets
+
+| Secret | Scope | Description |
+|--------|-------|-------------|
+| `AWS_ROLE_TO_ASSUME` | Repository | AWS OIDC role for deployment |
+| `LIGHTSCORE_DOMAIN` | Repository | Custom domain (optional) |
+| `PRODUCTION_URL` | `production` environment | Production URL for smoke tests |
+
+### Environment Setup
+
+1. Go to **Settings > Environments**
+2. Create `production` environment
+3. Add `PRODUCTION_URL` secret (e.g., `https://lightscore-prod.xxx.amazonaws.com`)
+4. Optionally add protection rules (required reviewers, wait timer)
+
+## Local Development
+
+### Run all E2E tests locally
+
+```bash
+# Start services
+make up
+
+# Run tests
+make test-e2e
+```
+
+### Run mock tests locally
+
+```bash
+# Start services in mock mode
+make mock-up
+
+# Run all tests (mock tests will execute)
+MOCK_ESPN=true make test-e2e
+```
+
+### Run smoke tests locally
+
+```bash
+# Against local
+SERVICE_URL=http://localhost:5000 bun run test:smoke
+
+# Against production
+SERVICE_URL=https://your-prod-url.com bun run test:smoke
+```
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `.github/workflows/ci.yaml` | Added `e2e-mock` and `e2e-local` jobs |
+| `.github/workflows/deploy-lightsail.yaml` | Added `e2e-smoke` job |
+| `e2e/package.json` | Added `test:smoke` script |
+| `e2e/tests/home.spec.ts` | Added `@smoke` tags |
+| `e2e/tests/site-navigation.spec.ts` | Added `@smoke` tag |
