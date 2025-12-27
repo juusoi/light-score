@@ -43,6 +43,8 @@ jobs:
     name: E2E Tests (${{ inputs.target }} / ${{ inputs.test_suite }})
     runs-on: ubuntu-latest
     environment: ${{ inputs.target == 'production' && 'production' || '' }}
+    # Use Playwright Docker image for production/custom (no Docker build needed)
+    container: ${{ inputs.target != 'localhost' && 'mcr.microsoft.com/playwright:v1.57.0-noble' || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -80,14 +82,26 @@ jobs:
             docker compose up -d --build --wait
           fi
 
-      - name: Setup Bun
+      # For production/custom: install Bun in Playwright container
+      - name: Install Bun (Playwright container)
+        if: steps.url.outputs.NEED_SERVICES == 'false'
+        run: |
+          apt-get update && apt-get install -y unzip curl
+          curl -fsSL https://bun.sh/install | bash
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+
+      # For localhost: use setup-bun action
+      - name: Setup Bun (localhost)
+        if: steps.url.outputs.NEED_SERVICES == 'true'
         uses: oven-sh/setup-bun@v2
 
       - name: Install E2E dependencies
         working-directory: ./e2e
         run: bun install
 
+      # Only install browsers for localhost (Playwright image has them pre-installed)
       - name: Install Playwright browsers
+        if: steps.url.outputs.NEED_SERVICES == 'true'
         working-directory: ./e2e
         run: |
           if [ "${{ inputs.browser }}" = "all" ]; then
@@ -102,6 +116,7 @@ jobs:
           SERVICE_URL: ${{ steps.url.outputs.SERVICE_URL }}
           BACKEND_URL: ${{ steps.url.outputs.BACKEND_URL }}
           MOCK_ESPN: ${{ inputs.test_suite == 'mock' && 'true' || '' }}
+          CI: 'true'
         run: |
           # Determine test command
           case "${{ inputs.test_suite }}" in
