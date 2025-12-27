@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
       - name: Check for E2E-relevant changes
         id: changes
@@ -72,11 +72,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'uv'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           version: latest
+          enable-cache: true
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .venv
+            ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
 
       - name: Sync deps (pyproject-first)
         run: |
@@ -118,16 +130,31 @@ jobs:
             root: functions
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'uv'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           version: latest
+          enable-cache: true
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .venv
+            ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
       - name: Run tests (PR-aware)
         working-directory: ${{ matrix.workdir }}
         shell: bash
@@ -176,9 +203,27 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            e2e/node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('e2e/package.json', 'e2e/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install E2E dependencies
         working-directory: ./e2e
-        run: bun install
+        run: bun install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('e2e/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
       - name: Install Playwright browsers
         working-directory: ./e2e
@@ -186,6 +231,9 @@ jobs:
 
       # Phase 1: Mock tests with fixture data
       - name: Start mock services
+        env:
+          DOCKER_BUILDKIT: 1
+          COMPOSE_DOCKER_CLI_BUILD: 1
         run: MOCK_ESPN=true docker compose up -d --build --wait
 
       - name: Run mock E2E tests
@@ -201,7 +249,10 @@ jobs:
 
       # Phase 2: Integration tests with live services
       - name: Start live services
-        run: docker compose up -d --wait
+        env:
+          DOCKER_BUILDKIT: 1
+          COMPOSE_DOCKER_CLI_BUILD: 1
+        run: docker compose up -d --build --wait
 
       - name: Run integration E2E tests
         working-directory: ./e2e

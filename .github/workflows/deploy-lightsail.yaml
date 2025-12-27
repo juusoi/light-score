@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Detect deployable changes
         id: changes
@@ -138,6 +138,8 @@ jobs:
        needs.check-prerequisites.outputs.deploy-ready == 'true')
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -188,6 +190,8 @@ jobs:
       service_url: ${{ steps.deploy.outputs.URL }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -239,26 +243,35 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
+            ${{ runner.os }}-buildx
 
       - name: Build Docker images
         run: |
           set -euo pipefail
+          export DOCKER_BUILDKIT=1
+          export COMPOSE_DOCKER_CLI_BUILD=1
           docker buildx create --use
 
-          # Build both images with cache
+          # Build both images in parallel with cache
           docker buildx build \
             -f backend/Dockerfile \
             -t backend:ci \
             --cache-from type=local,src=/tmp/.buildx-cache \
-            --cache-to type=local,dest=/tmp/.buildx-cache-new \
-            --load .
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            --load . &
+          BACKEND_PID=$!
             
           docker buildx build \
             -f frontend/Dockerfile \
             -t frontend:ci \
             --cache-from type=local,src=/tmp/.buildx-cache \
-            --cache-to type=local,dest=/tmp/.buildx-cache-new \
-            --load .
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            --load . &
+          FRONTEND_PID=$!
+
+          # Wait for both builds to complete
+          wait $BACKEND_PID
+          wait $FRONTEND_PID
 
           # Rotate cache
           rm -rf /tmp/.buildx-cache
@@ -470,6 +483,8 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.57.0-noble
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Install dependencies
         run: |
@@ -480,9 +495,27 @@ jobs:
           curl -fsSL https://bun.sh/install | bash
           echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
 
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            e2e/node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('e2e/package.json', 'e2e/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install E2E dependencies
         working-directory: ./e2e
-        run: $HOME/.bun/bin/bun install --ignore-scripts
+        run: $HOME/.bun/bin/bun install --frozen-lockfile --ignore-scripts
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('e2e/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
       - name: Run smoke tests
         working-directory: ./e2e
