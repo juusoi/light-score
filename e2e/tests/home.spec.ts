@@ -10,46 +10,50 @@ test.describe('Light Score - Home Page', () => {
     await page.goto('/', { waitUntil: 'networkidle' });
   });
 
-  test('displays core page structure and branding @smoke', async ({ page }) => {
-    await test.step('verify page title and brand', async () => {
-      await expect(page).toHaveTitle(/Light Score/);
-      await expect(page.getByText('Light Score')).toBeVisible();
+  test.describe('@smoke', () => {
+    test('displays core page structure and branding', async ({ page }) => {
+      await test.step('verify page title and brand', async () => {
+        await expect(page).toHaveTitle(/Light Score/);
+        await expect(page.getByText('Light Score')).toBeVisible();
+      });
+
+      await test.step('verify main content areas are present', async () => {
+        // Check for main sections using semantic roles and text
+        await expect(page.getByRole('heading', { name: 'Live' })).toBeVisible();
+        await expect(
+          page.getByRole('heading', { name: 'Games' }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole('heading', { name: 'Standings' }),
+        ).toBeVisible();
+      });
+
+      await test.step('verify teletext styling is applied', async () => {
+        const container = page.locator('.ttx-container');
+        await expect(container).toBeVisible();
+        await expect(container).toHaveCSS('font-family', /monospace/);
+      });
     });
 
-    await test.step('verify main content areas are present', async () => {
-      // Check for main sections using semantic roles and text
-      await expect(page.getByRole('heading', { name: 'Live' })).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'Games' })).toBeVisible();
-      await expect(
-        page.getByRole('heading', { name: 'Standings' }),
-      ).toBeVisible();
-    });
+    test('shows week navigation controls', async ({ page }) => {
+      await test.step('verify navigation elements are present', async () => {
+        // Look for the navigation element by aria-label instead of role
+        const weekNav = page.locator('[aria-label*="Week navigation"]');
+        await expect(weekNav).toBeVisible();
 
-    await test.step('verify teletext styling is applied', async () => {
-      const container = page.locator('.ttx-container');
-      await expect(container).toBeVisible();
-      await expect(container).toHaveCSS('font-family', /monospace/);
-    });
-  });
+        await expect(page.getByRole('link', { name: /prev/i })).toBeVisible();
+        await expect(page.getByRole('link', { name: /next/i })).toBeVisible();
+        await expect(page.getByText(/week \d+/i)).toBeVisible();
+      });
 
-  test('shows week navigation controls @smoke', async ({ page }) => {
-    await test.step('verify navigation elements are present', async () => {
-      // Look for the navigation element by aria-label instead of role
-      const weekNav = page.locator('[aria-label*="Week navigation"]');
-      await expect(weekNav).toBeVisible();
+      await test.step('verify navigation links are functional', async () => {
+        const prevLink = page.getByRole('link', { name: /prev/i });
+        const nextLink = page.getByRole('link', { name: /next/i });
 
-      await expect(page.getByRole('link', { name: /prev/i })).toBeVisible();
-      await expect(page.getByRole('link', { name: /next/i })).toBeVisible();
-      await expect(page.getByText(/week \d+/i)).toBeVisible();
-    });
-
-    await test.step('verify navigation links are functional', async () => {
-      const prevLink = page.getByRole('link', { name: /prev/i });
-      const nextLink = page.getByRole('link', { name: /next/i });
-
-      // Links should have valid href attributes
-      await expect(prevLink).toHaveAttribute('href', /\?/);
-      await expect(nextLink).toHaveAttribute('href', /\?/);
+        // Links should have valid href attributes
+        await expect(prevLink).toHaveAttribute('href', /\?/);
+        await expect(nextLink).toHaveAttribute('href', /\?/);
+      });
     });
   });
 

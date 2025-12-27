@@ -29,88 +29,90 @@ test.describe('External NFL Site - Navigation and Health Checks', () => {
     });
   });
 
-  test('external site loads successfully and has basic structure @smoke', async ({
-    page,
-  }, testInfo) => {
-    await test.step('navigate to external site', async () => {
-      const response = await page.goto(serviceUrl, {
-        waitUntil: 'load',
-        timeout: 30_000,
+  test.describe('@smoke', () => {
+    test('external site loads successfully and has basic structure', async ({
+      page,
+    }, testInfo) => {
+      await test.step('navigate to external site', async () => {
+        const response = await page.goto(serviceUrl, {
+          waitUntil: 'load',
+          timeout: 30_000,
+        });
+
+        expect(response).not.toBeNull();
+        expect(response?.status()).toBeLessThan(400);
+
+        await testInfo.attach('response-status', {
+          body: Buffer.from(String(response?.status())),
+          contentType: 'text/plain',
+        });
       });
 
-      expect(response).not.toBeNull();
-      expect(response?.status()).toBeLessThan(400);
+      await test.step('handle cookie consent or modal dialogs', async () => {
+        // Try to dismiss any consent banners or modals
+        const dialogButtons = [
+          page.getByRole('button', {
+            name: /accept|agree|hyväksy|ok|close|sulje/i,
+          }),
+          page.locator('[data-dismiss="modal"]'),
+          page.locator('.cookie-accept, .modal-close, .close-button'),
+        ];
 
-      await testInfo.attach('response-status', {
-        body: Buffer.from(String(response?.status())),
-        contentType: 'text/plain',
-      });
-    });
-
-    await test.step('handle cookie consent or modal dialogs', async () => {
-      // Try to dismiss any consent banners or modals
-      const dialogButtons = [
-        page.getByRole('button', {
-          name: /accept|agree|hyväksy|ok|close|sulje/i,
-        }),
-        page.locator('[data-dismiss="modal"]'),
-        page.locator('.cookie-accept, .modal-close, .close-button'),
-      ];
-
-      for (const button of dialogButtons) {
-        try {
-          if ((await button.count()) > 0) {
-            await button.first().click({ timeout: 2000 });
-            await page.waitForTimeout(500);
-            break;
+        for (const button of dialogButtons) {
+          try {
+            if ((await button.count()) > 0) {
+              await button.first().click({ timeout: 2000 });
+              await page.waitForTimeout(500);
+              break;
+            }
+          } catch (e) {
+            // Continue to next button type if this one fails
           }
-        } catch (e) {
-          // Continue to next button type if this one fails
         }
-      }
-    });
-
-    await test.step('verify page has meaningful content', async () => {
-      const title = await page.title();
-      expect(title.length).toBeGreaterThan(0);
-
-      await testInfo.attach('page-title', {
-        body: Buffer.from(title),
-        contentType: 'text/plain',
       });
 
-      // Verify page has substantial content
-      const bodyText = await page.locator('body').innerText();
-      expect(bodyText.length).toBeGreaterThan(50);
-    });
+      await test.step('verify page has meaningful content', async () => {
+        const title = await page.title();
+        expect(title.length).toBeGreaterThan(0);
 
-    await test.step('verify NFL-related content is present', async () => {
-      // Look for NFL-related keywords in the page content
-      const pageContent = await page.textContent('body');
-      const hasNflContent = /nfl|score|standings|team|game|football/i.test(
-        pageContent || '',
-      );
+        await testInfo.attach('page-title', {
+          body: Buffer.from(title),
+          contentType: 'text/plain',
+        });
 
-      expect(hasNflContent).toBeTruthy();
-    });
-
-    await test.step('capture page artifacts', async () => {
-      // Capture console messages
-      await testInfo.attach('console-logs', {
-        body: Buffer.from(consoleMessages.join('\n')),
-        contentType: 'text/plain',
+        // Verify page has substantial content
+        const bodyText = await page.locator('body').innerText();
+        expect(bodyText.length).toBeGreaterThan(50);
       });
 
-      // Capture screenshot
-      await testInfo.attach('page-screenshot', {
-        body: await page.screenshot({ fullPage: true }),
-        contentType: 'image/png',
+      await test.step('verify NFL-related content is present', async () => {
+        // Look for NFL-related keywords in the page content
+        const pageContent = await page.textContent('body');
+        const hasNflContent = /nfl|score|standings|team|game|football/i.test(
+          pageContent || '',
+        );
+
+        expect(hasNflContent).toBeTruthy();
       });
 
-      // Capture HTML for debugging if needed
-      await testInfo.attach('page-html', {
-        body: Buffer.from(await page.content()),
-        contentType: 'text/html',
+      await test.step('capture page artifacts', async () => {
+        // Capture console messages
+        await testInfo.attach('console-logs', {
+          body: Buffer.from(consoleMessages.join('\n')),
+          contentType: 'text/plain',
+        });
+
+        // Capture screenshot
+        await testInfo.attach('page-screenshot', {
+          body: await page.screenshot({ fullPage: true }),
+          contentType: 'image/png',
+        });
+
+        // Capture HTML for debugging if needed
+        await testInfo.attach('page-html', {
+          body: Buffer.from(await page.content()),
+          contentType: 'text/html',
+        });
       });
     });
   });
