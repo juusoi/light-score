@@ -79,7 +79,10 @@ make security || true
 | -------- | ----------- |
 | `/games/weekly` | Weekly games with scores |
 | `/games/weekly/context` | Current week/season info |
+| `/games/weekly/navigation` | Prev/next week links |
+| `/standings` | Cached standings from local file |
 | `/standings/live` | Live standings by division |
+| `/teams` | Team list with metadata |
 | `/playoffs/bracket` | Playoff bracket with seeds and games |
 | `/playoffs/picture` | Playoff race/status by conference |
 

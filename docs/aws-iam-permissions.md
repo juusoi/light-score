@@ -128,21 +128,21 @@ The Terraform backend example stores state at `TF_STATE_PREFIX/terraform.tfstate
 
 ---
 
-## 4. Environment Variables / Secrets
+## 3. Environment Variables / Secrets
 
 Secrets: `AWS_ROLE_TO_ASSUME` (required), `AWS_ACCOUNT_ID` (optional).
 
 ---
 
-## 5. Terraform Backend Recap
+## 4. Terraform Backend Recap
 
 Sample `terraform/backend.tf` (replace placeholders):
 
-```
+```hcl
 terraform {
   backend "s3" {
     bucket         = "TF_STATE_BUCKET"
-    key            = "TF_STATE_PREFIXterraform.tfstate" # ensure prefix ends with /
+    key            = "TF_STATE_PREFIX/terraform.tfstate"
     region         = "AWS_REGION"
     dynamodb_table = "TF_LOCKS_TABLE"
     encrypt        = true
@@ -154,13 +154,13 @@ Add environments: duplicate statements with new prefix & lock table.
 
 ---
 
-## 6. Lightsail Internal Networking
+## 5. Lightsail Internal Networking
 
 `BACKEND_URL`: `http://LIGHTSAIL_SERVICE_NAME.service.local:8000`.
 
 ---
 
-## 9. Quick Verification Script
+## 6. Quick Verification Script
 
 Quick check:
 
@@ -170,5 +170,3 @@ aws s3 ls s3://TF_STATE_BUCKET/TF_STATE_PREFIX --region AWS_REGION
 aws dynamodb describe-table --table-name TF_LOCKS_TABLE --region AWS_REGION
 aws lightsail get-container-services --region eu-north-1 --query 'containerServices[].serviceName'
 ```
-
----
