@@ -2,6 +2,9 @@
   "name": "lightscore-e2e",
   "private": true,
   "type": "module",
+  "engines": {
+    "bun": ">=1.3.5"
+  },
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",
