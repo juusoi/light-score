@@ -99,6 +99,8 @@ jobs:
       - name: Setup Bun (localhost)
         if: steps.url.outputs.NEED_SERVICES == 'true'
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Cache Bun dependencies
         uses: actions/cache@v4
