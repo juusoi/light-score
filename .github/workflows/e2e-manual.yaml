@@ -47,6 +47,8 @@ jobs:
     container: ${{ inputs.target != 'localhost' && 'mcr.microsoft.com/playwright:v1.57.0-noble' || '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Determine target URL
         id: url
@@ -75,6 +77,9 @@ jobs:
 
       - name: Start local services
         if: steps.url.outputs.NEED_SERVICES == 'true'
+        env:
+          DOCKER_BUILDKIT: 1
+          COMPOSE_DOCKER_CLI_BUILD: 1
         run: |
           if [ "${{ inputs.test_suite }}" = "mock" ]; then
             MOCK_ESPN=true docker compose up -d --build --wait
@@ -95,11 +100,32 @@ jobs:
         if: steps.url.outputs.NEED_SERVICES == 'true'
         uses: oven-sh/setup-bun@v2
 
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            e2e/node_modules
+          key: ${{ runner.os }}-bun-manual-${{ hashFiles('e2e/package.json', 'e2e/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-manual-
+            ${{ runner.os }}-bun-
+
       - name: Install E2E dependencies
         working-directory: ./e2e
-        run: bun install
+        run: bun install --frozen-lockfile
 
       # Only install browsers for localhost (Playwright image has them pre-installed)
+      - name: Cache Playwright browsers
+        if: steps.url.outputs.NEED_SERVICES == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-manual-${{ hashFiles('e2e/package.json') }}-${{ inputs.browser }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-manual-
+            ${{ runner.os }}-playwright-
+
       - name: Install Playwright browsers
         if: steps.url.outputs.NEED_SERVICES == 'true'
         working-directory: ./e2e
