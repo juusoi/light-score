@@ -1,71 +1,88 @@
-# Backend Service for NFL Scores and Standings
+# Backend Service
+
+FastAPI backend for NFL scores and standings.
 
 ## Overview
 
-This document provides information about the backend service of the NFL Scores and Standings project. The backend is built using FastAPI and serves as the primary API for fetching and processing NFL data.
+The backend fetches NFL data from ESPN APIs with caching and serves it via REST endpoints. Built with FastAPI and uses `httpx` for async HTTP requests.
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
+- Python 3.13+
+- uv (<https://docs.astral.sh/uv/>)
 
-- Python 3.13 or higher
-- uv (https://docs.astral.sh/uv/)
+## Setup
 
-### Installation
-
-1. Clone the repository:
+From project root:
 
 ```bash
-git clone https://github.com/juusoi/light-score
-```
-
-2. Set up a virtual environment and sync deps (pyproject-first):
-
-```bash
-cd light-score
+make dev-setup
+# or manually:
 uv venv
 ./scripts/uv-sync.sh --all
 ```
 
-3. Navigate to the backend directory:
+## Run Locally
 
 ```bash
-cd backend
+cd backend/src
+../../.venv/bin/uvicorn main:app --reload --port 8000
 ```
 
-## Running the Service Locally
-
-To run the backend service locally, use the following command:
+Or with containers:
 
 ```bash
-cd src
-../../.venv/bin/uvicorn main:app --reload
+make up  # Starts backend:8000 + frontend:5000
 ```
 
-The service will be available at http://localhost:8000.
+### Mock Mode
+
+Run with fixture data instead of live ESPN:
+
+```bash
+MOCK_ESPN=true ../../.venv/bin/uvicorn main:app --reload --port 8000
+```
 
 ## API Endpoints
 
-The backend provides the following endpoints:
+| Endpoint | Description |
+|----------|-------------|
+| `/` | Health check / API info |
+| `/games/weekly` | Weekly games with scores |
+| `/games/weekly/context` | Current week/season info |
+| `/games/weekly/navigation` | Prev/next week links |
+| `/standings` | Cached standings from local file |
+| `/standings/live` | Live standings from ESPN (5-min TTL) |
+| `/teams` | Team list with metadata |
+| `/playoffs/bracket` | Playoff bracket with seeds and games |
+| `/playoffs/picture` | Playoff race/status by conference |
 
-- /games: Fetches the latest NFL game scores.
-- /standings: Provides current NFL team standings.
+Interactive docs available at `http://localhost:8000/docs`.
 
 ## Testing
 
-To run the unit tests, execute:
-
 ```bash
-cd src
+cd backend/src
 ../../.venv/bin/python -m pytest
 ```
 
-## Development Guidelines
+Or from project root:
 
-Ensure code adheres to PEP 8 standards.
-Write unit tests for new features and bug fixes.
-Document new API endpoints clearly in this README.
+```bash
+make test
+```
 
-## Continuous Integration
+## Data Caching
 
-GitHub Actions are set up for continuous integration, running lint checks and tests on every push.
+- **Games**: 60-second TTL in memory
+- **Live standings**: 5-minute TTL in memory
+- **Cached standings**: Read from `data/standings_cache.json` (updated by `functions/`)
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/main.py` | FastAPI app with all endpoints |
+| `src/data/standings_cache.json` | Cached standings data |
+| `src/fixtures/` | Mock data for testing (playoffs, standings) |
+| `src/utest/` | Unit tests |

@@ -1,76 +1,86 @@
-# AWS Lambda Functions
+# ESPN Parser Functions
 
-ESPN API parsers that will be deployed as AWS Lambda functions for serverless data processing.
+Utilities for fetching and parsing NFL data from ESPN APIs.
 
 ## Overview
 
-This directory contains AWS Lambda functions that fetch and process NFL data from ESPN APIs. The functions are designed to run on a schedule and update the DynamoDB database with the latest scores and standings.
+This directory contains Python functions that fetch and process NFL data from ESPN APIs. The parsed data is cached locally as JSON files for the backend to serve.
 
 ## Getting Started
 
 ### Prerequisites
 
 - Python 3.13 or higher
-- AWS CLI configured with appropriate permissions
-- AWS Lambda deployment tools (optional)
+- uv package manager
 
 ### Installation
 
-From project root (pyproject-first):
+From project root:
 
 ```bash
+make dev-setup
+# or manually:
 uv venv
 ./scripts/uv-sync.sh --all
 ```
 
-### Local Development
+### Run Locally
 
-To test functions locally:
+Fetch and cache current standings:
 
 ```bash
-cd src
-../../.venv/bin/python -m pytest  # Run tests
-../../.venv/bin/python main.py     # Run main function locally
+python functions/src/main.py
+```
+
+This writes standings data to `backend/src/data/standings_cache.json`.
+
+### Run Tests
+
+```bash
+cd functions/src
+../../.venv/bin/python -m pytest
+```
+
+Or from project root:
+
+```bash
+make test
 ```
 
 ## ESPN API Integration
 
-All ESPN NFL endpoints are documented here:
+ESPN NFL endpoints reference:
 
 - <https://gist.github.com/nntrn/ee26cb2a0716de0947a0a4e9a157bc1c>
-- <https://gist.github.com/nntrn/ee26cb2a0716de0947a0a4e9a157bc1c/cd7462cd365e516d7499b43f027db4b8b1a2d6c0>
 
-ESPN API integration is implemented in `src/espn_integration.py`
+ESPN API integration is implemented in `src/espn_integration.py`.
 
 ## Functions
 
-### Standings Parser
+### Standings Parser (`src/standings_parser.py`)
 
-An ESPN API parser implemented in `src/standings_parser.py` that fetches and processes NFL standings data.
+Fetches and processes NFL standings data from ESPN.
 
 **API Endpoint**: <https://cdn.espn.com/core/nfl/standings?xhr=1>
 
-**Data Location**: The current standings information is available in the `response.content.standings.groups` field.
+**Output**: Writes minimal standings data (team, wins, losses, ties, division) to `backend/src/data/standings_cache.json`.
 
-**Function**: Processes standings data and updates DynamoDB with team records, wins, losses, and rankings.
+**Data Models**:
+- `ConferenceGroup` - AFC/NFC conference grouping
+- `TeamStandingInfo` - Individual team record info
 
-### Latest Games
+### Main Entry (`src/main.py`)
 
-**Status**: TODO - Implementation planned for fetching recent game scores and results.
-
-## Deployment
-
-Functions are designed to be deployed to AWS Lambda with:
-
-- **Runtime**: Python 3.13
-- **Trigger**: CloudWatch Events (scheduled)
-- **Storage**: DynamoDB integration
-- **Monitoring**: CloudWatch Logs
+Orchestrates the data fetching workflow using `EspnClient`.
 
 ## Architecture
 
 ```
-ESPN API → AWS Lambda Functions → DynamoDB → FastAPI Backend
+ESPN API → functions/src → backend/src/data/*.json → FastAPI Backend
 ```
 
-The functions serve as the data ingestion layer, fetching fresh NFL data and storing it in DynamoDB for the FastAPI backend to serve.
+The functions serve as the data ingestion layer, fetching fresh NFL data and caching it locally for the FastAPI backend to serve.
+
+## Mock Mode
+
+The backend supports `MOCK_ESPN=true` for testing with fixture data in `backend/src/fixtures/` instead of live ESPN calls.
