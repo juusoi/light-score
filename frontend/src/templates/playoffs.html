@@ -9,11 +9,11 @@
   <body>
     {# Macros for reusable team display components #}
     {% macro seeded_team(team) %}
-    <li class="ttx-playoff-team {% if team.status == 'division_leader' %}ttx-division-leader{% else %}ttx-wild-card{% endif %}">
+    <li class="ttx-playoff-team {% if team.status == 'division_leader' %}ttx-division-leader{% elif team.status == 'wild_card' %}ttx-wild-card{% elif team.status == 'super_bowl' %}ttx-super-bowl-team{% elif team.status == 'alive' %}ttx-alive-team{% elif team.status == 'eliminated' %}ttx-out-team{% else %}ttx-wild-card{% endif %}">
       <span class="ttx-team-seed">#{{ team.seed }}</span>
       <span class="ttx-team-name">{{ team.abbreviation }}</span>
-      <span class="ttx-team-record">{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}</span>
-      <span class="ttx-team-status">{% if team.status == 'division_leader' %}DIV{% else %}WC{% endif %}</span>
+      <span class="ttx-team-record">{% if picture.season_type == 3 %}{{ team.playoff_wins }}-{{ team.playoff_losses }}{% else %}{{ team.wins }}-{{ team.losses }}{% if team.ties %}-{{ team.ties }}{% endif %}{% endif %}</span>
+      <span class="ttx-team-status">{% if team.status == 'division_leader' %}DIV{% elif team.status == 'wild_card' %}WC{% elif team.status == 'super_bowl' %}SB{% elif team.status == 'alive' %}ALIVE{% elif team.status == 'eliminated' %}OUT{% else %}{{ team.status }}{% endif %}</span>
     </li>
     {% endmacro %}
 

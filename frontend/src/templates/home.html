@@ -247,9 +247,9 @@
         {% endif %}
       </section>
 
-      {% if ctx.seasonType == 2 %}
+      {% if ctx.seasonType >= 2 %}
       <footer class="ttx-home-footer">
-        <a href="/playoffs" class="ttx-link">Playoff Picture →</a>
+        <a href="/playoffs?seasonType={{ ctx.seasonType }}" class="ttx-link">Playoff Picture →</a>
       </footer>
       {% endif %}
     </div>
