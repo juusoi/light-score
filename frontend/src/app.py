@@ -321,9 +321,6 @@ def home():
     )
 
 
-
-
-
 def main():
     debug = os.getenv("FLASK_DEBUG", "0") in {"1", "true", "True"}
     app.run(debug=debug)

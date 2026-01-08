@@ -720,24 +720,25 @@ def _extract_playoff_games(
         1: "Wild Card",
         2: "Divisional",
         3: "Conference",
-        4: "Super Bowl",  # Week 4 is typically Pro Bowl week or gap, but handling it
+        4: "Pro Bowl",
         5: "Super Bowl",
     }
     round_name = round_map.get(week, "Unknown")
 
     for ev in events:
+        # Filter out Pro Bowl
+        if round_name == "Pro Bowl":
+            continue
+
         comps = ev.get("competitions") or []
         if not comps:
             continue
         comp = comps[0]
 
-        # Filter out Pro Bowl if identified (usually type id != 1 or name contains Pro Bowl)
-        # Note: Regular NFL game type id is 1. Postseason is 1 too. Pro Bowl is different.
-        # Simple check on name
+        # Additional check for Pro Bowl by name
         name = ev.get("name", "")
         if "Pro Bowl" in name:
             continue
-
         competitors = comp.get("competitors") or []
         if len(competitors) < 2:
             continue
@@ -811,7 +812,7 @@ def _extract_playoff_games(
 
         # Determine conference
         # If round is Super Bowl, conference is Super Bowl
-        if "Super Bowl" in round_name or week >= 4:
+        if "Super Bowl" in round_name or week == 5:
             conference = "Super Bowl"
         else:
             # Use home team's conference usually
@@ -963,9 +964,6 @@ def get_playoff_bracket():
     return _get_playoff_bracket()
 
 
-
-
-
 # Team abbreviation lookup (simplified)
 _TEAM_ABBREVS = {
     "Kansas City Chiefs": "KC",
@@ -1032,6 +1030,3 @@ def _get_team_abbrev(team_name: str) -> str:
         fallback,
     )
     return fallback
-
-
-
