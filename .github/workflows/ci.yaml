@@ -47,8 +47,8 @@ jobs:
             BASE_REF="origin/main"
           fi
 
-          # Patterns that require E2E tests
-          E2E_PATTERNS="^(backend|frontend|functions|e2e)/|^compose\.yaml$|^pyproject\.toml$|^uv\.lock$"
+          # Patterns that require E2E tests (includes workflow changes)
+          E2E_PATTERNS="^(backend|frontend|functions|e2e|\.github/workflows)/|^compose\.yaml$|^pyproject\.toml$|^uv\.lock$"
 
           CHANGED_FILES=$(git diff --name-only "$BASE_REF"...HEAD)
           echo "Changed files:"
@@ -186,6 +186,9 @@ jobs:
 
   # ─────────────────────────────────────────────────────────────────────────────
   # E2E Tests - Combined mock and integration tests in single job for efficiency
+  # NOTE: This job intentionally doesn't use e2e-manual.yaml reusable workflow
+  # because it runs TWO phases (mock + integration) in a single job to avoid
+  # rebuilding Docker images twice. The reusable workflow is for single-suite runs.
   # ─────────────────────────────────────────────────────────────────────────────
   e2e:
     name: E2E Tests

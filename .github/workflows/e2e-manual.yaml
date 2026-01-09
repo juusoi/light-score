@@ -64,12 +64,16 @@ on:
         description: 'Production URL secret'
         required: false
 
+# NOTE: Playwright version should match e2e/package.json @playwright/test version
+# Update the container image version below when upgrading Playwright
+
 jobs:
   e2e:
     name: E2E Tests (${{ inputs.target }} / ${{ inputs.test_suite }})
     runs-on: ubuntu-latest
     environment: ${{ inputs.target == 'production' && 'production' || '' }}
     # Use Playwright Docker image for production/custom (no Docker build needed)
+    # Version: keep in sync with e2e/package.json @playwright/test
     container: ${{ inputs.target != 'localhost' && 'mcr.microsoft.com/playwright:v1.57.0-noble' || '' }}
     steps:
       - uses: actions/checkout@v4
@@ -193,7 +197,7 @@ jobs:
           bun run $TEST_CMD $BROWSER_ARGS
 
       - name: Upload test artifacts
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ inputs.target }}-${{ inputs.test_suite }}
