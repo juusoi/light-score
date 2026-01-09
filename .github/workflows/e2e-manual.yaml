@@ -32,11 +32,11 @@ on:
         required: true
         type: choice
         options:
-          - chrome
+          - chromium
           - firefox
           - webkit
           - all
-        default: chrome
+        default: chromium
 
 jobs:
   e2e:
