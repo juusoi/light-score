@@ -53,9 +53,9 @@ export default defineConfig({
   // Reporters for different environments
   reporter: process.env.CI
     ? [
-        ['github'],
-        ['html', { open: 'never', outputFolder: 'playwright-report' }],
-      ]
+      ['github'],
+      ['html', { open: 'never', outputFolder: 'playwright-report' }],
+    ]
     : [['list'], ['html', { outputFolder: 'playwright-report' }]],
 
   use: {
@@ -75,6 +75,11 @@ export default defineConfig({
 
   // Test projects for different browsers and scenarios
   projects: [
+    // Use 'chromium' for CI (bundled browser), 'chrome' for local (system Chrome)
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
     {
       name: 'chrome',
       use: { ...devices['Desktop Chrome'], channel: 'chrome' },
