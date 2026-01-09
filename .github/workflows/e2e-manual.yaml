@@ -194,7 +194,7 @@ jobs:
           fi
 
           echo "Running: bun run $TEST_CMD $BROWSER_ARGS"
-          bun run $TEST_CMD $BROWSER_ARGS
+          bun run "$TEST_CMD" $BROWSER_ARGS
 
       - name: Upload test artifacts
         if: failure()

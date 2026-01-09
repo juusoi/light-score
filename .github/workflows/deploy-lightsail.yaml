@@ -180,7 +180,7 @@ jobs:
         working-directory: ./terraform
         run: |
           URL=$(terraform output -raw lightsail_service_url || true)
-          echo "URL=$URL" >> $GITHUB_OUTPUT
+          echo "URL=$URL" >> "$GITHUB_OUTPUT"
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Application Deployment
