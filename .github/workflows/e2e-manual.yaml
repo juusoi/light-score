@@ -1,6 +1,7 @@
 name: E2E Tests (Manual)
 
 # Manual trigger for running E2E tests against any environment
+# Also callable from other workflows (e.g., post-deploy smoke tests)
 
 on:
   workflow_dispatch:
@@ -32,11 +33,39 @@ on:
         required: true
         type: choice
         options:
-          - chrome
+          - chromium
           - firefox
           - webkit
           - all
-        default: chrome
+        default: chromium
+
+  # Reusable workflow - can be called from other workflows
+  workflow_call:
+    inputs:
+      target:
+        description: 'Target environment'
+        required: true
+        type: string
+      custom_url:
+        description: 'Custom URL (only used when target=custom)'
+        required: false
+        type: string
+      test_suite:
+        description: 'Test suite to run'
+        required: true
+        type: string
+      browser:
+        description: 'Browser to use'
+        required: false
+        type: string
+        default: chromium
+    secrets:
+      PRODUCTION_URL:
+        description: 'Production URL secret'
+        required: false
+
+# NOTE: Playwright version should match e2e/package.json @playwright/test version
+# Update the container image version below when upgrading Playwright
 
 jobs:
   e2e:
@@ -44,6 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.target == 'production' && 'production' || '' }}
     # Use Playwright Docker image for production/custom (no Docker build needed)
+    # Version: keep in sync with e2e/package.json @playwright/test
     container: ${{ inputs.target != 'localhost' && 'mcr.microsoft.com/playwright:v1.57.0-noble' || '' }}
     steps:
       - uses: actions/checkout@v4
@@ -164,10 +194,10 @@ jobs:
           fi
 
           echo "Running: bun run $TEST_CMD $BROWSER_ARGS"
-          bun run $TEST_CMD $BROWSER_ARGS
+          bun run "$TEST_CMD" $BROWSER_ARGS
 
       - name: Upload test artifacts
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ inputs.target }}-${{ inputs.test_suite }}
