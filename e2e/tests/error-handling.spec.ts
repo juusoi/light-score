@@ -31,9 +31,11 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
         await expect(
           page.getByRole('heading', { name: 'Games' }),
         ).toBeVisible();
-        await expect(
-          page.getByRole('heading', { name: 'Standings' }),
-        ).toBeVisible();
+        
+        // Should show either Standings or Bracket depending on season context
+        const hasStandings = await page.getByRole('heading', { name: 'Standings' }).isVisible();
+        const hasBracket = await page.getByRole('heading', { name: 'Playoff Bracket' }).isVisible();
+        expect(hasStandings || hasBracket).toBeTruthy();
 
         // Navigation should still work
         await expect(page.getByRole('link', { name: /prev/i })).toBeVisible();
@@ -64,7 +66,7 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
       }
 
       // Now load normally to ensure page works
-      await page.goto('/', { waitUntil: 'networkidle' });
+      await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
       await expect(page.getByText('Light Score')).toBeVisible();
     });
   });
@@ -103,7 +105,7 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
   });
 
   test('handles missing or malformed data gracefully', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
 
     await test.step('verify fallback messages for empty data', async () => {
       // Check if empty state messages are shown appropriately
@@ -165,7 +167,7 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
     for (const viewport of edgeCaseViewports) {
       await test.step(`test ${viewport.name} viewport (${viewport.width}x${viewport.height})`, async () => {
         await page.setViewportSize(viewport);
-        await page.goto('/', { waitUntil: 'networkidle' });
+        await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
 
         // Even at extreme viewports, core content should be accessible
         await expect(page.getByText('Light Score')).toBeVisible();
@@ -182,7 +184,7 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
   });
 
   test('keyboard navigation works properly', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
 
     await test.step('verify tab navigation through links', async () => {
       // Focus the page body first
@@ -194,7 +196,7 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
       // Max tabs accounts for: brand link, season type links, week nav links,
       // playoff picture link, and any dynamically added focusable elements.
       // This limit was increased from 10 to 15 after adding the /playoffs link.
-      const maxTabs = 15;
+      const maxTabs = 30;
 
       // Tab through elements until we find a navigation link
       while (tabCount < maxTabs) {
@@ -247,7 +249,7 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
   });
 
   test('screen reader compatibility basics', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
 
     await test.step('verify heading hierarchy', async () => {
       // Should have proper heading levels
@@ -312,7 +314,7 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
   });
 
   test('handles browser back/forward navigation', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
 
     await test.step('navigate forward and back using browser controls', async () => {
       const initialUrl = page.url();

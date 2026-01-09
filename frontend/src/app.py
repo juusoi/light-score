@@ -321,42 +321,6 @@ def home():
     )
 
 
-@app.route("/playoffs")
-def playoffs():
-    """Playoff picture page showing team statuses and race standings.
-
-    Only available during regular season (seasonType=2).
-    Preseason and postseason are redirected to home.
-    """
-    try:
-        # Fetch playoff picture from backend (always regular season)
-        picture_response = requests.get(
-            f"{BACKEND_URL}/playoffs/picture", params={"seasonType": 2}, timeout=10
-        )
-
-        if not picture_response.ok:
-            logging.warning(
-                "Playoff picture request failed (%s)", picture_response.status_code
-            )
-            return render_template(
-                "playoffs.html", picture=None, error="Data unavailable"
-            )
-
-        picture_data = picture_response.json()
-        if not isinstance(picture_data, dict):
-            return render_template("playoffs.html", picture=None, error="Invalid data")
-
-        return render_template(
-            "playoffs.html",
-            picture=picture_data,
-            season_type_name=season_type_name(2),
-            error=None,
-        )
-    except requests.RequestException:
-        logging.exception("Network error while fetching playoff picture")
-        return render_template("playoffs.html", picture=None, error="Network error")
-
-
 def main():
     debug = os.getenv("FLASK_DEBUG", "0") in {"1", "true", "True"}
     app.run(debug=debug)

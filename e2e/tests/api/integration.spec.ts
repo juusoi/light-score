@@ -7,16 +7,14 @@ test.describe('Light Score - Frontend-Backend Integration', () => {
     'SERVICE_URL not configured - skipping frontend-backend integration tests',
   );
 
+  test.beforeEach(async ({ page }) => {
+    // Force seasonType=2 to ensure consistent testable state (Standings)
+    await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
+  });
+
   test('frontend successfully fetches and displays backend data', async ({
     page,
   }) => {
-    await test.step('navigate to homepage', async () => {
-      await page.goto('/', { waitUntil: 'networkidle' });
-
-      // Verify page loaded successfully
-      await expect(page.getByText('Light Score')).toBeVisible();
-    });
-
     await test.step('verify data is loaded from backend', async () => {
       // Check if any of the main content sections have data
       // This indicates successful backend communication
@@ -101,7 +99,7 @@ test.describe('Light Score - Frontend-Backend Integration', () => {
   test('navigation between weeks maintains data consistency', async ({
     page,
   }) => {
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
 
     let initialState: { weekText: string | null; url: string };
 
@@ -152,7 +150,7 @@ test.describe('Light Score - Frontend-Backend Integration', () => {
   test('data formatting and Finnish timezone display works correctly', async ({
     page,
   }) => {
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
 
     await test.step('verify game time formatting', async () => {
       const upcomingGames = page.locator('.ttx-status-upcoming');
@@ -212,7 +210,7 @@ test.describe('Light Score - Frontend-Backend Integration', () => {
     for (const viewport of viewports) {
       await test.step(`test ${viewport.name} layout with backend data`, async () => {
         await page.setViewportSize(viewport);
-        await page.goto('/', { waitUntil: 'networkidle' });
+        await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
 
         // Core functionality should work at all viewport sizes
         await expect(page.getByText('Light Score')).toBeVisible();

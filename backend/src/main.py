@@ -138,7 +138,6 @@ def read_root():
             "/standings",
             "/standings/live",
             "/playoffs/bracket",
-            "/playoffs/picture",
         ],
     }
 
@@ -703,6 +702,243 @@ class PlayoffBracket(BaseModel):
     games: List[PlayoffGame]
 
 
+def _get_team_conference(team_name: str, conf_map: dict) -> str:
+    """Determine conference for a team using the standings map."""
+    return conf_map.get(team_name, "Unknown")
+
+
+def _extract_playoff_games(
+    payload: dict, week: int, conf_map: dict
+) -> tuple[list[dict], dict[str, int]]:
+    """Extract games and seeds from a weekly scoreboard payload."""
+    events = payload.get("events", []) or []
+    games = []
+    seeds_found = {}  # Map team_name -> seed
+
+    # Map week number to Round Name
+    round_map = {
+        1: "Wild Card",
+        2: "Divisional",
+        3: "Conference",
+        4: "Pro Bowl",
+        5: "Super Bowl",
+    }
+    round_name = round_map.get(week, "Unknown")
+
+    for ev in events:
+        # Filter out Pro Bowl
+        if round_name == "Pro Bowl":
+            continue
+
+        comps = ev.get("competitions") or []
+        if not comps:
+            continue
+        comp = comps[0]
+
+        # Additional check for Pro Bowl by name
+        name = ev.get("name", "")
+        if "Pro Bowl" in name:
+            continue
+        competitors = comp.get("competitors") or []
+        if len(competitors) < 2:
+            continue
+
+        away = next(
+            (c for c in competitors if c.get("homeAway") == "away"), competitors[0]
+        )
+        home = next(
+            (c for c in competitors if c.get("homeAway") == "home"), competitors[1]
+        )
+
+        def name_from(c: dict) -> str:
+            t = c.get("team", {})
+            return (
+                t.get("displayName")
+                or t.get("shortDisplayName")
+                or t.get("name")
+                or "Unknown"
+            )
+
+        def score_from(c: dict) -> int | None:
+            s = c.get("score")
+            if s is None:
+                return None
+            try:
+                return int(float(s))
+            except Exception:
+                return None
+
+        def seed_from(c: dict) -> int | None:
+            # Try curatedRank first
+            try:
+                rank = c.get("curatedRank", {}).get("current")
+                if rank and rank != 99:
+                    return int(rank)
+            except (ValueError, TypeError):
+                pass
+            # Fallback (rarely available in simple scoreboard)
+            return None
+
+        team_a = name_from(away)
+        team_b = name_from(home)
+        score_a = score_from(away)
+        score_b = score_from(home)
+        seed_a = seed_from(away)
+        seed_b = seed_from(home)
+
+        if seed_a:
+            seeds_found[team_a] = seed_a
+        if seed_b:
+            seeds_found[team_b] = seed_b
+
+        status_state = comp.get("status", {}).get("type", {}).get("state") or ev.get(
+            "status", {}
+        ).get("type", {}).get("state")
+        state = (status_state or "").lower()
+        if state == "in":
+            status = "live"
+        elif state == "post":
+            status = "final"
+        else:
+            status = "upcoming"
+
+        winner = None
+        if status == "final":
+            if score_a is not None and score_b is not None:
+                if score_a > score_b:
+                    winner = team_a
+                elif score_b > score_a:
+                    winner = team_b
+
+        # Determine conference
+        # If round is Super Bowl, conference is Super Bowl
+        if "Super Bowl" in round_name or week == 5:
+            conference = "Super Bowl"
+        else:
+            # Use home team's conference usually
+            conference = _get_team_conference(team_b, conf_map)
+            if conference == "Unknown":
+                conference = _get_team_conference(team_a, conf_map)
+
+        games.append(
+            {
+                "round": round_name,
+                "round_number": week,
+                "conference": conference,
+                "home_team": team_b,
+                "home_seed": seed_b,
+                "home_score": score_b,
+                "away_team": team_a,
+                "away_seed": seed_a,
+                "away_score": score_a,
+                "status": status,
+                "winner": winner,
+            }
+        )
+
+    return games, seeds_found
+
+
+def _fetch_real_playoff_bracket() -> dict:
+    """Fetch real playoff data from ESPN."""
+    # 1. Get Context (Year)
+    year = 2024
+    base_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+    try:
+        # Quick fetch to get accurate year from default scoreboard
+        with httpx.Client() as client:
+            resp = client.get(base_url, timeout=4)
+            if resp.status_code == 200:
+                year = resp.json().get("season", {}).get("year", 2024)
+    except Exception:  # nosec B110 - intentional: best-effort year fetch, fallback is fine
+        pass
+
+    # 2. Get Conference Map from Standings
+    # We use _get_live_standings (cached)
+    standings = _get_live_standings()
+    conf_map = {}
+    for team in standings:
+        t_name = team.get("team")
+        div = team.get("division", "")
+        if t_name:
+            if div.startswith("AFC"):
+                conf_map[t_name] = "AFC"
+            elif div.startswith("NFC"):
+                conf_map[t_name] = "NFC"
+
+    # 3. Fetch Games for Weeks 1-5
+    all_games = []
+    all_seeds = {}
+
+    with httpx.Client() as client:
+        for week in range(1, 6):
+            try:
+                params = {"year": year, "seasontype": 3, "week": week}
+                resp = client.get(base_url, params=params, timeout=ESPN_TIMEOUT_SECONDS)
+                resp.raise_for_status()
+                data = resp.json()
+
+                games, seeds = _extract_playoff_games(data, week, conf_map)
+                all_games.extend(games)
+                all_seeds.update(seeds)
+            except Exception as e:
+                logging.warning(f"Failed to fetch playoff week {week}: {e}")
+                continue
+
+    # 4. Construct Seeds List
+    # We need to list all teams that appeared in the bracket
+    # Identify elimination status
+    team_status = {}  # team -> eliminated?
+
+    # Initialize with False
+    for team in all_seeds.keys():
+        team_status[team] = False
+
+    # Check games for elimination
+    # A team is eliminated if they lost a game
+    # EXCEPT for Super Bowl winner? No, bracket usually shows strikethrough for losers.
+
+    super_bowl_teams = set()
+    for g in all_games:
+        if g["conference"] == "Super Bowl":
+            super_bowl_teams.add(g["home_team"])
+            super_bowl_teams.add(g["away_team"])
+
+    for g in all_games:
+        if g["status"] == "final" and g["winner"]:
+            loser = g["home_team"] if g["winner"] == g["away_team"] else g["away_team"]
+            team_status[loser] = True
+
+    afc_seeds_list = []
+    nfc_seeds_list = []
+
+    for team, seed in all_seeds.items():
+        conf = conf_map.get(team, "Unknown")
+        entry = {
+            "seed": seed,
+            "team": team,
+            "abbreviation": _get_team_abbrev(team),
+            "eliminated": team_status.get(team, False),
+        }
+        if conf == "AFC":
+            afc_seeds_list.append(entry)
+        elif conf == "NFC":
+            nfc_seeds_list.append(entry)
+        # If unknown (e.g. Super Bowl team not in standings cache?), try to infer
+        # But usually they are in standings.
+
+    # Sort by seed
+    afc_seeds_list.sort(key=lambda x: x["seed"])
+    nfc_seeds_list.sort(key=lambda x: x["seed"])
+
+    return {
+        "season_year": year,
+        "afc_seeds": afc_seeds_list,
+        "nfc_seeds": nfc_seeds_list,
+        "games": all_games,
+    }
+
+
 def _get_playoff_bracket() -> dict:
     """Get playoff bracket data."""
     empty_bracket: dict = {
@@ -715,338 +951,17 @@ def _get_playoff_bracket() -> dict:
         data = _load_fixture("playoff_seeds")
         return data if isinstance(data, dict) else empty_bracket
 
-    # In production, this would fetch from ESPN's playoff bracket API
-    # For now, return empty bracket when not mocking
-    return empty_bracket
+    try:
+        return _fetch_real_playoff_bracket()
+    except Exception as e:
+        logging.error(f"Error fetching real playoff bracket: {e}")
+        return empty_bracket
 
 
 @app.get("/playoffs/bracket", response_model=PlayoffBracket)
 def get_playoff_bracket():
     """Get the playoff bracket with seeds and game results."""
     return _get_playoff_bracket()
-
-
-# --- Playoff Picture (Race + Status) ---
-class PlayoffTeamStatus(BaseModel):
-    team: str
-    abbreviation: str
-    conference: str
-    division: str
-    wins: int
-    losses: int
-    ties: int = 0
-    games_remaining: int = 0  # Remaining regular season games
-    max_possible_wins: int = 0  # Wins + remaining games
-    seed: int | None = None  # Current/projected seed (1-7 if in playoffs)
-    status: str  # "division_leader", "wild_card", "out", "alive", "super_bowl"
-    status_detail: str  # Human-readable status
-    eliminated_round: str | None = (
-        None  # For postseason: "Wild Card", "Divisional", etc.
-    )
-    playoff_wins: int = 0
-    playoff_losses: int = 0
-
-
-class PlayoffPicture(BaseModel):
-    season_year: int
-    season_type: int  # 2=regular, 3=postseason
-    week: int
-    afc_teams: List[PlayoffTeamStatus]
-    nfc_teams: List[PlayoffTeamStatus]
-    super_bowl_teams: List[str]  # Teams in Super Bowl (0-2)
-
-
-def _compute_playoff_picture_from_standings(standings: list[dict]) -> dict:
-    """Compute playoff picture from standings data during regular season.
-
-    NFL Playoff Seeding (per operations.nfl.com/the-rules/nfl-tie-breaking-procedures):
-    1. Division champion with best record
-    2. Division champion with second-best record
-    3. Division champion with third-best record
-    4. Division champion with fourth-best record
-    5. Wild card club with best record
-    6. Wild card club with second-best record
-    7. Wild card club with third-best record
-
-    Note: Full NFL tiebreaker rules are complex (head-to-head, division record,
-    common games, conference record, strength of victory, etc.). This implementation
-    uses a simplified wins-losses-name tiebreaker for display purposes.
-    """
-    # NFL regular season is 17 games
-    TOTAL_GAMES = 17
-    PLAYOFF_SPOTS = 7
-    DIVISION_WINNER_SPOTS = 4
-    WILD_CARD_SPOTS = 3
-
-    # Group by conference and division
-    afc_teams = []
-    nfc_teams = []
-
-    for team in standings:
-        division = team.get("division", "")
-        conf = "AFC" if division.startswith("AFC") else "NFC"
-        wins = team.get("wins", 0)
-        losses = team.get("losses", 0)
-        ties = team.get("ties", 0)
-        games_played = wins + losses + ties
-        games_remaining = max(0, TOTAL_GAMES - games_played)
-        max_possible_wins = wins + games_remaining
-
-        team_status = {
-            "team": team.get("team", "Unknown"),
-            "abbreviation": _get_team_abbrev(team.get("team", "")),
-            "conference": conf,
-            "division": division,
-            "wins": wins,
-            "losses": losses,
-            "ties": ties,
-            "games_remaining": games_remaining,
-            "max_possible_wins": max_possible_wins,
-            "seed": None,
-            "status": "in_hunt",
-            "status_detail": "In the hunt",
-            "eliminated_round": None,
-            "playoff_wins": 0,
-            "playoff_losses": 0,
-        }
-
-        if conf == "AFC":
-            afc_teams.append(team_status)
-        else:
-            nfc_teams.append(team_status)
-
-    def sort_key(t: dict) -> tuple:
-        """Sort teams by wins (desc), losses (asc), then team name alphabetically.
-
-        Note: This is a simplified sorting algorithm. Actual NFL tiebreakers
-        include head-to-head records, division records, conference records,
-        strength of victory, and more. See operations.nfl.com for full rules.
-        """
-        return (-t["wins"], t["losses"], t["team"])
-
-    def get_division_leaders(teams: list[dict]) -> dict[str, dict]:
-        """Get the best team in each division."""
-        divisions: dict[str, list[dict]] = {}
-        for team in teams:
-            div = team["division"]
-            if div not in divisions:
-                divisions[div] = []
-            divisions[div].append(team)
-
-        leaders = {}
-        for div, div_teams in divisions.items():
-            div_teams.sort(key=sort_key)
-            if div_teams:
-                leaders[div] = div_teams[0]
-        return leaders
-
-    def assign_playoff_seeding(teams: list[dict]) -> list[dict]:
-        """Assign current playoff seeding based on NFL rules.
-
-        Simple current standings view:
-        - Seeds 1-4: Division leaders sorted by record
-        - Seeds 5-7: Best non-division-leaders (wild cards)
-        - Rest: Teams outside playoff position, sorted by record
-
-        No complex clinching/elimination logic - just current seedings.
-
-        Note: Seedings shown may differ from official NFL.com standings when
-        teams are tied in record. NFL uses complex tiebreakers (head-to-head,
-        division record, conference record, etc.) that we don't have data for.
-        See sort_key() docstring and operations.nfl.com for details.
-        """
-        if len(teams) < PLAYOFF_SPOTS:
-            return teams
-
-        # Identify division leaders
-        division_leaders = get_division_leaders(teams)
-        leader_names = {t["team"] for t in division_leaders.values()}
-
-        # Separate division leaders from wild card contenders
-        div_leaders = [t for t in teams if t["team"] in leader_names]
-        non_leaders = [t for t in teams if t["team"] not in leader_names]
-
-        # Sort each group by record
-        div_leaders.sort(key=sort_key)
-        non_leaders.sort(key=sort_key)
-
-        # Assign seeds to division leaders (1-4)
-        for i, team in enumerate(div_leaders[:DIVISION_WINNER_SPOTS]):
-            team["seed"] = i + 1
-            team["status"] = "division_leader"
-            team["status_detail"] = f"#{i + 1} seed (division leader)"
-
-        # Assign seeds to wild cards (5-7)
-        for i, team in enumerate(non_leaders[:WILD_CARD_SPOTS]):
-            seed = DIVISION_WINNER_SPOTS + i + 1
-            team["seed"] = seed
-            team["status"] = "wild_card"
-            team["status_detail"] = f"#{seed} seed (wild card)"
-
-        # Teams outside playoff position
-        for i, team in enumerate(non_leaders[WILD_CARD_SPOTS:]):
-            team["seed"] = None
-            team["status"] = "out"
-            team["status_detail"] = f"#{8 + i} in conference"
-
-        # Return teams sorted by seed, then by record
-        seeded = [t for t in teams if t["seed"] is not None]
-        seeded.sort(key=lambda t: t["seed"] or 99)
-        unseeded = [t for t in teams if t["seed"] is None]
-        unseeded.sort(key=sort_key)
-        return seeded + unseeded
-
-    afc_teams = assign_playoff_seeding(afc_teams)
-    nfc_teams = assign_playoff_seeding(nfc_teams)
-
-    return {
-        "afc_teams": afc_teams,
-        "nfc_teams": nfc_teams,
-    }
-
-
-def _compute_playoff_picture_from_bracket(bracket: dict) -> dict:
-    """Compute playoff picture from bracket data during postseason."""
-    afc_teams = []
-    nfc_teams = []
-
-    afc_seeds = bracket.get("afc_seeds", [])
-    nfc_seeds = bracket.get("nfc_seeds", [])
-    games = bracket.get("games", [])
-
-    # Find Super Bowl teams
-    super_bowl_teams = []
-    for game in games:
-        if game.get("conference") == "Super Bowl":
-            if game.get("home_team"):
-                super_bowl_teams.append(game["home_team"])
-            if game.get("away_team"):
-                super_bowl_teams.append(game["away_team"])
-
-    # Process AFC seeds
-    for seed_info in afc_seeds:
-        team_name = seed_info.get("team", "")
-        eliminated = seed_info.get("eliminated", False)
-
-        # Find elimination round
-        elim_round = None
-        playoff_wins = 0
-        playoff_losses = 0
-
-        for game in games:
-            if (
-                game.get("conference") != "AFC"
-                and game.get("conference") != "Super Bowl"
-            ):
-                continue
-            if game.get("status") != "final":
-                continue
-
-            home = game.get("home_team", "")
-            away = game.get("away_team", "")
-            winner = game.get("winner", "")
-
-            if team_name in [home, away]:
-                if winner == team_name:
-                    playoff_wins += 1
-                else:
-                    playoff_losses += 1
-                    elim_round = game.get("round")
-
-        if team_name in super_bowl_teams:
-            status = "super_bowl"
-            status_detail = "Super Bowl"
-        elif eliminated:
-            status = "eliminated"
-            status_detail = (
-                f"Eliminated in {elim_round}" if elim_round else "Eliminated"
-            )
-        else:
-            status = "alive"
-            status_detail = "Still alive"
-
-        afc_teams.append(
-            {
-                "team": team_name,
-                "abbreviation": seed_info.get("abbreviation", ""),
-                "conference": "AFC",
-                "division": "",
-                "wins": 0,
-                "losses": 0,
-                "ties": 0,
-                "seed": seed_info.get("seed"),
-                "status": status,
-                "status_detail": status_detail,
-                "eliminated_round": elim_round,
-                "playoff_wins": playoff_wins,
-                "playoff_losses": playoff_losses,
-            }
-        )
-
-    # Process NFC seeds
-    for seed_info in nfc_seeds:
-        team_name = seed_info.get("team", "")
-        eliminated = seed_info.get("eliminated", False)
-
-        elim_round = None
-        playoff_wins = 0
-        playoff_losses = 0
-
-        for game in games:
-            if (
-                game.get("conference") != "NFC"
-                and game.get("conference") != "Super Bowl"
-            ):
-                continue
-            if game.get("status") != "final":
-                continue
-
-            home = game.get("home_team", "")
-            away = game.get("away_team", "")
-            winner = game.get("winner", "")
-
-            if team_name in [home, away]:
-                if winner == team_name:
-                    playoff_wins += 1
-                else:
-                    playoff_losses += 1
-                    elim_round = game.get("round")
-
-        if team_name in super_bowl_teams:
-            status = "super_bowl"
-            status_detail = "Super Bowl"
-        elif eliminated:
-            status = "eliminated"
-            status_detail = (
-                f"Eliminated in {elim_round}" if elim_round else "Eliminated"
-            )
-        else:
-            status = "alive"
-            status_detail = "Still alive"
-
-        nfc_teams.append(
-            {
-                "team": team_name,
-                "abbreviation": seed_info.get("abbreviation", ""),
-                "conference": "NFC",
-                "division": "",
-                "wins": 0,
-                "losses": 0,
-                "ties": 0,
-                "seed": seed_info.get("seed"),
-                "status": status,
-                "status_detail": status_detail,
-                "eliminated_round": elim_round,
-                "playoff_wins": playoff_wins,
-                "playoff_losses": playoff_losses,
-            }
-        )
-
-    return {
-        "afc_teams": afc_teams,
-        "nfc_teams": nfc_teams,
-        "super_bowl_teams": super_bowl_teams,
-    }
 
 
 # Team abbreviation lookup (simplified)
@@ -1115,45 +1030,3 @@ def _get_team_abbrev(team_name: str) -> str:
         fallback,
     )
     return fallback
-
-
-def _get_playoff_picture(season_type: int | None = None) -> dict:
-    """Get playoff picture based on season type."""
-    # Determine season type from context if not provided
-    if season_type is None:
-        season_type = 2  # Default to regular season
-
-    if season_type == 3:
-        # Postseason: use bracket data
-        bracket = _get_playoff_bracket()
-        picture = _compute_playoff_picture_from_bracket(bracket)
-        return {
-            "season_year": bracket.get("season_year", 2024),
-            "season_type": 3,
-            "week": 1,
-            "afc_teams": picture["afc_teams"],
-            "nfc_teams": picture["nfc_teams"],
-            "super_bowl_teams": picture.get("super_bowl_teams", []),
-        }
-    else:
-        # Regular season: use standings data
-        standings = _get_live_standings()
-        picture = _compute_playoff_picture_from_standings(standings)
-        return {
-            "season_year": 2024,
-            "season_type": 2,
-            "week": 15,
-            "afc_teams": picture["afc_teams"],
-            "nfc_teams": picture["nfc_teams"],
-            "super_bowl_teams": [],
-        }
-
-
-@app.get("/playoffs/picture", response_model=PlayoffPicture)
-def get_playoff_picture(
-    seasonType: int | None = Query(
-        default=None, description="Season type: 2=regular, 3=postseason"
-    ),
-):
-    """Get the playoff picture with team statuses and race standings."""
-    return _get_playoff_picture(seasonType)

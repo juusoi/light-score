@@ -9,7 +9,7 @@ test.describe('Light Score - Application Features', () => {
   );
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
   });
 
   test('week navigation works correctly', async ({ page }) => {
