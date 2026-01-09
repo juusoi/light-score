@@ -1,6 +1,7 @@
 name: E2E Tests (Manual)
 
 # Manual trigger for running E2E tests against any environment
+# Also callable from other workflows (e.g., post-deploy smoke tests)
 
 on:
   workflow_dispatch:
@@ -37,6 +38,31 @@ on:
           - webkit
           - all
         default: chromium
+
+  # Reusable workflow - can be called from other workflows
+  workflow_call:
+    inputs:
+      target:
+        description: 'Target environment'
+        required: true
+        type: string
+      custom_url:
+        description: 'Custom URL (only used when target=custom)'
+        required: false
+        type: string
+      test_suite:
+        description: 'Test suite to run'
+        required: true
+        type: string
+      browser:
+        description: 'Browser to use'
+        required: false
+        type: string
+        default: chromium
+    secrets:
+      PRODUCTION_URL:
+        description: 'Production URL secret'
+        required: false
 
 jobs:
   e2e:

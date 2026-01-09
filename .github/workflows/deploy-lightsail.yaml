@@ -469,52 +469,16 @@ jobs:
           echo "✅ Custom domain configured successfully"
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Post-Deployment Smoke Tests (uses Playwright Docker image for speed)
+  # Post-Deployment Smoke Tests (uses reusable E2E workflow)
   # ─────────────────────────────────────────────────────────────────────────────
   e2e-smoke:
     name: E2E Smoke Tests
     needs: [deploy]
-    runs-on: ubuntu-latest
-    environment: production
-    container:
-      image: mcr.microsoft.com/playwright:v1.57.0-noble
-    steps:
-      - uses: actions/checkout@v4
+    uses: ./.github/workflows/e2e-manual.yaml
+    with:
+      target: production
+      test_suite: smoke
+      browser: chromium
+    secrets:
+      PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
 
-      - name: Install dependencies
-        run: |
-          apt-get update && apt-get install -y unzip
-
-      - name: Install Bun
-        run: |
-          curl -fsSL https://bun.sh/install | bash
-          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            e2e/node_modules
-          key: ${{ runner.os }}-bun-smoke-${{ hashFiles('e2e/package.json', 'e2e/bun.lockb') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-smoke-
-            ${{ runner.os }}-bun-
-
-      - name: Install E2E dependencies
-        working-directory: ./e2e
-        run: $HOME/.bun/bin/bun install --ignore-scripts
-
-      - name: Run smoke tests
-        working-directory: ./e2e
-        env:
-          SERVICE_URL: ${{ secrets.PRODUCTION_URL || needs.deploy.outputs.service_url }}
-          CI: 'true'
-        run: $HOME/.bun/bin/bun run test:smoke
-
-      - name: Upload smoke test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-report
-          path: e2e/playwright-report/
