@@ -110,6 +110,11 @@ jobs:
           PYTHONPATH: backend/src:frontend/src:functions/src
         run: .venv/bin/ty check .
 
+      - name: Lint GitHub Actions workflows
+        uses: reviewdog/action-actionlint@v1
+        with:
+          fail_level: error
+
   tests:
     name: Tests (${{ matrix.name }})
     needs: [lint]
