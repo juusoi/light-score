@@ -850,7 +850,7 @@ def _fetch_real_playoff_bracket() -> dict:
             resp = client.get(base_url, timeout=4)
             if resp.status_code == 200:
                 year = resp.json().get("season", {}).get("year", 2024)
-    except Exception:
+    except Exception:  # nosec B110 - intentional: best-effort year fetch, fallback is fine
         pass
 
     # 2. Get Conference Map from Standings

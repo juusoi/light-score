@@ -462,4 +462,3 @@ def test_render_bracket_line():
 
 if __name__ == "__main__":
     pytest.main()
-

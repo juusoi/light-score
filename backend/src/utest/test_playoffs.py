@@ -219,6 +219,3 @@ class TestFixtureFilesExist:
             with open(fixture_file) as f:
                 data = json.load(f)
                 assert data is not None
-
-
-
