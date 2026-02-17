@@ -44,7 +44,7 @@
 - Flask route `/` fetches backend data, splits games into history/live/upcoming, and renders Teletext HTML. Keep all new template data serializable and ready for Jinja loops.
 - Respect network fallbacks: on `requests` errors, the page renders `home_no_api.html`; keep error handling broad enough to avoid crashing the UI.
 - Navigation links come from backend `/games/weekly/navigation`; maintain param naming (`seasonType` camelCase) to match backend models and FastAPI query parsing.
-
+- Static assets like `teletext.css` and `favicon.svg` are served from `frontend/src/static/`; the favicon is a dynamically generated SVG to match the retro theme.
 ## Functions / Data Ingestion (`functions/src`)
 
 - `standings_parser.py` converts ESPN JSON into `ConferenceGroup` + `TeamStandingInfo` via `find_first` condition helpers; reuse these when parsing new stats to avoid duplicating key lookups.
