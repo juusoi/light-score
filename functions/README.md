@@ -18,10 +18,10 @@ This directory contains Python functions that fetch and process NFL data from ES
 From project root:
 
 ```bash
-make dev-setup
+just dev-setup
 # or manually:
 uv venv
-./scripts/uv-sync.sh --all
+uv sync --dev --all-extras
 ```
 
 ### Run Locally
@@ -44,7 +44,7 @@ cd functions/src
 Or from project root:
 
 ```bash
-make test
+just test
 ```
 
 ## ESPN API Integration

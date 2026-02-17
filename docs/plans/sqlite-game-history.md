@@ -298,7 +298,7 @@ async def calculate_tiebreaker(team_a: str, team_b: str, season: int) -> dict:
 1. **Local development first**
    ```bash
    # Add SQLite, test locally
-   make mock-up
+   just mock-up
    # Verify games persist across restarts
    ```
 

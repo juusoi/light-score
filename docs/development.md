@@ -3,7 +3,7 @@
 ## Setup
 
 ```
-make dev-setup
+just dev-setup
 source .venv/bin/activate
 ```
 
@@ -32,7 +32,7 @@ MOCK_ESPN=true uvicorn backend.src.main:app --reload --port 8000
 Or with containers:
 
 ```bash
-make mock-up
+just mock-up
 ```
 
 Mock fixtures are in `backend/src/fixtures/`:
@@ -47,29 +47,29 @@ Mock fixtures are in `backend/src/fixtures/`:
 ## Tests
 
 ```
-make test
+just test
 ```
 
 ### E2E Tests
 
-Requires services running (`make up` or `make mock-up`):
+Requires services running (`just up` or `just mock-up`):
 
 ```bash
 cd e2e
 SERVICE_URL=http://localhost:5000 npx playwright test
 ```
 
-Or use Make target:
+Or use just recipe:
 
 ```bash
-make test-e2e
+just test-e2e
 ```
 
 ## Lint & Security
 
 ```
-make lint fmt ty
-make security
+just lint fmt ty
+just security
 ```
 
 ## API Endpoints

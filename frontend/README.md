@@ -17,10 +17,10 @@ The frontend fetches data from the backend API and renders it as HTML pages. Bui
 From project root:
 
 ```bash
-make dev-setup
+just dev-setup
 # or manually:
 uv venv
-./scripts/uv-sync.sh --all
+uv sync --dev --all-extras
 ```
 
 ## Run Locally
@@ -32,7 +32,7 @@ BACKEND_URL=http://localhost:8000 flask --app frontend/src/app.py run -p 5000
 Or with containers (recommended):
 
 ```bash
-make up  # Starts backend:8000 + frontend:5000
+just up  # Starts backend:8000 + frontend:5000
 ```
 
 ### Mock Mode
@@ -40,7 +40,7 @@ make up  # Starts backend:8000 + frontend:5000
 Run with mock ESPN data for testing playoffs and standings:
 
 ```bash
-make mock-up
+just mock-up
 ```
 
 ## Routes
@@ -71,7 +71,7 @@ cd frontend/src
 Or from project root:
 
 ```bash
-make test
+just test
 ```
 
 ## Key Files

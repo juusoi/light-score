@@ -16,10 +16,10 @@ The backend fetches NFL data from ESPN APIs with caching and serves it via REST 
 From project root:
 
 ```bash
-make dev-setup
+just dev-setup
 # or manually:
 uv venv
-./scripts/uv-sync.sh --all
+uv sync --dev --all-extras
 ```
 
 ## Run Locally
@@ -32,7 +32,7 @@ cd backend/src
 Or with containers:
 
 ```bash
-make up  # Starts backend:8000 + frontend:5000
+just up  # Starts backend:8000 + frontend:5000
 ```
 
 ### Mock Mode
@@ -69,7 +69,7 @@ cd backend/src
 Or from project root:
 
 ```bash
-make test
+just test
 ```
 
 ## Data Caching

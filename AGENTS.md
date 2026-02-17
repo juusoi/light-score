@@ -16,19 +16,19 @@
 
 ## Build, Test, and Development Commands
 
-- Use uv-managed venv: `make dev-setup` creates `.venv` and syncs deps across all subprojects.
-- Containers run via Podman by default: `make up` starts FastAPI (`:8000`) + Flask (`:5000`); set `DOCKER=docker` if needed.
-- **Mock mode**: `make mock-up` starts services with `MOCK_ESPN=true` for testing with fixture data (playoffs, standings) without live ESPN calls.
-- `make build-images` rebuilds when dependencies shift; `make down` stops containers.
-- Tests fan out per package through `make test` which runs pytest in `backend/src/utest`, `frontend/src/utest`, `functions/src/utest` with the root `.venv`.
-- `make ci` runs lint + types + tests in one pass.
-- Linting/formatting uses Ruff (`make lint`, `make fmt`); types via `make ty` (ty check); `make security` runs Bandit and pip-audit; `make health` performs a quick API smoke.
+- Use uv-managed venv: `just dev-setup` creates `.venv` and syncs deps across all subprojects.
+- Containers run via Podman by default: `just up` starts FastAPI (`:8000`) + Flask (`:5000`); set `DOCKER=docker` if needed.
+- **Mock mode**: `just mock-up` starts services with `MOCK_ESPN=true` for testing with fixture data (playoffs, standings) without live ESPN calls.
+- `just build-images` rebuilds when dependencies shift; `just down` stops containers.
+- Tests fan out per package through `just test` which runs pytest in `backend/src/utest`, `frontend/src/utest`, `functions/src/utest` with the root `.venv`.
+- `just ci` runs lint + types + tests in one pass.
+- Linting/formatting uses Ruff (`just lint`, `just fmt`); types via `just ty` (ty check); `just security` runs Bandit and pip-audit; `just health` performs a quick API smoke.
 
 ### E2E Testing Commands (Playwright/TypeScript)
 
-- E2E tests live in `e2e/tests/` using Playwright with TypeScript; run with `make test-e2e` (requires services up via `make up`).
-- `make lint-e2e` runs ESLint, `make fmt-e2e` formats with Prettier, `make ty-e2e` runs TypeScript checks.
-- `make ci-e2e` runs the full E2E CI pipeline (lint + ty + test).
+- E2E tests live in `e2e/tests/` using Playwright with TypeScript; run with `just test-e2e` (requires services up via `just up`).
+- `just lint-e2e` runs ESLint, `just fmt-e2e` formats with Prettier, `just ty-e2e` runs TypeScript checks.
+- `just ci-e2e` runs the full E2E CI pipeline (lint + ty + test).
 - E2E tests use `bun` as the package manager; dependencies are installed automatically on first run.
 
 ## Backend Patterns (`backend/src/main.py`)
@@ -56,7 +56,7 @@
 - Python 3.13+ with uv-managed virtualenv; use absolute imports and module-level constants for shared configuration.
 - Follow Ruff defaults: four-space indentation, 99-character lines, snake_case modules, and descriptive function names.
 - Name FastAPI paths with nouns (`/scores`, `/standings`) and align Flask templates with their routes (`templates/scores.html`).
-- Run `make fmt` before committing to keep formatting clean.
+- Run `just fmt` before committing to keep formatting clean.
 - E2E tests use TypeScript with Playwright; follow `<feature>.spec.ts` naming convention.
 
 ## Testing Guidelines
@@ -68,7 +68,7 @@
 - Mock external HTTP calls with `httpx` mock transports or local sample payloads—no live ESPN traffic in CI.
 - Tests assume Helsinki timezone formatting helper functions (`format_finnish_time`, `format_finnish_date_time`) remain resilient to malformed inputs; keep try/except guards when modifying them.
 - Keep ESPN URLs configurable only where necessary; hard-coded constants live near the call sites so that tests can patch them.
-- Keep tests deterministic and fast; ensure `make test` and `make ci` pass locally before pushing.
+- Keep tests deterministic and fast; ensure `just test` and `just ci` pass locally before pushing.
 
 ### E2E Tests (Playwright)
 
@@ -77,14 +77,14 @@
 - Use role-based locators (`getByRole`, `getByLabel`, `getByText`) for resilience and accessibility.
 - Use auto-retrying web-first assertions (`await expect(locator).toHaveText()`); avoid hard-coded waits.
 - Tests can run against different environments via `SERVICE_URL` (frontend) and `BACKEND_URL` env vars; local defaults to `localhost:5000` and `localhost:8000`.
-- Run `make test-e2e` with services up (`make up`) before pushing UI changes.
+- Run `just test-e2e` with services up (`just up`) before pushing UI changes.
 
 ## Branching & Pull Request Workflow
 
 - **Never push directly to `main`.** All changes must go through a feature branch and a pull request (PR).
 - Create a descriptively named branch from `main` using conventional prefixes: `feat/`, `fix/`, `chore/`, `docs/` (e.g., `fix/ci-uv-venv-cache`, `chore/dependabot-bumps`).
 - Use Conventional Commits (e.g., `feat: add standings endpoint`) with ≤72-character summaries and focused scope.
-- Before opening a PR, confirm all checks pass locally: `make ci` (lint + ty + test), `make ci-e2e` (if relevant), and `make security`.
+- Before opening a PR, confirm all checks pass locally: `just ci` (lint + ty + test), `just ci-e2e` (if relevant), and `just security`.
 - Push the branch and create a PR via `gh pr create` with a clear title and description. Link related issues with `Closes #N`.
 - After CI passes on the PR, merge via `gh pr merge --squash` (or `--merge` for multi-commit PRs worth preserving).
 - Delete the branch after merge: `git branch -d <branch> && git push origin --delete <branch>`.

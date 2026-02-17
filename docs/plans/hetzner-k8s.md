@@ -422,7 +422,7 @@ kubectl exec -n lightscore deploy/frontend -- \
 
 ```bash
 # Against Hetzner deployment
-SERVICE_URL=https://DOMAIN_NAME make test-e2e
+SERVICE_URL=https://DOMAIN_NAME just test-e2e
 ```
 
 ### Load Test (Optional)
