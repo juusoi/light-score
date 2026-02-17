@@ -79,11 +79,16 @@
 - Tests can run against different environments via `SERVICE_URL` (frontend) and `BACKEND_URL` env vars; local defaults to `localhost:5000` and `localhost:8000`.
 - Run `make test-e2e` with services up (`make up`) before pushing UI changes.
 
-## Commit & Pull Request Guidelines
+## Branching & Pull Request Workflow
 
+- **Never push directly to `main`.** All changes must go through a feature branch and a pull request (PR).
+- Create a descriptively named branch from `main` using conventional prefixes: `feat/`, `fix/`, `chore/`, `docs/` (e.g., `fix/ci-uv-venv-cache`, `chore/dependabot-bumps`).
 - Use Conventional Commits (e.g., `feat: add standings endpoint`) with ≤72-character summaries and focused scope.
-- Link issues, document manual checks, and attach screenshots or curl snippets when UI or API responses change.
-- Confirm lint, type, test, and security targets have run; update README or `docs/` when behavior or configuration shifts.
+- Before opening a PR, confirm all checks pass locally: `make ci` (lint + ty + test), `make ci-e2e` (if relevant), and `make security`.
+- Push the branch and create a PR via `gh pr create` with a clear title and description. Link related issues with `Closes #N`.
+- After CI passes on the PR, merge via `gh pr merge --squash` (or `--merge` for multi-commit PRs worth preserving).
+- Delete the branch after merge: `git branch -d <branch> && git push origin --delete <branch>`.
+- Update README or `docs/` when behavior or configuration shifts.
 
 ## Security & Configuration Tips
 
