@@ -20,7 +20,7 @@
 - Containers run via Podman by default: `make up` starts FastAPI (`:8000`) + Flask (`:5000`); set `DOCKER=docker` if needed.
 - **Mock mode**: `make mock-up` starts services with `MOCK_ESPN=true` for testing with fixture data (playoffs, standings) without live ESPN calls.
 - `make build-images` rebuilds when dependencies shift; `make down` stops containers.
-- Tests fan out per package through `scripts/run-tests.sh` (invoked by `make test`) which runs pytest in `backend/src/utest`, `frontend/src/utest`, `functions/src/utest` with the root `.venv`.
+- Tests fan out per package through `make test` which runs pytest in `backend/src/utest`, `frontend/src/utest`, `functions/src/utest` with the root `.venv`.
 - `make ci` runs lint + types + tests in one pass.
 - Linting/formatting uses Ruff (`make lint`, `make fmt`); types via `make ty` (ty check); `make security` runs Bandit and pip-audit; `make health` performs a quick API smoke.
 

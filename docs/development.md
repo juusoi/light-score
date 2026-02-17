@@ -47,7 +47,7 @@ Mock fixtures are in `backend/src/fixtures/`:
 ## Tests
 
 ```
-./scripts/run-tests.sh
+make test
 ```
 
 ### E2E Tests

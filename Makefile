@@ -12,24 +12,12 @@ NC=\033[0m # No Color
 # Default target
 .DEFAULT_GOAL := help
 
-.PHONY: venv sync deps lint fmt ty test ci build-images up down logs clean clean-containers clean-images clean-all clean-project prune help check-deps status restart dev-setup health security lint-e2e fmt-e2e ty-e2e test-e2e ci-e2e mock-up test-mock
-
-venv:
-	@echo "$(BLUE)🏗️  Creating virtual environment...$(NC)"
-	@uv venv
-	@echo "$(GREEN)✅ Virtual environment created successfully!$(NC)"
-	@echo "$(YELLOW)💡 Activate with: source .venv/bin/activate$(NC)"
+.PHONY: sync lint fmt ty test ci build-images up down logs clean clean-containers clean-images clean-all clean-project prune help check-deps status restart dev-setup health security lint-e2e fmt-e2e ty-e2e test-e2e ci-e2e mock-up test-mock
 
 sync:
 	@echo "$(BLUE)🔄 Syncing all dependencies...$(NC)"
 	@./scripts/uv-sync.sh --all
 	@echo "$(GREEN)✅ Dependencies synced successfully!$(NC)"
-
-deps:
-	@echo "$(BLUE)📦 Installing dependencies...$(NC)"
-	@uv venv --allow-existing
-	@./scripts/uv-sync.sh --all
-	@echo "$(GREEN)✅ Dependencies installed successfully!$(NC)"
 
 lint:
 	@echo "$(BLUE)🔍 Running linter (ruff check)...$(NC)"
@@ -51,7 +39,18 @@ ty:
 
 test:
 	@echo "$(BLUE)🧪 Running all tests...$(NC)"
-	@./scripts/run-tests.sh && echo "$(GREEN)✅ All tests passed!$(NC)" || (echo "$(RED)❌ Tests failed!$(NC)" && exit 1)
+	@if [ ! -f "$(PYTHON)" ]; then \
+		echo "$(RED)❌ Python environment not found at $(PYTHON)$(NC)"; \
+		echo "$(YELLOW)💡 Run 'make dev-setup' first$(NC)"; \
+		exit 1; \
+	fi
+	@echo "🏗️  Running backend tests..."
+	@cd backend/src && $(abspath $(PYTHON)) -m pytest utest/ -v && cd $(CURDIR)
+	@echo "🌐 Running frontend tests..."
+	@cd frontend/src && $(abspath $(PYTHON)) -m pytest utest/ -v && cd $(CURDIR)
+	@echo "⚡ Running functions tests..."
+	@cd functions/src && $(abspath $(PYTHON)) -m pytest utest/ -v && cd $(CURDIR)
+	@echo "$(GREEN)✅ All tests passed!$(NC)"
 
 ci: lint ty test
 
@@ -101,7 +100,7 @@ mock-up:
 
 test-mock:
 	@echo "$(BLUE)🧪 Running tests in mock mode...$(NC)"
-	@MOCK_ESPN=true ./scripts/run-tests.sh && echo "$(GREEN)✅ Mock tests passed!$(NC)" || (echo "$(RED)❌ Mock tests failed!$(NC)" && exit 1)
+	@MOCK_ESPN=true $(MAKE) test
 
 security:
 	@echo "$(BLUE)🔒 Running security checks...$(NC)"
@@ -120,12 +119,15 @@ security:
 	@echo "$(GREEN)✅ Security checks completed!$(NC)"
 
 
-dev-setup: venv sync
+dev-setup:
+	@echo "$(BLUE)⚙️ Setting up development environment...$(NC)"
+	@uv venv --allow-existing
+	@./scripts/uv-sync.sh --all
 	@echo "$(BLUE)🔒 Installing security tools...$(NC)"
 	@uv pip install bandit[toml]>=1.8.0 pip-audit>=2.7.0
 	@echo "$(GREEN)🎉 Development environment setup complete!$(NC)"
 	@echo "$(YELLOW)💡 Next steps:$(NC)"
-	@echo "  • Run containers: $(GREEN)make up$(NC)"
+	@echo "  • Activate env: $(GREEN)source .venv/bin/activate$(NC)"
 	@echo "  • Run containers: $(GREEN)make up$(NC)"
 	@echo "  • Run CI checks: $(GREEN)make ci$(NC)"
 	@echo "  • Run security checks: $(GREEN)make security$(NC)"
@@ -213,11 +215,8 @@ help:
 	@echo "$(GREEN)🚀 Light Score - Available Commands:$(NC)"
 	@echo ""
 	@echo "$(BLUE)📦 Development:$(NC)"
-	@echo "  $(YELLOW)venv$(NC)          Create virtual environment"
+	@echo "  $(YELLOW)dev-setup$(NC)     Complete development environment setup"
 	@echo "  $(YELLOW)sync$(NC)          Sync all dependencies"
-	@echo "  $(YELLOW)deps$(NC)          Install dependencies"
-	@echo "  $(YELLOW)dev-setup$(NC)     Complete development environment setup (venv + sync)"
-	@echo "  $(YELLOW)start$(NC)         Start local development servers"
 	@echo ""
 	@echo "$(BLUE)🔍 Code Quality (Python):$(NC)"
 	@echo "  $(YELLOW)lint$(NC)          Run linting (ruff check)"
