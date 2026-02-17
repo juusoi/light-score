@@ -58,7 +58,7 @@ jobs:
       - name: Setup environment and install dependencies
         run: |
           uv venv --allow-existing
-          ./scripts/uv-sync.sh --all
+          uv sync --dev --all-extras
 
       - name: Install security tools
         run: |

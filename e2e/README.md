@@ -96,17 +96,17 @@ bun run fmt:check           # Check if code is formatted
 bun run ci                  # Run linting and type checking
 ```
 
-### Makefile Integration
+### Justfile Integration
 
 From the project root, you can also use:
 
 ```bash
-make lint-e2e               # E2E linting
-make fmt-e2e                # E2E formatting
-make ty-e2e                 # E2E type checking
-make test-e2e               # E2E tests
-make ci-e2e                 # All E2E quality checks
-make ci                     # Full project CI (includes E2E)
+just lint-e2e               # E2E linting
+just fmt-e2e                # E2E formatting
+just ty-e2e                 # E2E type checking
+just test-e2e               # E2E tests
+just ci-e2e                 # All E2E quality checks
+just ci                     # Full project CI (includes E2E)
 ```
 
 ### Running Tests
@@ -153,7 +153,7 @@ Tests that require the Light Score application to be running locally:
 
 ```bash
 # Start the application stack
-make up  # or equivalent docker-compose up
+just up  # or equivalent docker-compose up
 ```
 
 ### External Site Tests

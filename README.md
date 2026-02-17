@@ -16,10 +16,10 @@ Python 3.13+, uv.
 
 ## Setup
 
-Use Make targets (wraps uv + deps):
+Use just recipes (wraps uv + deps):
 
 ```bash
-make dev-setup
+just dev-setup
 source .venv/bin/activate
 ```
 
@@ -28,8 +28,8 @@ source .venv/bin/activate
 Containers (Podman default; set DOCKER=docker to use Docker):
 
 ```bash
-make build-images    # build images (or runs implicitly if stale)
-make up              # backend:8000 frontend:5000
+just build-images    # build images (or runs implicitly if stale)
+just up              # backend:8000 frontend:5000
 ```
 
 ### Mock Mode (Development)
@@ -37,7 +37,7 @@ make up              # backend:8000 frontend:5000
 Run with mock ESPN data for testing playoff brackets and standings:
 
 ```bash
-make mock-up         # backend:8000 frontend:5000 with mock data
+just mock-up         # backend:8000 frontend:5000 with mock data
 ```
 
 Access mock views:
@@ -53,23 +53,23 @@ python functions/src/main.py
 Stop containers:
 
 ```bash
-make down
+just down
 ```
 
 ## Tests
 
 ```bash
-make test
+just test
 ```
 
 ## Lint / Format / Types / Security
 
 ```bash
-make lint fmt ty
-make security    # bandit + pip-audit
+just lint fmt ty
+just security    # bandit + pip-audit
 ```
 
-`make ci` runs lint + ty + test.
+`just ci` runs lint + ty + test.
 
 ## Deployment
 
@@ -91,17 +91,17 @@ MIT (see `LICENSE`).
 
 | Task             | Command             |
 | ---------------- | ------------------- |
-| Setup env        | `make dev-setup`    |
-| Build images     | `make build-images` |
-| Run (containers) | `make up`           |
-| Run (mock data)  | `make mock-up`      |
-| Stop containers  | `make down`         |
-| Lint / Format    | `make lint fmt`     |
-| Types            | `make ty`           |
-| Tests            | `make test`         |
-| E2E Tests        | `make test-e2e`     |
-| Full CI locally  | `make ci`           |
-| E2E CI           | `make ci-e2e`       |
-| Security scan    | `make security`     |
-| Health check     | `make health`       |
-| Cleanup          | `make clean`        |
+| Setup env        | `just dev-setup`    |
+| Build images     | `just build-images` |
+| Run (containers) | `just up`           |
+| Run (mock data)  | `just mock-up`      |
+| Stop containers  | `just down`         |
+| Lint / Format    | `just lint fmt`     |
+| Types            | `just ty`           |
+| Tests            | `just test`         |
+| E2E Tests        | `just test-e2e`     |
+| Full CI locally  | `just ci`           |
+| E2E CI           | `just ci-e2e`       |
+| Security scan    | `just security`     |
+| Health check     | `just health`       |
+| Cleanup          | `just clean`        |
