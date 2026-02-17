@@ -17,6 +17,13 @@ def test_home_route(client):
     response = client.get("/")
     assert response.status_code == 200
     assert b"Light Score" in response.data
+    assert b'<link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />' in response.data
+
+
+def test_static_favicon_is_served(client):
+    response = client.get("/static/favicon.svg")
+    assert response.status_code == 200
+    assert "image/svg+xml" in response.content_type
 
 
 @patch("requests.get")
