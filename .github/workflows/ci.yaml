@@ -91,7 +91,7 @@ jobs:
 
       - name: Sync deps (pyproject-first)
         run: |
-          uv venv
+          uv venv --allow-existing
           ./scripts/uv-sync.sh --all
 
       - name: Dependency declaration sanity check
@@ -181,7 +181,7 @@ jobs:
           fi
           # Prepare venv and deps from repo root
           cd ../..
-          uv venv
+          uv venv --allow-existing
           ./scripts/uv-sync.sh --all
           # Basic dependency check without container inspection
           SKIP_CONTAINER_CHECK=1 bash scripts/check-deps.sh || true

@@ -57,7 +57,7 @@ jobs:
 
       - name: Setup environment and install dependencies
         run: |
-          uv venv
+          uv venv --allow-existing
           ./scripts/uv-sync.sh --all
 
       - name: Install security tools
@@ -85,9 +85,8 @@ jobs:
               ;;
             pip-audit)
               echo "🔍 Running pip-audit dependency scan..."
-              # Ignore GHSA-4xh5-x5gv-qwph: pip tarfile vulnerability fixed in upcoming pip 25.3
-              .venv/bin/pip-audit --desc --ignore-vuln GHSA-4xh5-x5gv-qwph --output=json --output-file=pip-audit-report.json || true
-              .venv/bin/pip-audit --desc --ignore-vuln GHSA-4xh5-x5gv-qwph
+              .venv/bin/pip-audit --desc --output=json --output-file=pip-audit-report.json || true
+              .venv/bin/pip-audit --desc
               ;;
           esac
 
