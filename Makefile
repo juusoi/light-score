@@ -115,8 +115,7 @@ security:
 	 $(PYTHON) -m bandit -r functions/src -x "functions/src/utest" -q && \
 	 echo "$(GREEN)✅ Bandit scan passed!$(NC)" || (echo "$(YELLOW)⚠️  Bandit found security issues$(NC)" && exit 1)
 	@echo "$(BLUE)🔍 Running pip-audit dependency scan...$(NC)"
-	@# Ignore GHSA-4xh5-x5gv-qwph: pip tarfile vulnerability fixed in upcoming pip 25.3
-	@$(PYTHON) -m pip_audit --desc --ignore-vuln GHSA-4xh5-x5gv-qwph && echo "$(GREEN)✅ Dependency audit passed!$(NC)" || (echo "$(YELLOW)⚠️  Found vulnerable dependencies$(NC)" && exit 1)
+	@$(PYTHON) -m pip_audit --desc && echo "$(GREEN)✅ Dependency audit passed!$(NC)" || (echo "$(YELLOW)⚠️  Found vulnerable dependencies$(NC)" && exit 1)
 	@echo "$(GREEN)✅ Security checks completed!$(NC)"
 
 
