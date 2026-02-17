@@ -55,7 +55,7 @@ class TestFixtureLoading:
 
         with pytest.raises(HTTPException) as exc_info:
             _load_fixture("nonexistent_fixture")
-        assert exc_info.value.status_code == 404  # type: ignore[union-attr]
+        assert exc_info.value.status_code == 404
 
 
 class TestFixtureDetection:
