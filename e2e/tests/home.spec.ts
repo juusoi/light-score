@@ -138,7 +138,7 @@ test.describe('Light Score - Home Page', () => {
   test('is responsive and accessible', async ({ page }) => {
     await test.step('verify accessibility structure', async () => {
       // Check for proper heading hierarchy
-      const h1Count = await page.locator('h1').count();
+      const _h1Count = await page.locator('h1').count();
       const h2Count = await page.locator('h2').count();
 
       expect(h2Count).toBeGreaterThanOrEqual(3); // Live, Games, Standings

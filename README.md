@@ -43,7 +43,6 @@ make mock-up         # backend:8000 frontend:5000 with mock data
 Access mock views:
 - Regular season: `http://localhost:5000/?seasonType=2`
 - Postseason: `http://localhost:5000/?seasonType=3`
-- Playoff picture: `http://localhost:5000/playoffs`
 
 Parser (standings cache) manually:
 

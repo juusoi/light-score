@@ -4,7 +4,7 @@
 
 - Three Python services: FastAPI API in `backend/`, Flask UI in `frontend/`, and ESPN parsing utilities in `functions/`.
 - Weekly flow: `functions/src/main.py` fetches ESPN standings with `EspnClient`, writes `backend/src/data/standings_cache.json`; backend serves cached standings and live ESPN snapshots; frontend renders scoreboard + standings using backend APIs.
-- Backend endpoints in `backend/src/main.py` call ESPN (`httpx`) and expose `/games/weekly`, `/games/weekly/context`, `/games/weekly/navigation`, `/standings`, `/standings/live`, `/teams`, `/playoffs/bracket`, and `/playoffs/picture`.
+- Backend endpoints in `backend/src/main.py` call ESPN (`httpx`) and expose `/games/weekly`, `/games/weekly/context`, `/games/weekly/navigation`, `/standings`, `/standings/live`, `/teams`, and `/playoffs/bracket`.
 - Frontend `frontend/src/app.py` calls backend via `requests` (respect `BACKEND_URL`) and templates in `frontend/src/templates` for Teletext-style UI.
 
 ## Project Structure & Module Organization

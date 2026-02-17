@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Locator } from '@playwright/test';
 import { FRONTEND_ENV_SET, requireFrontendUrl } from './utils/env';
 
 test.describe('External NFL Site - Structure and Interactions', () => {
@@ -36,7 +36,7 @@ test.describe('External NFL Site - Structure and Interactions', () => {
             await page.waitForTimeout(500);
             break;
           }
-        } catch (e) {
+        } catch (_e) {
           // Continue to next selector
         }
       }
@@ -139,7 +139,7 @@ test.describe('External NFL Site - Structure and Interactions', () => {
   test('can interact with navigation links successfully', async ({
     page,
   }, testInfo) => {
-    let targetLink: any = null;
+    let targetLink: Locator | null = null;
     const linkInfo = { href: '', text: '' };
 
     await test.step('find and prepare navigation link', async () => {

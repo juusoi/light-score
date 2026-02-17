@@ -69,8 +69,8 @@ make test-e2e
 ## Lint & Security
 
 ```
-./scripts/lint-and-format.sh
-make security || true
+make lint fmt ty
+make security
 ```
 
 ## API Endpoints
@@ -84,7 +84,6 @@ make security || true
 | `/standings/live` | Live standings by division |
 | `/teams` | Team list with metadata |
 | `/playoffs/bracket` | Playoff bracket with seeds and games |
-| `/playoffs/picture` | Playoff race/status by conference |
 
 ## Placeholders
 

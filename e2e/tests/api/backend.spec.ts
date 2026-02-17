@@ -239,7 +239,7 @@ test.describe('Light Score - Backend API Integration', () => {
         const startTime = Date.now();
 
         try {
-          const response = await request.get(`${backendUrl}${endpoint}`);
+          const _response = await request.get(`${backendUrl}${endpoint}`);
           const responseTime = Date.now() - startTime;
 
           // API should respond within reasonable time (5 seconds)

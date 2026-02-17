@@ -31,10 +31,14 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
         await expect(
           page.getByRole('heading', { name: 'Games' }),
         ).toBeVisible();
-        
+
         // Should show either Standings or Bracket depending on season context
-        const hasStandings = await page.getByRole('heading', { name: 'Standings' }).isVisible();
-        const hasBracket = await page.getByRole('heading', { name: 'Playoff Bracket' }).isVisible();
+        const hasStandings = await page
+          .getByRole('heading', { name: 'Standings' })
+          .isVisible();
+        const hasBracket = await page
+          .getByRole('heading', { name: 'Playoff Bracket' })
+          .isVisible();
         expect(hasStandings || hasBracket).toBeTruthy();
 
         // Navigation should still work
@@ -56,7 +60,7 @@ test.describe('Light Score - Error Handling and Edge Cases', () => {
           waitUntil: 'networkidle',
           timeout: 1000, // Very short timeout
         });
-      } catch (e) {
+      } catch (_e) {
         // If timeout occurs, verify page still has basic structure
         const hasContent = (await page.locator('body').count()) > 0;
         if (hasContent) {
