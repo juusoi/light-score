@@ -27,7 +27,8 @@ sync:
 
 deps:
 	@echo "$(BLUE)📦 Installing dependencies...$(NC)"
-	@./scripts/install-deps.sh
+	@uv venv --allow-existing
+	@./scripts/uv-sync.sh --all
 	@echo "$(GREEN)✅ Dependencies installed successfully!$(NC)"
 
 lint:

@@ -9,7 +9,7 @@ runtime startup. We keep a fallback for type-check scenarios if needed.
 try:  # Normal runtime path
     from app import app  # type: ignore
 except ImportError:  # Fallback if executed from repo root or different PYTHONPATH
-    from frontend.src.app import app  # type: ignore  # pragma: no cover
+    from frontend.src.app import app  # pragma: no cover
 
 # Gunicorn looks for "application" by default when referencing module:wsgi-app
 application = app

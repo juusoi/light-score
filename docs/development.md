@@ -3,8 +3,7 @@
 ## Setup
 
 ```
-uv venv
-./scripts/uv-sync.sh --all
+make dev-setup
 source .venv/bin/activate
 ```
 
