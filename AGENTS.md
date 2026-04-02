@@ -1,102 +1,158 @@
-# Repository Guidelines
+# AGENTS Guide: light-score
 
-## Architecture & Data Flow
+This file is for autonomous coding agents working in this repository.
+It captures the build/lint/test workflow and the coding conventions observed in code + config.
 
-- Three Python services: FastAPI API in `backend/`, Flask UI in `frontend/`, and ESPN parsing utilities in `functions/`.
-- Weekly flow: `functions/src/main.py` fetches ESPN standings with `EspnClient`, writes `backend/src/data/standings_cache.json`; backend serves cached standings and live ESPN snapshots; frontend renders scoreboard + standings using backend APIs.
-- Backend endpoints in `backend/src/main.py` call ESPN (`httpx`) and expose `/games/weekly`, `/games/weekly/context`, `/games/weekly/navigation`, `/standings`, `/standings/live`, `/teams`, and `/playoffs/bracket`.
-- Frontend `frontend/src/app.py` calls backend via `requests` (respect `BACKEND_URL`) and templates in `frontend/src/templates` for Teletext-style UI.
+## Rule Sources Checked
 
-## Project Structure & Module Organization
+- `.cursor/rules/`: not present.
+- `.cursorrules`: not present.
+- `.github/copilot-instructions.md`: not present.
+- Therefore, follow this file + repository code/config as the authoritative guidance.
 
-- `backend/src` hosts the FastAPI service (`main.py` entrypoint); add domain modules under descriptive subpackages and keep JSON caches in `data/`.
-- `frontend/src` contains the Flask UI with `templates/` and `static/`; route helpers live beside the app factory.
-- `functions/src` holds ESPN parsing jobs; trigger ad-hoc refreshes with `python functions/src/main.py`.
-- Co-locate Python unit tests under each `src/utest/` package; store E2E Playwright tests in `e2e/tests/`. Reference operational notes in `docs/`, automation in `scripts/`, and infrastructure in `terraform/`.
+## Architecture Snapshot
 
-## Build, Test, and Development Commands
+- Monorepo with three Python services and one TypeScript E2E test project.
+- `backend/`: FastAPI API (`backend/src/main.py`) for games, standings, teams, playoffs.
+- `frontend/`: Flask server-rendered UI (`frontend/src/app.py`, Jinja templates in `frontend/src/templates`).
+- `functions/`: ESPN parsing/ingestion utilities writing standings cache.
+- `e2e/`: Playwright + TypeScript tests against frontend (and local backend when available).
+- Shared tooling lives at repo root: `justfile`, root `pyproject.toml`, `.venv` via `uv`.
 
-- Use uv-managed venv: `just dev-setup` creates `.venv` and syncs deps across all subprojects.
-- Containers run via Podman by default: `just up` starts FastAPI (`:8000`) + Flask (`:5000`); set `DOCKER=docker` if needed.
-- **Mock mode**: `just mock-up` starts services with `MOCK_ESPN=true` for testing with fixture data (playoffs, standings) without live ESPN calls.
-- `just build-images` rebuilds when dependencies shift; `just down` stops containers.
-- Tests fan out per package through `just test` which runs pytest in `backend/src/utest`, `frontend/src/utest`, `functions/src/utest` with the root `.venv`.
-- `just ci` runs lint + types + tests in one pass.
-- Linting/formatting uses Ruff (`just lint`, `just fmt`); types via `just ty` (ty check); `just security` runs Bandit and pip-audit; `just health` performs a quick API smoke.
+## Environment & Setup
 
-### E2E Testing Commands (Playwright/TypeScript)
+- Python: 3.13+ required (`requires-python = ">=3.13"`).
+- Package/env manager: `uv`.
+- Primary setup command:
 
-- E2E tests live in `e2e/tests/` using Playwright with TypeScript; run with `just test-e2e` (requires services up via `just up`).
-- `just lint-e2e` runs ESLint, `just fmt-e2e` formats with Prettier, `just ty-e2e` runs TypeScript checks.
-- `just ci-e2e` runs the full E2E CI pipeline (lint + ty + test).
-- E2E tests use `bun` as the package manager; dependencies are installed automatically on first run.
+```bash
+just dev-setup
+source .venv/bin/activate
+```
 
-## Backend Patterns (`backend/src/main.py`)
+- Sync deps after changes: `just sync`.
+- Container engine defaults to Podman; override with Docker when needed:
 
-- `_get_weekly_games` caches ESPN scoreboard responses for `_GAMES_TTL_SECONDS` (60s); always propagate stale cache when ESPN fails instead of raising new errors.
-- Game payloads must set Finnish timezone helpers: `start_time_finnish`, `start_date_time_finnish`, `game_time`; tests assert new fields even when `None` (`test_weekly_games_timezone_fields`).
-- Navigation helpers (`get_season_navigation`, `/games/weekly/navigation`) enforce NFL week boundaries; keep transitions synced with tests in `backend/src/utest/test_navigation.py`.
-- `/standings` serves the local cache file; `/standings/live` wraps `_get_live_standings` with a 5-minute TTL and defensive fallbacks. Reuse `_extract_minimal_standings` for normalized rows `{team,wins,losses,ties,division}`.
-- When extending HTTP access, prefer `httpx` (already patched in tests). Mock `httpx.get` in unit tests to avoid live ESPN calls (`backend/src/utest/test_live_standings.py`).
+```bash
+just --set docker docker up
+```
 
-## Frontend Patterns (`frontend/src/app.py`)
+## Build / Run Commands
 
-- Flask route `/` fetches backend data, splits games into history/live/upcoming, and renders Teletext HTML. Keep all new template data serializable and ready for Jinja loops.
-- Respect network fallbacks: on `requests` errors, the page renders `home_no_api.html`; keep error handling broad enough to avoid crashing the UI.
-- Navigation links come from backend `/games/weekly/navigation`; maintain param naming (`seasonType` camelCase) to match backend models and FastAPI query parsing.
-- Static assets like `teletext.css` and `favicon.svg` are served from `frontend/src/static/`; the favicon is a dynamically generated SVG to match the retro theme.
-## Functions / Data Ingestion (`functions/src`)
+- Build containers: `just build-images`.
+- Start services: `just up` (backend `:8000`, frontend `:5000`).
+- Stop services: `just down`.
+- Tail logs: `just logs`.
+- Quick health check: `just health`.
+- Mock data mode (no live ESPN dependency): `just mock-up`.
 
-- `standings_parser.py` converts ESPN JSON into `ConferenceGroup` + `TeamStandingInfo` via `find_first` condition helpers; reuse these when parsing new stats to avoid duplicating key lookups.
-- `save_standings_cache` writes the lightweight standings list consumed by backend tests; ensure parsers keep this minimal schema stable.
-- Network access in functions uses async `httpx.AsyncClient`; async context manager handles cleanup—mirror this pattern for new API calls.
+## Lint / Format / Typecheck Commands
 
-## Coding Style & Naming Conventions
+- Python lint: `just lint` (`ruff check .`).
+- Python format: `just fmt` (`ruff format .`).
+- Python type checks: `just ty` (`ty check .`).
+- Full Python CI bundle: `just ci` (lint + types + unit tests).
+- Security checks: `just security` (Bandit + pip-audit).
 
-- Python 3.13+ with uv-managed virtualenv; use absolute imports and module-level constants for shared configuration.
-- Follow Ruff defaults: four-space indentation, 99-character lines, snake_case modules, and descriptive function names.
-- Name FastAPI paths with nouns (`/scores`, `/standings`) and align Flask templates with their routes (`templates/scores.html`).
-- Run `just fmt` before committing to keep formatting clean.
-- E2E tests use TypeScript with Playwright; follow `<feature>.spec.ts` naming convention.
+## Python Test Commands
 
-## Testing Guidelines
+- All Python unit tests: `just test`.
+- Backend-only suite:
 
-### Python Unit Tests
+```bash
+cd backend/src && ../../.venv/bin/python -m pytest utest/ -v
+```
 
-- Write pytest tests named `test_*` inside the closest `src/utest/`; isolate fixtures under `utest/fixtures/`.
-- Store new unit tests alongside code under the respective `utest/` package; prefer patching network calls and using fixture builders like `_scoreboard_payload()` from `backend/src/utest/test_main.py`.
-- Mock external HTTP calls with `httpx` mock transports or local sample payloads—no live ESPN traffic in CI.
-- Tests assume Helsinki timezone formatting helper functions (`format_finnish_time`, `format_finnish_date_time`) remain resilient to malformed inputs; keep try/except guards when modifying them.
-- Keep ESPN URLs configurable only where necessary; hard-coded constants live near the call sites so that tests can patch them.
-- Keep tests deterministic and fast; ensure `just test` and `just ci` pass locally before pushing.
+- Other service suites use the same pattern from project root:
+  - `cd frontend/src && ../../.venv/bin/python -m pytest utest/ -v`
+  - `cd functions/src && ../../.venv/bin/python -m pytest utest/ -v`
 
-### E2E Tests (Playwright)
+- Run a single test file (example):
 
-- Store E2E tests in `e2e/tests/` with `.spec.ts` extension; group by feature (e.g., `home.spec.ts`, `site-navigation.spec.ts`).
-- API-specific tests live in `e2e/tests/api/` (e.g., `backend.spec.ts`, `integration.spec.ts`); shared utilities in `e2e/tests/utils/`.
-- Use role-based locators (`getByRole`, `getByLabel`, `getByText`) for resilience and accessibility.
-- Use auto-retrying web-first assertions (`await expect(locator).toHaveText()`); avoid hard-coded waits.
-- Tests can run against different environments via `SERVICE_URL` (frontend) and `BACKEND_URL` env vars; local defaults to `localhost:5000` and `localhost:8000`.
-- Run `just test-e2e` with services up (`just up`) before pushing UI changes.
+```bash
+cd backend/src && ../../.venv/bin/python -m pytest utest/test_navigation.py -v
+```
 
-## Branching & Pull Request Workflow
+- Run a single test function (example):
 
-- **Never push directly to `main`.** All changes must go through a feature branch and a pull request (PR).
-- Create a descriptively named branch from `main` using conventional prefixes: `feat/`, `fix/`, `chore/`, `docs/` (e.g., `fix/ci-uv-venv-cache`, `chore/dependabot-bumps`).
-- Use Conventional Commits (e.g., `feat: add standings endpoint`) with ≤72-character summaries and focused scope.
-- Before opening a PR, confirm all checks pass locally: `just ci` (lint + ty + test), `just ci-e2e` (if relevant), and `just security`.
-- Push the branch and create a PR via `gh pr create` with a clear title and description. Link related issues with `Closes #N`.
-- After CI passes on the PR, merge via `gh pr merge --squash` (or `--merge` for multi-commit PRs worth preserving).
-- Delete the branch after merge: `git branch -d <branch> && git push origin --delete <branch>`.
-- Update README or `docs/` when behavior or configuration shifts.
+```bash
+cd backend/src && ../../.venv/bin/python -m pytest utest/test_main.py::test_get_weekly_games -v
+```
 
-## Security & Configuration Tips
+- Filter tests by name pattern:
 
-- Store secrets via GitHub OIDC or environment variables; never commit `.env`. Terraform state stays in S3 + Dynamo.
-- Validate incoming payloads in backend and parser layers, and protect file writes under `backend/src/data/`.
-- Remove debug logging before review and justify any suppressed Bandit rules directly in PR discussions.
+```bash
+cd frontend/src && ../../.venv/bin/python -m pytest utest/ -k "offline or navigation" -v
+```
 
-## Deployment & Ops
+## E2E (Playwright / TypeScript) Commands
 
-- Dockerfiles per service build minimal images; `compose.yaml` orchestrates backend + frontend containers in dev.
-- Terraform under `terraform/` provisions AWS Lightsail and remote state; follow docs in `docs/` for IAM and deployment sequencing.
+- Install E2E deps (if needed): `cd e2e && bun install`.
+- E2E lint: `just lint-e2e`.
+- E2E format: `just fmt-e2e`.
+- E2E type check: `just ty-e2e`.
+- E2E CI tests: `just test-e2e` (runs `bun run test:ci`).
+- Run a single E2E spec:
+
+```bash
+cd e2e && bun run test -- tests/home.spec.ts
+```
+
+- Run a single E2E test title:
+
+```bash
+cd e2e && bun run test -- -g "navigation"
+```
+
+## Repository-Specific Coding Rules
+
+- Keep tests deterministic; do not rely on live ESPN/network in unit tests.
+- Prefer mocking `httpx.get` in backend tests and `requests.get` in frontend tests.
+- Preserve API query parameter naming in camelCase (`seasonType`) for external/API compatibility.
+- Preserve Python internal naming in snake_case.
+- Keep standings cache schema stable for backend consumers.
+- Do not remove stale-cache fallback behavior in backend fetch flows.
+
+## Python Style Guidelines
+
+- Formatter/linter authority: Ruff (configured in root `pyproject.toml`).
+- Line length target: 99 chars (Ruff default unless overridden by tool).
+- Imports:
+  - Group as stdlib, third-party, local.
+  - Prefer absolute imports; use relative imports in tests where already established.
+  - Avoid wildcard imports.
+- Naming:
+  - Modules/functions/variables: `snake_case`.
+  - Classes/Pydantic models: `PascalCase`.
+  - Constants/env defaults: `UPPER_SNAKE_CASE`.
+- Types:
+  - Use modern annotations (`str | None`, `list[dict]`) on new code.
+  - Add explicit return types for non-trivial functions.
+  - Keep models typed with Pydantic `BaseModel` where payload contracts matter.
+- Data handling:
+  - Parse external payloads defensively (`.get`, type checks, fallback defaults).
+  - Keep template-facing data JSON-serializable.
+  - Normalize external API payloads before returning to clients/templates.
+- Error handling:
+  - Catch narrow exceptions where practical (`ValueError`, `TypeError`, request exceptions).
+  - Use graceful degradation and fallback responses over crashes.
+  - In FastAPI routes, use `HTTPException` for client-visible errors.
+  - In frontend route handlers, prefer rendering fallback template over raising.
+- Logging:
+  - Use `logging` (not `print`) for runtime diagnostics.
+  - Keep logs concise and actionable; avoid noisy debug logs in committed code.
+
+## TypeScript E2E Style Guidelines
+
+- ESLint + Prettier are the style sources for `e2e/tests/**/*.ts`.
+- Prettier defaults: single quotes, semicolons, trailing commas, print width 80.
+- Prefer Playwright role/text locators (`getByRole`, `getByText`) and web-first assertions.
+- Avoid hard waits; use Playwright auto-waiting assertions.
+- Keep tests feature-focused in `*.spec.ts`; place API specs under `e2e/tests/api/`.
+
+## Change Management Expectations
+
+- Keep changes scoped; avoid unrelated refactors.
+- Update tests in the same PR as behavior changes.
+- Run targeted tests + lint before handoff; use `just ci` for broad Python changes.
+- Never commit secrets or `.env` files.
