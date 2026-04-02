@@ -7,7 +7,8 @@ test.describe('Light Score - Home Page', () => {
 
   test.beforeEach(async ({ page }) => {
     // Navigate to home page before each test
-    await page.goto('/', { waitUntil: 'networkidle' });
+    // Force regular season so Standings section is consistently rendered
+    await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
   });
 
   test.describe('@smoke', () => {
