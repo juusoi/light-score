@@ -23,7 +23,7 @@ test.describe('External NFL Site - Navigation and Health Checks', () => {
     page.on('console', msg => {
       try {
         consoleMessages.push(`${msg.type()}: ${msg.text()}`);
-      } catch (_e) {
+      } catch (e) {
         // Silently ignore console logging errors
       }
     });
@@ -65,7 +65,7 @@ test.describe('External NFL Site - Navigation and Health Checks', () => {
               await page.waitForTimeout(500);
               break;
             }
-          } catch (_e) {
+          } catch (e) {
             // Continue to next button type if this one fails
           }
         }

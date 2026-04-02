@@ -7,8 +7,7 @@ test.describe('Light Score - Home Page', () => {
 
   test.beforeEach(async ({ page }) => {
     // Navigate to home page before each test
-    // Force seasonType=2 to ensure Standings are visible for these tests
-    await page.goto('/?seasonType=2', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'networkidle' });
   });
 
   test.describe('@smoke', () => {
@@ -138,7 +137,7 @@ test.describe('Light Score - Home Page', () => {
   test('is responsive and accessible', async ({ page }) => {
     await test.step('verify accessibility structure', async () => {
       // Check for proper heading hierarchy
-      const _h1Count = await page.locator('h1').count();
+      const h1Count = await page.locator('h1').count();
       const h2Count = await page.locator('h2').count();
 
       expect(h2Count).toBeGreaterThanOrEqual(3); // Live, Games, Standings
