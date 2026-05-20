@@ -142,8 +142,23 @@ def home():
                 f"{BACKEND_URL}/games/weekly/context", params={}, timeout=10
             )
 
+        # Get context year to pass to standings
+        standings_year = year_val
+        if standings_year is None:
+            if ctx_resp is not None and ctx_resp.ok:
+                try:
+                    standings_year = ctx_resp.json().get("year")
+                except Exception:
+                    pass
+        if standings_year is None:
+            standings_year = DEFAULT_CONTEXT["year"]
+
         # Standings (graceful fallbacks)
-        standings_response = requests.get(f"{BACKEND_URL}/standings/live", timeout=10)
+        standings_response = requests.get(
+            f"{BACKEND_URL}/standings/live",
+            params={"year": standings_year},
+            timeout=10,
+        )
         if not standings_response.ok:
             logging.info(
                 "Live standings failed (%s) – falling back to cache",
