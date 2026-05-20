@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, List, Tuple
 from pydantic import BaseModel, Field, computed_field
 
 logging.basicConfig(
-    format="%(asctime)s %(levelname)s %(message)s", encoding="utf-8", level=logging.INFO
+    format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO
 )
 
 

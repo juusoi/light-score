@@ -10,7 +10,7 @@ app = Flask(__name__, static_url_path="/static", static_folder="static")
 # Configure backend base URL via env var for staging/prod
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
-DEFAULT_CONTEXT = {"year": 2025, "week": 1, "seasonType": 2}
+DEFAULT_CONTEXT = {"year": 2026, "week": 1, "seasonType": 2}
 T = TypeVar("T")
 
 
