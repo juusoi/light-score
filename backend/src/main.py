@@ -307,7 +307,7 @@ def _get_weekly_games(
 
 @app.get("/games/weekly", response_model=List[WeeklyGame])
 def get_weekly_games(
-    year: int | None = Query(default=None, description="Season year, e.g., 2025"),
+    year: int | None = Query(default=None, description="Season year, e.g., 2026"),
     week: int | None = Query(default=None, ge=1, le=25, description="Week number"),
     seasonType: int | None = Query(
         default=None, description="Season type: 1=pre, 2=reg, 3=post"
@@ -387,13 +387,13 @@ def _extract_weekly_context(payload: dict) -> dict:
     week = (payload.get("week") or {}).get("number")
     # Be defensive: ensure ints and validate ranges
     try:
-        year = int(year) if year is not None else 2025  # Current NFL season
+        year = int(year) if year is not None else 2026  # Current NFL season
         s_type = int(s_type) if s_type is not None else 2  # Regular season default
         week = int(week) if week is not None else 1  # Week 1 default
 
         # Validate ranges
         if year < 1970 or year > 2030:  # Reasonable NFL year range
-            year = 2025
+            year = 2026
         if s_type not in [1, 2, 3]:  # Valid season types only
             s_type = 2
         if (

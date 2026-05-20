@@ -258,7 +258,7 @@ def test_extract_weekly_context_missing_data():
     payload = {}
 
     context = _extract_weekly_context(payload)
-    assert context == {"year": 2025, "week": 1, "seasonType": 2}
+    assert context == {"year": 2026, "week": 1, "seasonType": 2}
 
 
 def test_extract_weekly_context_invalid_ranges():
@@ -269,4 +269,4 @@ def test_extract_weekly_context_invalid_ranges():
     }
 
     context = _extract_weekly_context(payload)
-    assert context == {"year": 2025, "week": 1, "seasonType": 2}
+    assert context == {"year": 2026, "week": 1, "seasonType": 2}
