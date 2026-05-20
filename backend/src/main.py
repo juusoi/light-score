@@ -594,7 +594,7 @@ def _extract_minimal_standings(payload: dict, year: int | None = None) -> list[d
             now = datetime.now()
             if year > now.year or (year == now.year and now.month < 9):
                 force_zero = True
-        except Exception:
+        except Exception:  # nosec B110
             pass
 
     def add_entries(entries: list[dict], division_name: str | None):
@@ -640,7 +640,9 @@ def _extract_minimal_standings(payload: dict, year: int | None = None) -> list[d
     return result
 
 
-def _get_live_standings(year: int | None = None, force_refresh: bool = False) -> list[dict]:
+def _get_live_standings(
+    year: int | None = None, force_refresh: bool = False
+) -> list[dict]:
     # Mock mode: load from fixture file
     if MOCK_ESPN:
         data = _load_fixture("standings")
@@ -657,10 +659,7 @@ def _get_live_standings(year: int | None = None, force_refresh: bool = False) ->
         url += f"&year={year}"
 
     now = time.monotonic()
-    if (
-        not force_refresh
-        and url in _live_standings_cache
-    ):
+    if not force_refresh and url in _live_standings_cache:
         ts, data = _live_standings_cache[url]
         if (now - ts) < _LIVE_TTL_SECONDS:
             return data
