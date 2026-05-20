@@ -440,7 +440,17 @@ def get_weekly_context(
         payload = resp.json()
         if not isinstance(payload, dict):
             raise HTTPException(status_code=502, detail="Unexpected upstream format")
-        return _extract_weekly_context(payload)
+        context = _extract_weekly_context(payload)
+
+        # Enforce requested parameters to bypass ESPN's off-season fallbacks
+        if year is not None:
+            context["year"] = year
+        if week is not None:
+            context["week"] = week
+        if seasonType is not None:
+            context["seasonType"] = seasonType
+
+        return context
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="ESPN API timeout") from None
     except httpx.HTTPStatusError as exc:
@@ -567,14 +577,25 @@ def get_standings():
 
 # --- Live standings (simple TTL cache) ---
 _LIVE_TTL_SECONDS = 300
-_live_cache_ts: float | None = None
-_live_cache_data: list[dict] | None = None
+_live_cache_ts: float | None = 0.0
+_live_cache_data: list[dict] | None = []
+_live_standings_cache: dict[str, tuple[float, list[dict]]] = {}
 
 
-def _extract_minimal_standings(payload: dict) -> list[dict]:
+def _extract_minimal_standings(payload: dict, year: int | None = None) -> list[dict]:
     # ESPN: content.standings.groups -> [AFC, NFC]
     groups = payload.get("content", {}).get("standings", {}).get("groups", [])
     result: list[dict] = []
+
+    # Determine if we should force 0-0 records for an unstarted season
+    force_zero = False
+    if year is not None:
+        try:
+            now = datetime.now()
+            if year > now.year or (year == now.year and now.month < 9):
+                force_zero = True
+        except Exception:
+            pass
 
     def add_entries(entries: list[dict], division_name: str | None):
         for e in entries:
@@ -586,13 +607,13 @@ def _extract_minimal_standings(payload: dict) -> list[dict]:
             if team is not None and wins is not None and losses is not None:
                 # values can be strings or numbers
                 try:
-                    wins_int = int(float(wins))
-                    losses_int = int(float(losses))
+                    wins_int = 0 if force_zero else int(float(wins))
+                    losses_int = 0 if force_zero else int(float(losses))
                 except (ValueError, TypeError):
                     # Skip entries with unparseable stats
                     continue
                 ties_int = 0
-                if ties is not None:
+                if ties is not None and not force_zero:
                     try:
                         ties_int = int(float(ties))
                     except (ValueError, TypeError):
@@ -619,58 +640,66 @@ def _extract_minimal_standings(payload: dict) -> list[dict]:
     return result
 
 
-def _get_live_standings(force_refresh: bool = False) -> list[dict]:
+def _get_live_standings(year: int | None = None, force_refresh: bool = False) -> list[dict]:
     # Mock mode: load from fixture file
     if MOCK_ESPN:
         data = _load_fixture("standings")
         return data if isinstance(data, list) else []
 
     global _live_cache_ts, _live_cache_data
+    if _live_cache_ts is None or _live_cache_data is None:
+        _live_standings_cache.clear()
+        _live_cache_ts = 0.0
+        _live_cache_data = []
+
+    url = "https://cdn.espn.com/core/nfl/standings?xhr=1"
+    if year is not None:
+        url += f"&year={year}"
+
     now = time.monotonic()
     if (
         not force_refresh
-        and _live_cache_data is not None
-        and _live_cache_ts is not None
-        and (now - _live_cache_ts) < _LIVE_TTL_SECONDS
+        and url in _live_standings_cache
     ):
-        return _live_cache_data
+        ts, data = _live_standings_cache[url]
+        if (now - ts) < _LIVE_TTL_SECONDS:
+            return data
 
     try:
         resp = httpx.get(
-            "https://cdn.espn.com/core/nfl/standings?xhr=1",
+            url,
             timeout=ESPN_TIMEOUT_SECONDS,
         )
         resp.raise_for_status()
         data = resp.json()
-        minimal = _extract_minimal_standings(data)
-        _live_cache_data = minimal
-        _live_cache_ts = now
+        minimal = _extract_minimal_standings(data, year=year)
+        _live_standings_cache[url] = (now, minimal)
         return minimal
     except httpx.TimeoutException:
         # Return stale cache if we have one; otherwise 504
-        if _live_cache_data is not None:
-            return _live_cache_data
+        if url in _live_standings_cache:
+            return _live_standings_cache[url][1]
         raise HTTPException(status_code=504, detail="Upstream timeout") from None
     except httpx.HTTPStatusError as exc:
-        if _live_cache_data is not None:
-            return _live_cache_data
+        if url in _live_standings_cache:
+            return _live_standings_cache[url][1]
         status = exc.response.status_code if exc.response is not None else 502
         raise HTTPException(
             status_code=502, detail=f"Upstream error: {status}"
         ) from None
     except httpx.RequestError:
-        if _live_cache_data is not None:
-            return _live_cache_data
+        if url in _live_standings_cache:
+            return _live_standings_cache[url][1]
         raise HTTPException(status_code=502, detail="Upstream request failed") from None
     except Exception:
-        if _live_cache_data is not None:
-            return _live_cache_data
+        if url in _live_standings_cache:
+            return _live_standings_cache[url][1]
         raise HTTPException(status_code=500, detail="Unexpected error") from None
 
 
 @app.get("/standings/live", response_model=List[Standings])
-def get_standings_live():
-    return _get_live_standings()
+def get_standings_live(year: int | None = Query(default=None)):
+    return _get_live_standings(year=year)
 
 
 # --- Playoff Bracket ---
