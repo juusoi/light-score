@@ -148,7 +148,7 @@ def home():
             if ctx_resp is not None and ctx_resp.ok:
                 try:
                     standings_year = ctx_resp.json().get("year")
-                except Exception:
+                except Exception:  # nosec B110
                     pass
         if standings_year is None:
             standings_year = DEFAULT_CONTEXT["year"]
