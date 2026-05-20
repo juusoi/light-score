@@ -5,9 +5,7 @@ from typing import Any, Callable, Dict, List, Tuple
 
 from pydantic import BaseModel, Field, computed_field
 
-logging.basicConfig(
-    format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO
-)
+logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO)
 
 
 class TeamStandingInfo(BaseModel):

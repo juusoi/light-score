@@ -154,5 +154,15 @@ cd e2e && bun run test -- -g "navigation"
 
 - Keep changes scoped; avoid unrelated refactors.
 - Update tests in the same PR as behavior changes.
-- Run targeted tests + lint before handoff; use `just ci` for broad Python changes.
+- **Mandatory Pre-PR Checks**: Before opening a Pull Request (PR), you MUST run all linting, formatting, type checking, and test suites to verify your changes. Use the following checklist:
+  - **Python Services**:
+    - Run linting: `just lint`
+    - Run formatting: `just fmt`
+    - Run type checks: `just ty`
+    - Run unit tests: `just test`
+    - Or run the complete Python CI bundle: `just ci` (covers lint, formatting, type check, and tests)
+  - **TypeScript / E2E Projects**:
+    - Run E2E linting: `just lint-e2e`
+    - Run E2E formatting check: `just fmt-e2e`
+    - Run E2E type check: `just ty-e2e`
 - Never commit secrets or `.env` files.
