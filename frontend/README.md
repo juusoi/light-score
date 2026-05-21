@@ -48,7 +48,6 @@ just mock-up
 | Route | Description |
 |-------|-------------|
 | `/` | Main scoreboard with games and standings |
-| `/playoffs` | Playoff picture/bracket view |
 | `/?seasonType=2` | Regular season view |
 | `/?seasonType=3` | Postseason view |
 | `/?week=N` | Specific week navigation |
@@ -57,9 +56,8 @@ just mock-up
 
 | Template | Purpose |
 |----------|---------|
-| `home.html` | Main scoreboard with games grid + standings |
+| `home.html` | Main scoreboard with games grid + standings or postseason bracket |
 | `home_no_api.html` | Fallback when backend is unavailable |
-| `playoffs.html` | Playoff bracket visualization |
 
 ## Testing
 
