@@ -23,7 +23,10 @@ class EspnClient:
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
             logging.error(
-                "Request failed: %s, %s, %s", response.url, response.status_code, response.text
+                "Request failed: %s, %s, %s",
+                response.url,
+                response.status_code,
+                response.text,
             )
             raise e
 

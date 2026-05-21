@@ -172,4 +172,3 @@ class TestGameTimeExtraction:
         }
         result_ot2 = extract_game_time(game_data_ot2)
         assert result_ot2 == "OT2 12:00"
-

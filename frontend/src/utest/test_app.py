@@ -447,7 +447,5 @@ def test_standings_panel_shown_in_regular_season(mock_get, client):
     assert "Playoff Bracket" not in text
 
 
-
-
 if __name__ == "__main__":
     pytest.main()

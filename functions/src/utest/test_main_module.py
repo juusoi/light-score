@@ -23,9 +23,10 @@ def test_save_standings_cache():
     group = ConferenceGroup(name="AFC East")
     group.add_team(team)
 
-    with patch("pathlib.Path.write_text") as mock_write, patch(
-        "pathlib.Path.mkdir"
-    ) as _mock_mkdir:
+    with (
+        patch("pathlib.Path.write_text") as mock_write,
+        patch("pathlib.Path.mkdir") as _mock_mkdir,
+    ):
         save_standings_cache([group], [])
 
         # Verify write_text was called
