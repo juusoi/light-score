@@ -75,6 +75,12 @@ just security    # bandit + pip-audit
 
 CI → Security → Deploy (Lightsail). Terraform remote state (S3 + Dynamo, prefix scoped). Images built & pushed with `lightsailctl`; `BACKEND_URL` set to internal DNS. See `docs/aws-iam-permissions.md`.
 
+## Canonical Product Docs
+
+- Current requirements: `docs/current-requirements.md`
+- Current implementation state: `docs/current-state.md`
+- Decision log: `docs/decision-log.md`
+
 ## Secrets
 
 GitHub: `AWS_ROLE_TO_ASSUME` (OIDC). No static AWS keys.
