@@ -6,8 +6,10 @@ under a package path like `frontend.src`. The previous absolute import broke
 runtime startup. We keep a fallback for type-check scenarios if needed.
 """
 
+import importlib
+
 try:  # Normal runtime path
-    from app import app  # type: ignore
+    app = importlib.import_module("app").app
 except ImportError:  # Fallback if executed from repo root or different PYTHONPATH
     from frontend.src.app import app  # pragma: no cover
 
