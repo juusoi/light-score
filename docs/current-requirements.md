@@ -69,6 +69,12 @@ It is intentionally scoped to what the app does today.
 - Layout is responsive across desktop/tablet/mobile viewports.
 - Navigation and key data regions retain basic accessibility semantics (headings, labels, visible links).
 
+## Engineering Quality Baseline
+
+- CI must run and pass lint, type checks, unit tests, and applicable E2E checks for merge readiness.
+- Type checking is a blocking CI requirement (non-passing type check fails the workflow).
+- Workflow definitions must be lintable with `actionlint` and use pinned external action references.
+
 ## Non-Goals (Current Baseline)
 
 - No strict viewport-locked 4:3 rendering engine.

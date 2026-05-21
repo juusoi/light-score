@@ -80,6 +80,13 @@ Current UI behavior:
   - postseason bracket UI structure
   - basic responsiveness/accessibility expectations
 
+## CI and Workflow Hygiene
+
+- GitHub Actions workflows are pinned to commit SHAs for external actions.
+- Workflow linting is available locally via `just lint-actions` (container fallback supported).
+- `just ci` runs Python lint + workflow lint + type check + tests.
+- CI workflow treats `ty check` as a blocking gate.
+
 ## Known Documentation Drift Resolved in This Pass
 
 - Frontend documentation had references to `/playoffs` and `playoffs.html` that do not
