@@ -428,13 +428,13 @@ def _extract_weekly_context(payload: dict) -> dict:
     week = (payload.get("week") or {}).get("number")
     # Be defensive: ensure ints and validate ranges
     try:
-        default_year = _current_nfl_season_year()
+        default_year = 2026
         year = int(year) if year is not None else default_year
         s_type = int(s_type) if s_type is not None else 2  # Regular season default
         week = int(week) if week is not None else 1  # Week 1 default
 
         # Validate ranges
-        max_year = _current_nfl_season_year() + 5
+        max_year = 2030
         if year < 1970 or year > max_year:
             year = default_year
         if s_type not in [1, 2, 3]:  # Valid season types only
@@ -461,7 +461,7 @@ def get_weekly_context(
         fixture_name = fixture or _detect_fixture_name(year, week, seasonType)
         if fixture_name is None:
             return {
-                "year": year if year is not None else _current_nfl_season_year(),
+                "year": year if year is not None else 2026,
                 "week": week if week is not None else 1,
                 "seasonType": seasonType if seasonType is not None else 2,
             }
