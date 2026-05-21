@@ -64,8 +64,8 @@ class TestFixtureDetection:
     def test_detect_regular_season(self):
         """Test fixture detection for regular season."""
         assert _detect_fixture_name(2024, 15, 2) == "regular_season"
-        assert _detect_fixture_name(2024, 1, 2) == "regular_season"
-        assert _detect_fixture_name(2024, 18, 2) == "regular_season"
+        assert _detect_fixture_name(2024, 1, 2) is None
+        assert _detect_fixture_name(2024, 18, 2) is None
 
     def test_detect_postseason_wildcard(self):
         """Test fixture detection for wild card round."""
@@ -83,9 +83,9 @@ class TestFixtureDetection:
         """Test fixture detection for Super Bowl."""
         assert _detect_fixture_name(2024, 4, 3) == "postseason_superbowl"
 
-    def test_detect_preseason_defaults_to_regular(self):
-        """Test fixture detection defaults to regular season for preseason."""
-        assert _detect_fixture_name(2024, 1, 1) == "regular_season"
+    def test_detect_preseason_returns_none(self):
+        """Test fixture detection returns None for preseason."""
+        assert _detect_fixture_name(2024, 1, 1) is None
 
 
 @mock_espn
@@ -161,6 +161,22 @@ class TestMockModeGamesEndpoint:
         assert "year" in ctx
         assert "week" in ctx
         assert "seasonType" in ctx
+
+    def test_weekly_games_nonexistent_fixture(self):
+        """Test that requesting a week without a mock fixture returns empty games list."""
+        client = TestClient(app)
+        response = client.get("/games/weekly?year=2024&seasonType=2&week=1")
+        assert response.status_code == 200
+        games = response.json()
+        assert games == []
+
+    def test_weekly_context_nonexistent_fixture(self):
+        """Test that requesting context for non-existent mock week returns synthetic context."""
+        client = TestClient(app)
+        response = client.get("/games/weekly/context?year=2024&seasonType=2&week=1")
+        assert response.status_code == 200
+        ctx = response.json()
+        assert ctx == {"year": 2024, "week": 1, "seasonType": 2}
 
 
 @mock_espn

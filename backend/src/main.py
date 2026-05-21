@@ -94,20 +94,37 @@ def _load_fixture(name: str) -> dict | list:
 
 def _detect_fixture_name(
     year: int | None, week: int | None, season_type: int | None
-) -> str:
-    """Detect which fixture to use based on parameters."""
-    # Use season type to determine fixture
-    if season_type == 3:  # Postseason
-        if week == 1:
+) -> str | None:
+    """Detect which fixture to use based on parameters.
+
+    Returns None if no matching mock fixture exists for the requested week.
+    """
+    # If all parameters are None, it represents the default frontpage load (Regular Season Week 15)
+    if year is None and week is None and season_type is None:
+        return "regular_season"
+
+    # Default None params defensively for matching
+    resolved_type = season_type if season_type is not None else 2
+    resolved_week = week if week is not None else (1 if resolved_type == 3 else 15)
+
+    if resolved_type == 3:  # Postseason
+        if resolved_week == 1:
             return "postseason_wildcard"
-        elif week == 2:
+        elif resolved_week == 2:
             return "postseason_divisional"
-        elif week == 3:
+        elif resolved_week == 3:
             return "postseason_conference"
-        elif week == 4:
+        elif resolved_week == 4:
             return "postseason_superbowl"
-        return "postseason_wildcard"  # Default for postseason
-    return "regular_season"  # Default for regular/preseason
+        return None
+
+    if resolved_type == 2:  # Regular Season
+        if resolved_week == 15:
+            return "regular_season"
+        return None
+
+    # Preseason (type 1) or other types have no mock fixtures
+    return None
 
 
 app = FastAPI()
@@ -266,6 +283,8 @@ def _get_weekly_games(
     # Mock mode: load from fixture files
     if MOCK_ESPN:
         fixture_name = fixture or _detect_fixture_name(year, week, season_type)
+        if fixture_name is None:
+            return []
         fixture_data = _load_fixture(fixture_name)
         if isinstance(fixture_data, dict):
             return fixture_data.get("games", [])
@@ -440,6 +459,12 @@ def get_weekly_context(
     # Mock mode: extract context from fixture file
     if MOCK_ESPN:
         fixture_name = fixture or _detect_fixture_name(year, week, seasonType)
+        if fixture_name is None:
+            return {
+                "year": year if year is not None else _current_nfl_season_year(),
+                "week": week if week is not None else 1,
+                "seasonType": seasonType if seasonType is not None else 2,
+            }
         fixture_data = _load_fixture(fixture_name)
         if isinstance(fixture_data, dict):
             return {
