@@ -55,3 +55,12 @@ This log records lightweight architecture/product decisions for the current app.
 - Decision: Preserve `seasonType` externally while using snake_case internally.
 - Consequences: Backward compatibility for API consumers; minor naming translation overhead.
 - Revisit Trigger: Versioned API migration that permits contract renaming.
+
+## DEC-007
+
+- Date: 2026-05-21
+- Status: accepted
+- Context: ESPN may return fallback scoreboard data from a different season/week when a requested period has no games yet.
+- Decision: Treat `/games/weekly` responses as valid only when returned season/year/week context matches explicit request params.
+- Consequences: Prevents stale historical scores from appearing for future navigation targets; empty game lists now represent unavailable periods.
+- Revisit Trigger: Upstream API guarantees strict context fidelity or product chooses explicit "nearest available week" behavior.

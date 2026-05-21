@@ -54,6 +54,7 @@ Current UI behavior:
 
 - Query values are parsed defensively and bounded to accepted ranges.
 - Weekly games are filtered to valid records before rendering.
+- Weekly game fetch rejects upstream scoreboard payloads that do not match explicitly requested `year`/`week`/`seasonType`.
 - Games are split into `history`, `live`, and `upcoming` arrays.
 - Standings are grouped by division and sorted by record.
 - Navigation has both endpoint-driven and local fallback behavior.

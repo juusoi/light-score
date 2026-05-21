@@ -91,6 +91,45 @@ def test_weekly_games_from_scoreboard(mock_get):
 
 
 @patch("httpx.get")
+def test_weekly_games_returns_empty_on_requested_context_mismatch(mock_get):
+    payload = {
+        "season": {"year": 2025, "type": 1},
+        "week": {"number": 4},
+        "events": [
+            {
+                "competitions": [
+                    {
+                        "status": {"type": {"state": "post"}},
+                        "competitors": [
+                            {
+                                "homeAway": "away",
+                                "team": {"displayName": "Away Team"},
+                                "score": "10",
+                            },
+                            {
+                                "homeAway": "home",
+                                "team": {"displayName": "Home Team"},
+                                "score": "20",
+                            },
+                        ],
+                    }
+                ]
+            }
+        ],
+    }
+    mock_get.return_value.json.return_value = payload
+    mock_get.return_value.raise_for_status.return_value = None
+
+    from .. import main as backend_main
+
+    backend_main._games_cache.clear()
+
+    r = client.get("/games/weekly?year=2026&week=4&seasonType=1")
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+@patch("httpx.get")
 def test_teams_from_espn(mock_get):
     from .test_main import _teams_payload
 
