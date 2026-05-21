@@ -66,10 +66,11 @@ just test
 
 ```bash
 just lint fmt ty
+just lint-actions
 just security    # bandit + pip-audit
 ```
 
-`just ci` runs lint + ty + test.
+`just ci` runs lint + Actions lint + ty + test.
 
 ## Deployment
 
@@ -103,6 +104,7 @@ MIT (see `LICENSE`).
 | Run (mock data)  | `just mock-up`      |
 | Stop containers  | `just down`         |
 | Lint / Format    | `just lint fmt`     |
+| Actions lint     | `just lint-actions` |
 | Types            | `just ty`           |
 | Tests            | `just test`         |
 | E2E Tests        | `just test-e2e`     |
