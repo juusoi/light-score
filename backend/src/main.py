@@ -269,6 +269,54 @@ def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:
     return result
 
 
+def _scoreboard_matches_requested_context(
+    payload: dict,
+    *,
+    year: int | None,
+    week: int | None,
+    season_type: int | None,
+) -> bool:
+    """Check whether ESPN scoreboard payload matches explicitly requested context."""
+    season = payload.get("season") or {}
+    payload_week_obj = payload.get("week") or {}
+    payload_year_value = season.get("year")
+    payload_type_value = season.get("type")
+    payload_week_value = payload_week_obj.get("number")
+
+    try:
+        payload_year = (
+            int(payload_year_value) if payload_year_value is not None else None
+        )
+    except (TypeError, ValueError):
+        payload_year = None
+
+    try:
+        payload_type = (
+            int(payload_type_value) if payload_type_value is not None else None
+        )
+    except (TypeError, ValueError):
+        payload_type = None
+
+    try:
+        payload_week = (
+            int(payload_week_value) if payload_week_value is not None else None
+        )
+    except (TypeError, ValueError):
+        payload_week = None
+
+    if year is not None and payload_year is not None and payload_year != year:
+        return False
+    if (
+        season_type is not None
+        and payload_type is not None
+        and payload_type != season_type
+    ):
+        return False
+    if week is not None and payload_week is not None and payload_week != week:
+        return False
+    return True
+
+
 ESPN_TIMEOUT_SECONDS = int(os.getenv("ESPN_TIMEOUT_SECONDS", "6"))
 
 
@@ -315,6 +363,13 @@ def _get_weekly_games(
         data = resp.json()
         if not isinstance(data, dict):
             raise TypeError(f"Expected dict response, got {type(data)}")
+        if not _scoreboard_matches_requested_context(
+            data,
+            year=year,
+            week=week,
+            season_type=season_type,
+        ):
+            return []
         games = _extract_weekly_games_from_scoreboard(data)
         if games:
             _games_cache[url] = (now, games)
