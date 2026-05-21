@@ -8,7 +8,7 @@ class EspnClient:
     client: httpx.AsyncClient
 
     def __init__(self):
-        self.client = httpx.AsyncClient()
+        self.client = httpx.AsyncClient(timeout=30)
 
     async def __aenter__(self):
         return self
@@ -23,7 +23,7 @@ class EspnClient:
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
             logging.error(
-                f"Request failed: {response.url}, {response.status_code}, {response.text}"
+                "Request failed: %s, %s, %s", response.url, response.status_code, response.text
             )
             raise e
 

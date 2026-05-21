@@ -11,16 +11,7 @@ def test_read_main():
     payload = response.json()
     assert payload.get("service") == "light-score-backend"
     assert payload.get("status") == "ok"
-    assert "/games" in payload.get("endpoints", [])
-
-
-def test_get_games():
-    response = client.get("/games")
-    assert response.status_code == 501  # Endpoint deprecated
-    payload = response.json()
-    assert (
-        "deprecated" in payload["detail"].lower() or "use" in payload["detail"].lower()
-    )
+    assert "/games/weekly" in payload.get("endpoints", [])
 
 
 def test_get_standings():
@@ -258,7 +249,8 @@ def test_extract_weekly_context_missing_data():
     payload = {}
 
     context = _extract_weekly_context(payload)
-    assert context == {"year": 2026, "week": 1, "seasonType": 2}
+    from ..main import _current_nfl_season_year
+    assert context == {"year": _current_nfl_season_year(), "week": 1, "seasonType": 2}
 
 
 def test_extract_weekly_context_invalid_ranges():
@@ -269,4 +261,5 @@ def test_extract_weekly_context_invalid_ranges():
     }
 
     context = _extract_weekly_context(payload)
-    assert context == {"year": 2026, "week": 1, "seasonType": 2}
+    from ..main import _current_nfl_season_year
+    assert context == {"year": _current_nfl_season_year(), "week": 1, "seasonType": 2}

@@ -1,11 +1,9 @@
 import logging
 import re
 from operator import itemgetter
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable
 
 from pydantic import BaseModel, Field, computed_field
-
-logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO)
 
 
 class TeamStandingInfo(BaseModel):
@@ -20,10 +18,10 @@ class TeamStandingInfo(BaseModel):
     points_for: int
     points_against: int
     streak: int
-    home_record: Tuple[int, int]
-    away_record: Tuple[int, int]
-    division_record: Tuple[int, int]
-    conference_record: Tuple[int, int]
+    home_record: tuple[int, int]
+    away_record: tuple[int, int]
+    division_record: tuple[int, int]
+    conference_record: tuple[int, int]
 
     @computed_field
     def points_diff(self) -> int:
@@ -35,7 +33,7 @@ class ConferenceGroup(BaseModel):
 
     name: str
     # Use default_factory to avoid sharing the list between instances
-    teams: List[TeamStandingInfo] = Field(default_factory=list)
+    teams: list[TeamStandingInfo] = Field(default_factory=list)
 
     def add_team(self, team: TeamStandingInfo):
         self.teams.append(team)
@@ -103,7 +101,7 @@ class Conditions:
         return Conditions._get_abbreviation(item) == "NFC"
 
 
-def find_first(list_of_items: List[Dict], condition: Callable[[Dict], bool]) -> Any:
+def find_first(list_of_items: list[dict], condition: Callable[[dict], bool]) -> Any:
     """Find the first item in a list that satisfies the given condition."""
     try:
         return next(filter(condition, list_of_items))
@@ -122,7 +120,7 @@ class Parse:
         return int(float(obj["value"]))
 
     @staticmethod
-    def tuple_int_value(obj: dict) -> Tuple[int, int]:
+    def tuple_int_value(obj: dict) -> tuple[int, int]:
         """Parse records like '4-2' or '4-2-1' into a (wins, losses) tuple.
 
         ESPN sometimes includes ties as a third number (e.g., '4-2-1').

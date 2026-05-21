@@ -1,6 +1,7 @@
 import logging
 import os
-from typing import Any, Optional, Type, TypeVar, cast
+from datetime import date
+from typing import Any, Type, TypeVar, cast
 
 import requests
 from flask import Flask, render_template, request
@@ -10,7 +11,18 @@ app = Flask(__name__, static_url_path="/static", static_folder="static")
 # Configure backend base URL via env var for staging/prod
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
-DEFAULT_CONTEXT = {"year": 2026, "week": 1, "seasonType": 2}
+
+def _current_nfl_season_year() -> int:
+    """Return the current NFL season year.
+
+    The NFL season spans two calendar years (Sep-Feb).
+    Before September, we're still in the previous season.
+    """
+    today = date.today()
+    return today.year if today.month >= 9 else today.year - 1
+
+
+DEFAULT_CONTEXT = {"year": _current_nfl_season_year(), "week": 1, "seasonType": 2}
 T = TypeVar("T")
 
 
@@ -43,7 +55,7 @@ def _parse_response_json(
     return default
 
 
-def season_type_name(season_type: Optional[int]) -> str:
+def season_type_name(season_type: int | None) -> str:
     """Convert season type number to readable name.
 
     Accepts None for robustness (tests call with None)."""
@@ -53,7 +65,7 @@ def season_type_name(season_type: Optional[int]) -> str:
     return season_types.get(int(season_type), "Unknown")
 
 
-def _fetch_playoff_bracket() -> Optional[dict[str, Any]]:
+def _fetch_playoff_bracket() -> dict[str, Any] | None:
     """Fetch playoff bracket data from backend."""
     try:
         response = requests.get(f"{BACKEND_URL}/playoffs/bracket", timeout=10)
@@ -66,19 +78,6 @@ def _fetch_playoff_bracket() -> Optional[dict[str, Any]]:
     return None
 
 
-def render_bracket_line(
-    team1: str,
-    score1: Optional[int],
-    team2: str,
-    score2: Optional[int],
-    winner: Optional[str],
-) -> str:
-    """Render a bracket matchup as text."""
-    t1_marker = "►" if winner == team1 else " "
-    t2_marker = "►" if winner == team2 else " "
-    s1 = str(score1) if score1 is not None else "-"
-    s2 = str(score2) if score2 is not None else "-"
-    return f"{t1_marker}{team1[:16]:<16} {s1:>2}\n{t2_marker}{team2[:16]:<16} {s2:>2}"
 
 
 @app.route("/")
@@ -89,7 +88,7 @@ def home():
         raw_week = request.args.get("week")
         raw_season = request.args.get("seasonType")
 
-        def parse_int(value: Optional[str]) -> Optional[int]:
+        def parse_int(value: str | None) -> int | None:
             if value is None or value == "":
                 return None
             try:

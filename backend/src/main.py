@@ -12,9 +12,8 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
-from typing import List
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -27,6 +26,16 @@ FIXTURES_PATH = Path(__file__).parent / "fixtures"
 
 # Timezone utilities
 FINNISH_TZ = ZoneInfo("Europe/Helsinki")
+
+
+def _current_nfl_season_year() -> int:
+    """Return the current NFL season year.
+
+    The NFL season spans two calendar years (Sep-Feb).
+    Before September, we're still in the previous season.
+    """
+    today = date.today()
+    return today.year if today.month >= 9 else today.year - 1
 
 
 def format_finnish_time(iso_time_str: str) -> str:
@@ -58,8 +67,15 @@ def extract_game_time(game_data: dict) -> str | None:
             display_clock = status.get("displayClock", "")
             period = status.get("period", 0)
             if display_clock and period:
+                if period > 4:
+                    ot_num = period - 4
+                    prefix = "OT" if ot_num == 1 else f"OT{ot_num}"
+                    return f"{prefix} {display_clock}"
                 return f"Q{period} {display_clock}"
             elif period:
+                if period > 4:
+                    ot_num = period - 4
+                    return "OT" if ot_num == 1 else f"OT{ot_num}"
                 return f"Q{period}"
         return None
     except (KeyError, TypeError, AttributeError):
@@ -68,6 +84,8 @@ def extract_game_time(game_data: dict) -> str | None:
 
 def _load_fixture(name: str) -> dict | list:
     """Load a JSON fixture file by name."""
+    if ".." in name or "/" in name or "\\" in name:
+        raise HTTPException(status_code=400, detail="Invalid fixture name")
     fixture_path = FIXTURES_PATH / f"{name}.json"
     if not fixture_path.exists():
         raise HTTPException(status_code=404, detail=f"Fixture '{name}' not found")
@@ -93,13 +111,6 @@ def _detect_fixture_name(
 
 
 app = FastAPI()
-
-
-class Game(BaseModel):
-    team_a: str
-    team_b: str
-    score_a: int
-    score_b: int
 
 
 class Standings(BaseModel):
@@ -133,25 +144,67 @@ def read_root():
         "service": "light-score-backend",
         "status": "ok",
         "endpoints": [
-            "/games",
             "/games/weekly",
+            "/games/weekly/context",
+            "/games/weekly/navigation",
             "/standings",
             "/standings/live",
+            "/teams",
             "/playoffs/bracket",
         ],
     }
 
 
-@app.get("/games", response_model=List[Game])
-def get_games():
-    raise HTTPException(
-        status_code=501, detail="Endpoint deprecated - use /games/weekly"
-    )
-
-
 _GAMES_TTL_SECONDS = 60
 # Cache per URL key -> (ts, data)
 _games_cache: dict[str, tuple[float, list[dict]]] = {}
+
+
+def _team_name(competitor: dict) -> str:
+    """Extract team display name from an ESPN competitor entry."""
+    t = competitor.get("team", {})
+    return (
+        t.get("displayName")
+        or t.get("shortDisplayName")
+        or t.get("name")
+        or "Unknown"
+    )
+
+
+def _team_score(competitor: dict) -> int | None:
+    """Extract integer score from an ESPN competitor entry."""
+    s = competitor.get("score")
+    if s is None:
+        return None
+    try:
+        return int(float(s))
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_game_status(competition: dict, event: dict) -> str:
+    """Parse ESPN status state into a normalised status string."""
+    status_state = competition.get("status", {}).get("type", {}).get(
+        "state"
+    ) or event.get("status", {}).get("type", {}).get("state")
+    state = (status_state or "").lower()
+    if state == "in":
+        return "live"
+    elif state == "post":
+        return "final"
+    return "upcoming"
+
+
+def _team_seed(competitor: dict) -> int | None:
+    """Extract seed number from an ESPN competitor entry."""
+    try:
+        rank = competitor.get("curatedRank", {}).get("current")
+        if rank and rank != 99:
+            return int(rank)
+    except (ValueError, TypeError):
+        pass
+    return None
+
 
 
 def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:
@@ -163,16 +216,7 @@ def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:
         if not comps:
             continue
         comp = comps[0] or {}
-        status_state = comp.get("status", {}).get("type", {}).get("state") or ev.get(
-            "status", {}
-        ).get("type", {}).get("state")
-        state = (status_state or "").lower()
-        if state == "in":
-            status = "live"
-        elif state == "post":
-            status = "final"
-        else:
-            status = "upcoming"
+        status = _parse_game_status(comp, ev)
 
         competitors = comp.get("competitors") or []
         if len(competitors) < 2:
@@ -184,24 +228,6 @@ def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:
         home = next(
             (c for c in competitors if c.get("homeAway") == "home"), competitors[1]
         )
-
-        def name_from(c: dict) -> str:
-            t = c.get("team", {})
-            return (
-                t.get("displayName")
-                or t.get("shortDisplayName")
-                or t.get("name")
-                or "Unknown"
-            )
-
-        def score_from(c: dict) -> int | None:
-            s = c.get("score")
-            if s is None:
-                return None
-            try:
-                return int(float(s))
-            except Exception:
-                return None
 
         # Generate time fields based on status
         start_time_finnish = None
@@ -216,10 +242,10 @@ def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:
 
         result.append(
             {
-                "team_a": name_from(away),
-                "team_b": name_from(home),
-                "score_a": score_from(away),
-                "score_b": score_from(home),
+                "team_a": _team_name(away),
+                "team_b": _team_name(home),
+                "score_a": _team_score(away),
+                "score_b": _team_score(home),
                 "status": status,
                 "start_time": date,
                 "start_time_finnish": start_time_finnish,
@@ -305,7 +331,7 @@ def _get_weekly_games(
         ) from exc
 
 
-@app.get("/games/weekly", response_model=List[WeeklyGame])
+@app.get("/games/weekly", response_model=list[WeeklyGame])
 def get_weekly_games(
     year: int | None = Query(default=None, description="Season year, e.g., 2026"),
     week: int | None = Query(default=None, ge=1, le=25, description="Week number"),
@@ -387,13 +413,15 @@ def _extract_weekly_context(payload: dict) -> dict:
     week = (payload.get("week") or {}).get("number")
     # Be defensive: ensure ints and validate ranges
     try:
-        year = int(year) if year is not None else 2026  # Current NFL season
+        default_year = _current_nfl_season_year()
+        year = int(year) if year is not None else default_year
         s_type = int(s_type) if s_type is not None else 2  # Regular season default
         week = int(week) if week is not None else 1  # Week 1 default
 
         # Validate ranges
-        if year < 1970 or year > 2030:  # Reasonable NFL year range
-            year = 2026
+        max_year = _current_nfl_season_year() + 5
+        if year < 1970 or year > max_year:
+            year = default_year
         if s_type not in [1, 2, 3]:  # Valid season types only
             s_type = 2
         if (
@@ -466,7 +494,7 @@ def get_weekly_context(
         ) from exc
 
 
-@app.get("/games/weekly/navigation")
+@app.get("/games/weekly/navigation", response_model=NavigationParams)
 def get_navigation_params(
     year: int = Query(description="Current year"),
     week: int = Query(description="Current week"),
@@ -552,12 +580,12 @@ def _get_all_teams(force_refresh: bool = False) -> list[dict]:
         return []
 
 
-@app.get("/teams", response_model=List[TeamInfo])
+@app.get("/teams", response_model=list[TeamInfo])
 def get_teams():
     return _get_all_teams()
 
 
-@app.get("/standings", response_model=List[Standings])
+@app.get("/standings", response_model=list[Standings])
 def get_standings():
     # Serve from cache file if available; otherwise return error
     cache_file = Path(__file__).resolve().parent / "data" / "standings_cache.json"
@@ -577,8 +605,6 @@ def get_standings():
 
 # --- Live standings (simple TTL cache) ---
 _LIVE_TTL_SECONDS = 300
-_live_cache_ts: float | None = 0.0
-_live_cache_data: list[dict] | None = []
 _live_standings_cache: dict[str, tuple[float, list[dict]]] = {}
 
 
@@ -648,12 +674,6 @@ def _get_live_standings(
         data = _load_fixture("standings")
         return data if isinstance(data, list) else []
 
-    global _live_cache_ts, _live_cache_data
-    if _live_cache_ts is None or _live_cache_data is None:
-        _live_standings_cache.clear()
-        _live_cache_ts = 0.0
-        _live_cache_data = []
-
     url = "https://cdn.espn.com/core/nfl/standings?xhr=1"
     if year is not None:
         url += f"&year={year}"
@@ -696,7 +716,7 @@ def _get_live_standings(
         raise HTTPException(status_code=500, detail="Unexpected error") from None
 
 
-@app.get("/standings/live", response_model=List[Standings])
+@app.get("/standings/live", response_model=list[Standings])
 def get_standings_live(year: int | None = Query(default=None)):
     return _get_live_standings(year=year)
 
@@ -725,9 +745,9 @@ class PlayoffGame(BaseModel):
 
 class PlayoffBracket(BaseModel):
     season_year: int
-    afc_seeds: List[PlayoffSeed]
-    nfc_seeds: List[PlayoffSeed]
-    games: List[PlayoffGame]
+    afc_seeds: list[PlayoffSeed]
+    nfc_seeds: list[PlayoffSeed]
+    games: list[PlayoffGame]
 
 
 def _get_team_conference(team_name: str, conf_map: dict) -> str:
@@ -778,57 +798,19 @@ def _extract_playoff_games(
             (c for c in competitors if c.get("homeAway") == "home"), competitors[1]
         )
 
-        def name_from(c: dict) -> str:
-            t = c.get("team", {})
-            return (
-                t.get("displayName")
-                or t.get("shortDisplayName")
-                or t.get("name")
-                or "Unknown"
-            )
-
-        def score_from(c: dict) -> int | None:
-            s = c.get("score")
-            if s is None:
-                return None
-            try:
-                return int(float(s))
-            except Exception:
-                return None
-
-        def seed_from(c: dict) -> int | None:
-            # Try curatedRank first
-            try:
-                rank = c.get("curatedRank", {}).get("current")
-                if rank and rank != 99:
-                    return int(rank)
-            except (ValueError, TypeError):
-                pass
-            # Fallback (rarely available in simple scoreboard)
-            return None
-
-        team_a = name_from(away)
-        team_b = name_from(home)
-        score_a = score_from(away)
-        score_b = score_from(home)
-        seed_a = seed_from(away)
-        seed_b = seed_from(home)
+        team_a = _team_name(away)
+        team_b = _team_name(home)
+        score_a = _team_score(away)
+        score_b = _team_score(home)
+        seed_a = _team_seed(away)
+        seed_b = _team_seed(home)
 
         if seed_a:
             seeds_found[team_a] = seed_a
         if seed_b:
             seeds_found[team_b] = seed_b
 
-        status_state = comp.get("status", {}).get("type", {}).get("state") or ev.get(
-            "status", {}
-        ).get("type", {}).get("state")
-        state = (status_state or "").lower()
-        if state == "in":
-            status = "live"
-        elif state == "post":
-            status = "final"
-        else:
-            status = "upcoming"
+        status = _parse_game_status(comp, ev)
 
         winner = None
         if status == "final":
@@ -870,14 +852,15 @@ def _extract_playoff_games(
 def _fetch_real_playoff_bracket() -> dict:
     """Fetch real playoff data from ESPN."""
     # 1. Get Context (Year)
-    year = 2024
+    fallback_year = _current_nfl_season_year()
+    year = fallback_year
     base_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
     try:
         # Quick fetch to get accurate year from default scoreboard
         with httpx.Client() as client:
             resp = client.get(base_url, timeout=4)
             if resp.status_code == 200:
-                year = resp.json().get("season", {}).get("year", 2024)
+                year = resp.json().get("season", {}).get("year", fallback_year)
     except Exception:  # nosec B110 - intentional: best-effort year fetch, fallback is fine
         pass
 
@@ -909,8 +892,8 @@ def _fetch_real_playoff_bracket() -> dict:
                 games, seeds = _extract_playoff_games(data, week, conf_map)
                 all_games.extend(games)
                 all_seeds.update(seeds)
-            except Exception as e:
-                logging.warning(f"Failed to fetch playoff week {week}: {e}")
+            except Exception:
+                logging.warning("Failed to fetch playoff week %d", week, exc_info=True)
                 continue
 
     # 4. Construct Seeds List
@@ -967,10 +950,15 @@ def _fetch_real_playoff_bracket() -> dict:
     }
 
 
+_BRACKET_TTL_SECONDS = 300
+_bracket_cache: tuple[float, dict] | None = None
+
+
 def _get_playoff_bracket() -> dict:
     """Get playoff bracket data."""
+    global _bracket_cache
     empty_bracket: dict = {
-        "season_year": 2024,
+        "season_year": _current_nfl_season_year(),
         "afc_seeds": [],
         "nfc_seeds": [],
         "games": [],
@@ -979,10 +967,20 @@ def _get_playoff_bracket() -> dict:
         data = _load_fixture("playoff_seeds")
         return data if isinstance(data, dict) else empty_bracket
 
+    now = time.monotonic()
+    if _bracket_cache is not None:
+        ts, cached_data = _bracket_cache
+        if (now - ts) < _BRACKET_TTL_SECONDS:
+            return cached_data
+
     try:
-        return _fetch_real_playoff_bracket()
-    except Exception as e:
-        logging.error(f"Error fetching real playoff bracket: {e}")
+        result = _fetch_real_playoff_bracket()
+        _bracket_cache = (now, result)
+        return result
+    except Exception:
+        logging.error("Error fetching real playoff bracket", exc_info=True)
+        if _bracket_cache is not None:
+            return _bracket_cache[1]
         return empty_bracket
 
 

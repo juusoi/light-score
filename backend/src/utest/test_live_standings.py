@@ -67,8 +67,7 @@ def test_live_standings_missing_ties_defaults_zero(mock_get):
 
     from .. import main as backend_main
 
-    backend_main._live_cache_ts = None
-    backend_main._live_cache_data = None
+    backend_main._live_standings_cache.clear()
 
     r = client.get("/standings/live")
     assert r.status_code == 200

@@ -1,59 +1,38 @@
 import json
-from pathlib import Path
-
-from ..main import convert_to_dict, save_on_disk
+from unittest.mock import patch
+from ..main import save_standings_cache
 from ..standings_parser import ConferenceGroup, TeamStandingInfo
 
 
-def test_convert_to_dict_serializes_models():
+def test_save_standings_cache():
     team = TeamStandingInfo(
-        name="T",
-        abbreviation_name="TT",
-        wins=1,
-        losses=2,
-        ties=0,
-        win_percentage=0.333,
-        points_for=10,
-        points_against=20,
-        streak=-1,
-        home_record=(1, 0),
-        away_record=(0, 2),
-        division_record=(0, 1),
-        conference_record=(0, 2),
+        name="Mock Team",
+        abbreviation_name="MT",
+        wins=10,
+        losses=4,
+        ties=1,
+        win_percentage=0.700,
+        points_for=400,
+        points_against=300,
+        streak=2,
+        home_record=(5, 2),
+        away_record=(5, 2),
+        division_record=(4, 1),
+        conference_record=(8, 2),
     )
-    group = ConferenceGroup(name="G")
+    group = ConferenceGroup(name="AFC East")
     group.add_team(team)
 
-    d_team = convert_to_dict(team)
-    d_group = convert_to_dict(group)
-    assert isinstance(d_team, dict)
-    assert isinstance(d_group, dict)
-    assert d_team["abbreviation_name"] == "TT"
-    assert d_group["name"] == "G"
+    with patch("pathlib.Path.write_text") as mock_write, patch(
+        "pathlib.Path.mkdir"
+    ) as _mock_mkdir:
+        save_standings_cache([group], [])
 
-
-def test_save_on_disk_writes_json(tmp_path: Path):
-    team = TeamStandingInfo(
-        name="T",
-        abbreviation_name="TT",
-        wins=1,
-        losses=2,
-        ties=0,
-        win_percentage=0.333,
-        points_for=10,
-        points_against=20,
-        streak=-1,
-        home_record=(1, 0),
-        away_record=(0, 2),
-        division_record=(0, 1),
-        conference_record=(0, 2),
-    )
-    group = ConferenceGroup(name="G")
-    group.add_team(team)
-
-    out = tmp_path / "out.json"
-    save_on_disk([group], str(out))
-
-    data = json.loads(out.read_text())
-    assert isinstance(data, list)
-    assert data[0]["name"] == "G"
+        # Verify write_text was called
+        assert mock_write.called
+        written_data = json.loads(mock_write.call_args[0][0])
+        assert len(written_data) == 1
+        assert written_data[0]["team"] == "Mock Team"
+        assert written_data[0]["wins"] == 10
+        assert written_data[0]["losses"] == 4
+        assert written_data[0]["ties"] == 1
