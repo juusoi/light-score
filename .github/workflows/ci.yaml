@@ -104,8 +104,7 @@ jobs:
       - name: Ruff format (check only)
         run: .venv/bin/ruff format --check .
 
-      - name: Ty type check (non-blocking)
-        continue-on-error: true
+      - name: Ty type check
         env:
           PYTHONPATH: backend/src:frontend/src:functions/src
         run: .venv/bin/ty check .
