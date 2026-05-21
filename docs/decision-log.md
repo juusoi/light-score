@@ -64,3 +64,21 @@ This log records lightweight architecture/product decisions for the current app.
 - Decision: Treat `/games/weekly` responses as valid only when returned season/year/week context matches explicit request params.
 - Consequences: Prevents stale historical scores from appearing for future navigation targets; empty game lists now represent unavailable periods.
 - Revisit Trigger: Upstream API guarantees strict context fidelity or product chooses explicit "nearest available week" behavior.
+
+## DEC-008
+
+- Date: 2026-05-21
+- Status: accepted
+- Context: GitHub-hosted runners are deprecating older Node runtimes for JavaScript actions, and mutable major tags can shift behavior without a code change in this repo.
+- Decision: Update workflow actions to Node 24 compatible releases and pin external actions to full commit SHAs.
+- Consequences: Better supply-chain integrity and deterministic CI behavior; routine dependency bump maintenance now requires explicit SHA updates.
+- Revisit Trigger: Adoption of an automated action-update bot/policy that centrally manages SHA pin refreshes.
+
+## DEC-009
+
+- Date: 2026-05-21
+- Status: accepted
+- Context: Type errors should block merges once the baseline is stable; non-blocking checks allow regressions through.
+- Decision: Make `ty check` a blocking CI gate and add workflow linting (`actionlint`) to local CI via `just ci`.
+- Consequences: Stricter quality gate for PRs; contributors get earlier workflow/type feedback locally.
+- Revisit Trigger: Widespread false positives or a toolchain migration away from `ty`/`actionlint`.
