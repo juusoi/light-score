@@ -78,14 +78,16 @@ jobs:
               echo "🔍 Running Bandit security scan..."
               .venv/bin/bandit -r backend frontend functions \
                 --exclude "*/utest/*,*/test_*,*test*.py" \
-                -f json -o bandit-report.json || true
+                -f json -o bandit-report-bandit.json || true
+              test -f bandit-report-bandit.json || echo '[]' > bandit-report-bandit.json
               .venv/bin/bandit -r backend frontend functions \
                 --exclude "*/utest/*,*/test_*,*test*.py" \
                 -q
               ;;
             pip-audit)
               echo "🔍 Running pip-audit dependency scan..."
-              .venv/bin/pip-audit --desc --output=json --output-file=pip-audit-report.json || true
+              .venv/bin/pip-audit --desc --output=json --output-file=pip-audit-report-pip-audit.json || true
+              test -f pip-audit-report-pip-audit.json || echo '[]' > pip-audit-report-pip-audit.json
               .venv/bin/pip-audit --desc
               ;;
           esac
@@ -95,5 +97,5 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: security-report-${{ matrix.tool }}
-          path: '*-report.json'
+          path: '*-report-${{ matrix.tool }}.json'
           retention-days: 30
