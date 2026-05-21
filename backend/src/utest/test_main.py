@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from ..main import _extract_weekly_context, _extract_weekly_games_from_scoreboard, app
+from ..main import _extract_weekly_context, _extract_weekly_games_from_scoreboard, app  # ty: ignore[unresolved-import]
 
 client = TestClient(app)
 
