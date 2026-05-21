@@ -76,7 +76,7 @@ jobs:
     # Version: keep in sync with e2e/package.json @playwright/test
     container: ${{ inputs.target != 'localhost' && 'mcr.microsoft.com/playwright:v1.57.0-noble' || '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -103,7 +103,7 @@ jobs:
 
       - name: Set up Docker Buildx
         if: steps.url.outputs.NEED_SERVICES == 'true'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Start local services
         if: steps.url.outputs.NEED_SERVICES == 'true'
@@ -133,7 +133,7 @@ jobs:
           bun-version: latest
 
       - name: Cache Bun dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.bun/install/cache
@@ -150,7 +150,7 @@ jobs:
       # Only install browsers for localhost (Playwright image has them pre-installed)
       - name: Cache Playwright browsers
         if: steps.url.outputs.NEED_SERVICES == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-manual-${{ hashFiles('e2e/package.json') }}-${{ inputs.browser }}
@@ -198,7 +198,7 @@ jobs:
 
       - name: Upload test artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ inputs.target }}-${{ inputs.test_suite }}
           path: e2e/playwright-report/
@@ -206,4 +206,3 @@ jobs:
       - name: Stop services
         if: always() && steps.url.outputs.NEED_SERVICES == 'true'
         run: docker compose down
-

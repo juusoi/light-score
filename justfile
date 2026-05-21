@@ -29,6 +29,17 @@ sync:
 lint:
     {{ python }} -m ruff check .
 
+# Lint GitHub Actions workflows (actionlint)
+lint-actions:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v actionlint >/dev/null 2>&1; then
+        actionlint .github/workflows/*.yaml
+    else
+        {{ docker }} run --rm -v "$(pwd):/repo" -w /repo rhysd/actionlint:latest \
+            -color .github/workflows/*.yaml
+    fi
+
 # Format code (ruff format)
 fmt:
     {{ python }} -m ruff format .
@@ -49,8 +60,8 @@ test:
     cd {{ justfile_directory() }}/functions/src && {{ justfile_directory() }}/{{ python }} -m pytest utest/ -v
     echo "✅ All tests passed!"
 
-# Run full CI pipeline (lint + type check + test)
-ci: lint ty test
+# Run full CI pipeline (lint + actions lint + type check + test)
+ci: lint lint-actions ty test
 
 # --- Security ---
 
