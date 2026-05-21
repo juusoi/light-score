@@ -204,7 +204,7 @@ test.describe('External NFL Site - Structure and Interactions', () => {
         .waitForEvent('page', { timeout: 15_000 })
         .catch(() => null);
 
-      await targetLink.click({ timeout: 5_000 });
+      await targetLink.click({ timeout: 10_000, noWaitAfter: true });
 
       const [navigationResult, popupPage] = await Promise.all([
         navigationPromise,
