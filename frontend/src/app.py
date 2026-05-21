@@ -1,6 +1,5 @@
 import logging
 import os
-from datetime import date
 from typing import Any, Type, TypeVar, cast
 
 import requests
@@ -11,18 +10,7 @@ app = Flask(__name__, static_url_path="/static", static_folder="static")
 # Configure backend base URL via env var for staging/prod
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
-
-def _current_nfl_season_year() -> int:
-    """Return the current NFL season year.
-
-    The NFL season spans two calendar years (Sep-Feb).
-    Before September, we're still in the previous season.
-    """
-    today = date.today()
-    return today.year if today.month >= 9 else today.year - 1
-
-
-DEFAULT_CONTEXT = {"year": _current_nfl_season_year(), "week": 1, "seasonType": 2}
+DEFAULT_CONTEXT = {"year": 2026, "week": 1, "seasonType": 2}
 T = TypeVar("T")
 
 
