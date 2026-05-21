@@ -78,8 +78,6 @@ def _fetch_playoff_bracket() -> dict[str, Any] | None:
     return None
 
 
-
-
 @app.route("/")
 def home():
     try:

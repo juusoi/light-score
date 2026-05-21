@@ -164,10 +164,7 @@ def _team_name(competitor: dict) -> str:
     """Extract team display name from an ESPN competitor entry."""
     t = competitor.get("team", {})
     return (
-        t.get("displayName")
-        or t.get("shortDisplayName")
-        or t.get("name")
-        or "Unknown"
+        t.get("displayName") or t.get("shortDisplayName") or t.get("name") or "Unknown"
     )
 
 
@@ -204,7 +201,6 @@ def _team_seed(competitor: dict) -> int | None:
     except (ValueError, TypeError):
         pass
     return None
-
 
 
 def _extract_weekly_games_from_scoreboard(payload: dict) -> list[dict]:

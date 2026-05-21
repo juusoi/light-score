@@ -250,6 +250,7 @@ def test_extract_weekly_context_missing_data():
 
     context = _extract_weekly_context(payload)
     from ..main import _current_nfl_season_year
+
     assert context == {"year": _current_nfl_season_year(), "week": 1, "seasonType": 2}
 
 
@@ -262,4 +263,5 @@ def test_extract_weekly_context_invalid_ranges():
 
     context = _extract_weekly_context(payload)
     from ..main import _current_nfl_season_year
+
     assert context == {"year": _current_nfl_season_year(), "week": 1, "seasonType": 2}
