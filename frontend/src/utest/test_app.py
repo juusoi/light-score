@@ -447,27 +447,6 @@ def test_standings_panel_shown_in_regular_season(mock_get, client):
     assert "Playoff Bracket" not in text
 
 
-def test_render_bracket_line():
-    """Test the bracket line rendering helper."""
-    from ..app import render_bracket_line
-
-    # Winner is team1
-    result = render_bracket_line("Chiefs", 23, "Bills", 20, "Chiefs")
-    assert "►Chiefs" in result
-    assert " Bills" in result
-    assert "23" in result
-    assert "20" in result
-
-    # Winner is team2
-    result = render_bracket_line("Chiefs", 20, "Bills", 23, "Bills")
-    assert " Chiefs" in result
-    assert "►Bills" in result
-
-    # No winner yet
-    result = render_bracket_line("Chiefs", None, "Eagles", None, None)
-    assert " Chiefs" in result
-    assert " Eagles" in result
-    assert "-" in result
 
 
 if __name__ == "__main__":

@@ -160,4 +160,16 @@ class TestGameTimeExtraction:
             }
         }
         result = extract_game_time(game_data)
-        assert result == "Q5 05:30"  # Overtime shows as Q5
+        assert result == "OT 05:30"  # Overtime shows as OT
+
+        # Test double overtime (period 6)
+        game_data_ot2 = {
+            "status": {
+                "type": {"name": "STATUS_IN_PROGRESS"},
+                "displayClock": "12:00",
+                "period": 6,
+            }
+        }
+        result_ot2 = extract_game_time(game_data_ot2)
+        assert result_ot2 == "OT2 12:00"
+
