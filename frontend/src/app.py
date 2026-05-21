@@ -121,23 +121,33 @@ def home():
             f"{BACKEND_URL}/games/weekly/context", params=sanitized_params, timeout=10
         )
 
-        # If either failed (e.g., upstream ESPN issues / validation), retry with no params for defaults
-        if not weekly_response.ok:
-            logging.warning(
-                "Weekly games request failed (%s) – retrying without params",
-                weekly_response.status_code,
-            )
-            weekly_response = requests.get(
-                f"{BACKEND_URL}/games/weekly", params={}, timeout=10
-            )
-        if not ctx_resp.ok:
-            logging.warning(
-                "Context request failed (%s) – retrying without params",
-                ctx_resp.status_code,
-            )
-            ctx_resp = requests.get(
-                f"{BACKEND_URL}/games/weekly/context", params={}, timeout=10
-            )
+        # If either failed (e.g., upstream ESPN issues / validation):
+        # - If specific parameters were explicitly requested, raise HTTPError immediately to trigger the offline/error template
+        #   instead of silently displaying mismatched/fallback active week data.
+        # - Otherwise, retry with empty parameters (though sanitized_params is already empty, this preserves fallback).
+        if not weekly_response.ok or not ctx_resp.ok:
+            if sanitized_params:
+                if not weekly_response.ok:
+                    weekly_response.raise_for_status()
+                if not ctx_resp.ok:
+                    ctx_resp.raise_for_status()
+            else:
+                if not weekly_response.ok:
+                    logging.warning(
+                        "Weekly games request failed (%s) – retrying without params",
+                        weekly_response.status_code,
+                    )
+                    weekly_response = requests.get(
+                        f"{BACKEND_URL}/games/weekly", params={}, timeout=10
+                    )
+                if not ctx_resp.ok:
+                    logging.warning(
+                        "Context request failed (%s) – retrying without params",
+                        ctx_resp.status_code,
+                    )
+                    ctx_resp = requests.get(
+                        f"{BACKEND_URL}/games/weekly/context", params={}, timeout=10
+                    )
 
         # Get context year to pass to standings
         standings_year = year_val
