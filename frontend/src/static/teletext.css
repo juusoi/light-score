@@ -186,6 +186,8 @@ body {
 
 .ttx-team {
     color: var(--fg);
+    display: inline-flex;
+    align-items: center;
 }
 
 .ttx-record {
@@ -473,4 +475,13 @@ body {
     color: #666;
     font-size: 10px;
     padding: 2px 0;
+}
+
+.ttx-logo {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    margin-right: 8px;
+    flex-shrink: 0;
 }

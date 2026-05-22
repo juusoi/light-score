@@ -447,5 +447,28 @@ def test_standings_panel_shown_in_regular_season(mock_get, client):
     assert "Playoff Bracket" not in text
 
 
+def test_get_team_logo_resolver():
+    """Test get_team_logo function resolves team logos case-insensitively and provides fallback."""
+    from ..app import get_team_logo
+
+    # Verify known teams are resolved case-insensitively
+    cowboys_svg = get_team_logo("Dallas Cowboys")
+    assert "ttx-logo" in cowboys_svg
+    assert "cowboys" in cowboys_svg.lower() or "#002244" in cowboys_svg
+
+    dolphins_svg = get_team_logo("Miami Dolphins")
+    assert "ttx-logo" in dolphins_svg
+    assert "#008e97" in dolphins_svg
+
+    # Verify fallback for unknown team
+    unknown_svg = get_team_logo("Unknown Team")
+    assert "ttx-logo" in unknown_svg
+    assert "#00ff00" in unknown_svg
+    assert "#00aaff" in unknown_svg
+
+    # None handling
+    assert get_team_logo(None) == ""
+
+
 if __name__ == "__main__":
     pytest.main()
