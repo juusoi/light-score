@@ -82,3 +82,12 @@ This log records lightweight architecture/product decisions for the current app.
 - Decision: Make `ty check` a blocking CI gate and add workflow linting (`actionlint`) to local CI via `just ci`.
 - Consequences: Stricter quality gate for PRs; contributors get earlier workflow/type feedback locally.
 - Revisit Trigger: Widespread false positives or a toolchain migration away from `ty`/`actionlint`.
+
+## DEC-010
+
+- Date: 2026-06-24
+- Status: accepted
+- Context: CI's type-check step runs `ty` with `PYTHONPATH=backend/src:frontend/src:functions/src`, which makes `..main` imports in backend tests unresolvable (hence their `# ty: ignore[unresolved-import]` directives). The local `just ty` recipe omitted that PYTHONPATH, so `just ci` and CI disagreed: each could pass while the other failed.
+- Decision: Set the same `PYTHONPATH` in the `just ty` recipe so local type checks reproduce the CI gate exactly. Keep the `# ty: ignore[unresolved-import]` directives, which are required under that path layout.
+- Consequences: `just ci` is now a faithful local mirror of the CI type-check gate; the divergence that let mismatched changes slip through is closed.
+- Revisit Trigger: Restructuring the type-check path layout (e.g. dropping the CLI `PYTHONPATH` in favor of a `[tool.ty]` config) so the ignore directives are no longer needed.

@@ -50,7 +50,7 @@ just --set docker docker up
 
 - Python lint: `just lint` (`ruff check .`).
 - Python format: `just fmt` (`ruff format .`).
-- Python type checks: `just ty` (`ty check .`).
+- Python type checks: `just ty` (runs `ty check .` with the same `PYTHONPATH` as CI; use the recipe, not a bare `ty check .`).
 - Full Python CI bundle: `just ci` (lint + types + unit tests).
 - Security checks: `just security` (Bandit + pip-audit).
 
@@ -112,6 +112,8 @@ cd e2e && bun run test -- -g "navigation"
 - Preserve Python internal naming in snake_case.
 - Keep standings cache schema stable for backend consumers.
 - Do not remove stale-cache fallback behavior in backend fetch flows.
+- Run quality checks via the `just` recipes (`just ty`/`just ci`); they mirror CI. A bare `ty check .` omits the CI `PYTHONPATH` and gives misleading results.
+- Keep the `# ty: ignore[unresolved-import]` directives on `..main` imports in backend tests; they are required under CI's `PYTHONPATH` layout (see DEC-010).
 
 ## Python Style Guidelines
 
@@ -154,6 +156,9 @@ cd e2e && bun run test -- -g "navigation"
 
 - Keep changes scoped; avoid unrelated refactors.
 - Update tests in the same PR as behavior changes.
+- **Delivery workflow (definition of done)**: every change ships through a branch and PR — never commit or push directly to `main`. Create a branch, push it, and open a PR.
+- **Decision logging**: when a change establishes or alters an architecture, product, or quality-gate decision (CI gates, tooling behavior, API contracts, fallback strategies), add a `DEC-NNN` entry to `docs/decision-log.md` in the same PR.
+- **Docs in the same PR**: update any docs the change makes stale — `docs/decision-log.md`, `docs/current-requirements.md` (behavioral requirements), and the relevant `AGENTS.md` conventions.
 - **Mandatory Pre-Commit and Pre-Push Checks**: Before committing or pushing any changes to a remote branch, you MUST run all linting, formatting, type checking, and test suites locally to verify your changes. Pushing unformatted or unchecked code that fails remote CI is strictly unacceptable. Use the following checklist:
   - **Python Services**:
     - Run formatting FIRST to ensure all modified code aligns with styling requirements: `just fmt`
