@@ -156,6 +156,9 @@ cd e2e && bun run test -- -g "navigation"
 
 - Keep changes scoped; avoid unrelated refactors.
 - Update tests in the same PR as behavior changes.
+- **Delivery workflow (definition of done)**: every change ships through a branch and PR — never commit or push directly to `main`. Create a branch, push it, and open a PR.
+- **Decision logging**: when a change establishes or alters an architecture, product, or quality-gate decision (CI gates, tooling behavior, API contracts, fallback strategies), add a `DEC-NNN` entry to `docs/decision-log.md` in the same PR.
+- **Docs in the same PR**: update any docs the change makes stale — `docs/decision-log.md`, `docs/current-requirements.md` (behavioral requirements), and the relevant `AGENTS.md` conventions.
 - **Mandatory Pre-Commit and Pre-Push Checks**: Before committing or pushing any changes to a remote branch, you MUST run all linting, formatting, type checking, and test suites locally to verify your changes. Pushing unformatted or unchecked code that fails remote CI is strictly unacceptable. Use the following checklist:
   - **Python Services**:
     - Run formatting FIRST to ensure all modified code aligns with styling requirements: `just fmt`
