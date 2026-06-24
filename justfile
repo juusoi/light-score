@@ -45,8 +45,9 @@ fmt:
     {{ python }} -m ruff format .
 
 # Run type checking (ty)
+# PYTHONPATH must match CI's type-check step so local results reproduce CI.
 ty:
-    {{ python }} -m ty check .
+    PYTHONPATH=backend/src:frontend/src:functions/src {{ python }} -m ty check .
 
 # Run all Python tests (backend + frontend + functions)
 test:
