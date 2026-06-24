@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from ..main import app
+from ..main import app  # ty: ignore[unresolved-import]
 
 client = TestClient(app)
 
@@ -65,7 +65,7 @@ def test_live_standings_missing_ties_defaults_zero(mock_get):
     mock_get.return_value.json.return_value = payload
     mock_get.return_value.raise_for_status.return_value = None
 
-    from .. import main as backend_main
+    from .. import main as backend_main  # ty: ignore[unresolved-import]
 
     backend_main._live_standings_cache.clear()
 
@@ -120,7 +120,7 @@ def test_weekly_games_returns_empty_on_requested_context_mismatch(mock_get):
     mock_get.return_value.json.return_value = payload
     mock_get.return_value.raise_for_status.return_value = None
 
-    from .. import main as backend_main
+    from .. import main as backend_main  # ty: ignore[unresolved-import]
 
     backend_main._games_cache.clear()
 
