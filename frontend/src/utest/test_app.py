@@ -447,5 +447,71 @@ def test_standings_panel_shown_in_regular_season(mock_get, client):
     assert "Playoff Bracket" not in text
 
 
+def test_get_team_logo_resolver():
+    """Test get_team_logo function resolves team logos case-insensitively and provides fallback."""
+    from ..app import get_team_logo
+
+    # Verify known teams resolve to a color tile with their abbreviation
+    cowboys_svg = get_team_logo("Dallas Cowboys")
+    assert "ttx-logo" in cowboys_svg
+    assert ">DAL<" in cowboys_svg
+    assert "#002244" in cowboys_svg
+
+    dolphins_svg = get_team_logo("Miami Dolphins")
+    assert "ttx-logo" in dolphins_svg
+    assert ">MIA<" in dolphins_svg
+    assert "#008e97" in dolphins_svg
+
+    # Verify fallback for unknown team: neutral tile with derived initials
+    unknown_svg = get_team_logo("Unknown Team")
+    assert "ttx-logo" in unknown_svg
+    assert ">UT<" in unknown_svg
+    assert "#555555" in unknown_svg
+
+    # None handling
+    assert get_team_logo(None) == ""
+
+
+def test_badge_text_color_contrast():
+    """Badge text color flips to stay legible against light vs dark tiles."""
+    from ..app import _badge_text_color
+
+    # Light backgrounds get dark text (e.g. Steelers gold).
+    assert _badge_text_color("#ffb612") == "#101820"
+    assert _badge_text_color("#ffffff") == "#101820"
+    # Dark backgrounds get white text (e.g. Cowboys navy).
+    assert _badge_text_color("#002244") == "#ffffff"
+    assert _badge_text_color("#000000") == "#ffffff"
+
+
+def test_all_known_teams_resolve_uniquely():
+    """Every team in the table resolves to its own badge; abbreviations are unique."""
+    from ..app import TEAM_BADGES, get_team_logo
+
+    for key, (abbr, color) in TEAM_BADGES.items():
+        # A realistic full name containing the nickname must resolve to this team,
+        # i.e. no earlier substring match shadows it.
+        svg = get_team_logo(f"Some City {key.title()}")
+        assert "ttx-logo" in svg
+        assert f">{abbr}<" in svg
+        assert color in svg
+
+    abbrs = [abbr for abbr, _ in TEAM_BADGES.values()]
+    assert len(set(abbrs)) == len(abbrs), "duplicate team abbreviations"
+
+
+def test_fallback_abbr_derivation():
+    """Unknown teams get a neutral tile with initials derived from the name."""
+    from ..app import get_team_logo
+
+    multi = get_team_logo("Birmingham Iron Squad")
+    assert ">BIS<" in multi
+    assert "#555555" in multi
+
+    single = get_team_logo("Spartans")
+    assert ">SPA<" in single
+    assert "#555555" in single
+
+
 if __name__ == "__main__":
     pytest.main()

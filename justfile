@@ -110,12 +110,19 @@ ci-e2e: lint-e2e ty-e2e test-e2e
 
 # --- Mock Mode ---
 
-# Start services with mock ESPN data
+# Start services with mock ESPN data using containers
 mock-up:
     MOCK_ESPN=true {{ docker }} compose up -d
     @echo "✅ Mock services started!"
     @echo "💡 Backend: http://localhost:8000 (fixture data)"
     @echo "💡 Frontend: http://localhost:5000"
+
+# Start services locally without containers using the virtual environment
+local-mock-up:
+    @echo "🚀 Starting backend on http://localhost:8000..."
+    @MOCK_ESPN=true PYTHONPATH=backend/src {{ python }} -m uvicorn main:app --port 8000 & \
+    echo "🚀 Starting frontend on http://localhost:5000..." && \
+    BACKEND_URL=http://localhost:8000 {{ python }} frontend/src/app.py
 
 # Run tests in mock mode
 test-mock:

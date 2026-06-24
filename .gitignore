@@ -181,3 +181,7 @@ node_modules/
 playwright-report/
 test-results/
 .playwright-mcp/
+
+# Antigravity CLI
+.antigravitycli/
+

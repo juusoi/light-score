@@ -46,8 +46,8 @@
             live_games %}
             <li class="ttx-item">
               <div class="ttx-teams" aria-label="Teams">
-                <div class="ttx-team ttx-team-a">{{ game.team_a }}</div>
-                <div class="ttx-team ttx-team-b">{{ game.team_b }}</div>
+                <div class="ttx-team ttx-team-a">{{ team_logo(game.team_a) | safe }}{{ game.team_a }}</div>
+                <div class="ttx-team ttx-team-b">{{ team_logo(game.team_b) | safe }}{{ game.team_b }}</div>
               </div>
               <div class="ttx-live-meta" aria-label="Score and game clock">
                 <span class="ttx-score">
@@ -79,12 +79,12 @@
                 <div
                   class="ttx-team ttx-team-a {% if game.status == 'final' and game.score_a is not none and game.score_b is not none and game.score_a > game.score_b %}ttx-winner{% elif game.status == 'final' and game.score_a is not none and game.score_b is not none and game.score_a == game.score_b %}ttx-tie{% endif %}"
                 >
-                  {{ game.team_a }}
+                  {{ team_logo(game.team_a) | safe }}{{ game.team_a }}
                 </div>
                 <div
                   class="ttx-team ttx-team-b {% if game.status == 'final' and game.score_a is not none and game.score_b is not none and game.score_b > game.score_a %}ttx-winner{% elif game.status == 'final' and game.score_a is not none and game.score_b is not none and game.score_a == game.score_b %}ttx-tie{% endif %}"
                 >
-                  {{ game.team_b }}
+                  {{ team_logo(game.team_b) | safe }}{{ game.team_b }}
                 </div>
               </div>
               {% if game.status == 'final' %}
@@ -142,11 +142,13 @@
                   <div class="ttx-bracket-matchup">
                     <div class="ttx-bracket-team {% if game.winner == game.away_team %}ttx-winner{% endif %}">
                       {% if game.away_seed %}<span class="ttx-seed-num">({{ game.away_seed }})</span>{% endif %}
+                      {{ team_logo(game.away_team) | safe }}
                       <span class="ttx-team-name">{{ game.away_team }}</span>
                       <span class="ttx-game-score">{{ game.away_score if game.away_score is not none else '-' }}</span>
                     </div>
                     <div class="ttx-bracket-team {% if game.winner == game.home_team %}ttx-winner{% endif %}">
                       {% if game.home_seed %}<span class="ttx-seed-num">({{ game.home_seed }})</span>{% endif %}
+                      {{ team_logo(game.home_team) | safe }}
                       <span class="ttx-team-name">{{ game.home_team }}</span>
                       <span class="ttx-game-score">{{ game.home_score if game.home_score is not none else '-' }}</span>
                     </div>
@@ -164,11 +166,13 @@
               <div class="ttx-bracket-game ttx-superbowl-game">
                 <div class="ttx-bracket-matchup">
                   <div class="ttx-bracket-team {% if game.winner == game.away_team %}ttx-winner{% endif %}">
+                    {{ team_logo(game.away_team) | safe }}
                     <span class="ttx-team-name">{{ game.away_team }}</span>
                     <span class="ttx-game-score">{{ game.away_score if game.away_score is not none else '-' }}</span>
                   </div>
                   <div class="ttx-vs">vs</div>
                   <div class="ttx-bracket-team {% if game.winner == game.home_team %}ttx-winner{% endif %}">
+                    {{ team_logo(game.home_team) | safe }}
                     <span class="ttx-team-name">{{ game.home_team }}</span>
                     <span class="ttx-game-score">{{ game.home_score if game.home_score is not none else '-' }}</span>
                   </div>
@@ -196,11 +200,13 @@
                   <div class="ttx-bracket-matchup">
                     <div class="ttx-bracket-team {% if game.winner == game.away_team %}ttx-winner{% endif %}">
                       {% if game.away_seed %}<span class="ttx-seed-num">({{ game.away_seed }})</span>{% endif %}
+                      {{ team_logo(game.away_team) | safe }}
                       <span class="ttx-team-name">{{ game.away_team }}</span>
                       <span class="ttx-game-score">{{ game.away_score if game.away_score is not none else '-' }}</span>
                     </div>
                     <div class="ttx-bracket-team {% if game.winner == game.home_team %}ttx-winner{% endif %}">
                       {% if game.home_seed %}<span class="ttx-seed-num">({{ game.home_seed }})</span>{% endif %}
+                      {{ team_logo(game.home_team) | safe }}
                       <span class="ttx-team-name">{{ game.home_team }}</span>
                       <span class="ttx-game-score">{{ game.home_score if game.home_score is not none else '-' }}</span>
                     </div>
@@ -221,7 +227,7 @@
           <ul class="ttx-list">
             {% for s in teams %}
             <li class="ttx-item">
-              <div class="ttx-team">{{ s.team }}</div>
+              <div class="ttx-team">{{ team_logo(s.team) | safe }}{{ s.team }}</div>
               {% set has_ties = s.ties is defined and s.ties is not none %}
               <div
                 class="ttx-record"

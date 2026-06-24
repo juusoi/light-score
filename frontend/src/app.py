@@ -66,6 +66,98 @@ def _fetch_playoff_bracket() -> dict[str, Any] | None:
     return None
 
 
+# Teletext team badges: nickname -> (abbreviation, primary color).
+# Rendered as a solid color tile with the monospace abbreviation, matching the
+# retro teletext score-page aesthetic rather than reproducing real team logos.
+TEAM_BADGES = {
+    "cowboys": ("DAL", "#002244"),
+    "packers": ("GB", "#203731"),
+    "steelers": ("PIT", "#ffb612"),
+    "chiefs": ("KC", "#e31837"),
+    "raiders": ("LV", "#101820"),
+    "bills": ("BUF", "#00338d"),
+    "ravens": ("BAL", "#241773"),
+    "texans": ("HOU", "#03202f"),
+    "broncos": ("DEN", "#0c2340"),
+    "chargers": ("LAC", "#0080c6"),
+    "patriots": ("NE", "#002244"),
+    "bengals": ("CIN", "#fb4f14"),
+    "browns": ("CLE", "#311d00"),
+    "jaguars": ("JAX", "#006778"),
+    "colts": ("IND", "#002c5f"),
+    "titans": ("TEN", "#0c2340"),
+    "jets": ("NYJ", "#125740"),
+    "giants": ("NYG", "#0b2265"),
+    "eagles": ("PHI", "#004c54"),
+    "lions": ("DET", "#0076b6"),
+    "vikings": ("MIN", "#4f2683"),
+    "bears": ("CHI", "#0b162a"),
+    "commanders": ("WAS", "#5a1414"),
+    "buccaneers": ("TB", "#d50a0a"),
+    "falcons": ("ATL", "#a71930"),
+    "panthers": ("CAR", "#0085ca"),
+    "saints": ("NO", "#101820"),
+    "49ers": ("SF", "#aa0000"),
+    "rams": ("LAR", "#003594"),
+    "seahawks": ("SEA", "#002244"),
+    "cardinals": ("ARI", "#97233f"),
+    "dolphins": ("MIA", "#008e97"),
+}
+
+
+def _badge_text_color(bg_hex: str) -> str:
+    """Pick black or white text for legibility against the badge color."""
+    r, g, b = (int(bg_hex[i : i + 2], 16) for i in (1, 3, 5))
+    luminance = 0.299 * r + 0.587 * g + 0.114 * b
+    return "#101820" if luminance > 150 else "#ffffff"
+
+
+def _badge_svg(abbr: str, bg_hex: str) -> str:
+    """Build a teletext badge: solid color tile + monospace abbreviation."""
+    fg = _badge_text_color(bg_hex)
+    return (
+        '<svg class="ttx-logo" viewBox="0 0 24 16" xmlns="http://www.w3.org/2000/svg">'
+        f'<rect width="24" height="16" rx="2" fill="{bg_hex}"/>'
+        '<text x="12" y="11.5" font-size="8" font-family="monospace" '
+        f'font-weight="bold" text-anchor="middle" fill="{fg}">{abbr}</text>'
+        "</svg>"
+    )
+
+
+def _fallback_abbr(team_name: str) -> str:
+    """Derive a 2-3 letter abbreviation for teams not in the badge table."""
+    words = team_name.split()
+    if len(words) >= 2:
+        return "".join(w[0] for w in words[:3]).upper()
+    return team_name[:3].upper()
+
+
+def get_team_logo(team_name: str | None) -> str:
+    """Resolve a teletext-style team badge as an inline SVG.
+
+    Matches case-insensitively via substring matching so full names and
+    abbreviations both resolve. Unknown teams get a neutral badge built from
+    their initials.
+    """
+    if not team_name:
+        return ""
+    name_lower = team_name.lower()
+    for key, (abbr, color) in TEAM_BADGES.items():
+        if key in name_lower:
+            return _badge_svg(abbr, color)
+    return _badge_svg(_fallback_abbr(team_name), "#555555")
+
+
+@app.template_filter("team_logo")
+def team_logo_filter(team_name):
+    return get_team_logo(team_name)
+
+
+@app.context_processor
+def inject_team_logo():
+    return dict(team_logo=get_team_logo)
+
+
 @app.route("/")
 def home():
     try:
