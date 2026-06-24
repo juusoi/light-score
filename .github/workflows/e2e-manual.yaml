@@ -74,7 +74,7 @@ jobs:
     environment: ${{ inputs.target == 'production' && 'production' || '' }}
     # Use Playwright Docker image for production/custom (no Docker build needed)
     # Version: keep in sync with e2e/package.json @playwright/test
-    container: ${{ inputs.target != 'localhost' && 'mcr.microsoft.com/playwright:v1.61.1-noble' || '' }}
+    container: ${{ inputs.target != 'localhost' && 'mcr.microsoft.com/playwright:v1.61.0-noble' || '' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
