@@ -87,21 +87,21 @@ cd frontend/src && ../../.venv/bin/python -m pytest utest/ -k "offline or naviga
 
 ## E2E (Playwright / TypeScript) Commands
 
-- Install E2E deps (if needed): `cd e2e && bun install`.
+- Install E2E deps (if needed): `cd e2e && pnpm install`.
 - E2E lint: `just lint-e2e`.
 - E2E format: `just fmt-e2e`.
 - E2E type check: `just ty-e2e`.
-- E2E CI tests: `just test-e2e` (runs `bun run test:ci`).
+- E2E CI tests: `just test-e2e` (runs `pnpm run test:ci`).
 - Run a single E2E spec:
 
 ```bash
-cd e2e && bun run test -- tests/home.spec.ts
+cd e2e && pnpm run test -- tests/home.spec.ts
 ```
 
 - Run a single E2E test title:
 
 ```bash
-cd e2e && bun run test -- -g "navigation"
+cd e2e && pnpm run test -- -g "navigation"
 ```
 
 ## Repository-Specific Coding Rules

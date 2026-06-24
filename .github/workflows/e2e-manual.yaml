@@ -74,7 +74,7 @@ jobs:
     environment: ${{ inputs.target == 'production' && 'production' || '' }}
     # Use Playwright Docker image for production/custom (no Docker build needed)
     # Version: keep in sync with e2e/package.json @playwright/test
-    container: ${{ inputs.target != 'localhost' && 'mcr.microsoft.com/playwright:v1.57.0-noble' || '' }}
+    container: ${{ inputs.target != 'localhost' && 'mcr.microsoft.com/playwright:v1.61.0-noble' || '' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -117,35 +117,29 @@ jobs:
             docker compose up -d --build --wait
           fi
 
-      # For production/custom: install Bun in Playwright container
-      - name: Install Bun (Playwright container)
+      # For production/custom: the Playwright image ships Node; enable pnpm via corepack
+      - name: Setup pnpm (Playwright container)
         if: steps.url.outputs.NEED_SERVICES == 'false'
-        run: |
-          apt-get update && apt-get install -y unzip curl
-          curl -fsSL https://bun.sh/install | bash
-          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+        run: corepack enable
 
-      # For localhost: use setup-bun action
-      - name: Setup Bun (localhost)
+      # For localhost: install pnpm + Node with dependency caching
+      - name: Setup pnpm (localhost)
         if: steps.url.outputs.NEED_SERVICES == 'true'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
-          bun-version: latest
+          package_json_file: e2e/package.json
 
-      - name: Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+      - name: Setup Node (localhost)
+        if: steps.url.outputs.NEED_SERVICES == 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          path: |
-            ~/.bun/install/cache
-            e2e/node_modules
-          key: ${{ runner.os }}-bun-manual-${{ hashFiles('e2e/package.json', 'e2e/bun.lockb') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-manual-
-            ${{ runner.os }}-bun-
+          node-version-file: e2e/.nvmrc
+          cache: pnpm
+          cache-dependency-path: e2e/pnpm-lock.yaml
 
       - name: Install E2E dependencies
         working-directory: ./e2e
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       # Only install browsers for localhost (Playwright image has them pre-installed)
       - name: Cache Playwright browsers
@@ -153,7 +147,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-manual-${{ hashFiles('e2e/package.json') }}-${{ inputs.browser }}
+          key: ${{ runner.os }}-playwright-manual-${{ hashFiles('e2e/pnpm-lock.yaml') }}-${{ inputs.browser }}
           restore-keys: |
             ${{ runner.os }}-playwright-manual-
             ${{ runner.os }}-playwright-
@@ -163,9 +157,9 @@ jobs:
         working-directory: ./e2e
         run: |
           if [ "${{ inputs.browser }}" = "all" ]; then
-            bunx playwright install --with-deps
+            pnpm exec playwright install --with-deps
           else
-            bunx playwright install ${{ inputs.browser }} --with-deps
+            pnpm exec playwright install ${{ inputs.browser }} --with-deps
           fi
 
       - name: Run E2E tests
@@ -193,8 +187,8 @@ jobs:
             BROWSER_ARGS="--project=${{ inputs.browser }}"
           fi
 
-          echo "Running: bun run $TEST_CMD $BROWSER_ARGS"
-          bun run "$TEST_CMD" $BROWSER_ARGS
+          echo "Running: pnpm run $TEST_CMD $BROWSER_ARGS"
+          pnpm run "$TEST_CMD" $BROWSER_ARGS
 
       - name: Upload test artifacts
         if: failure()
