@@ -50,7 +50,7 @@ just --set docker docker up
 
 - Python lint: `just lint` (`ruff check .`).
 - Python format: `just fmt` (`ruff format .`).
-- Python type checks: `just ty` (`ty check .`).
+- Python type checks: `just ty` (runs `ty check .` with the same `PYTHONPATH` as CI; use the recipe, not a bare `ty check .`).
 - Full Python CI bundle: `just ci` (lint + types + unit tests).
 - Security checks: `just security` (Bandit + pip-audit).
 
@@ -112,6 +112,8 @@ cd e2e && bun run test -- -g "navigation"
 - Preserve Python internal naming in snake_case.
 - Keep standings cache schema stable for backend consumers.
 - Do not remove stale-cache fallback behavior in backend fetch flows.
+- Run quality checks via the `just` recipes (`just ty`/`just ci`); they mirror CI. A bare `ty check .` omits the CI `PYTHONPATH` and gives misleading results.
+- Keep the `# ty: ignore[unresolved-import]` directives on `..main` imports in backend tests; they are required under CI's `PYTHONPATH` layout (see DEC-010).
 
 ## Python Style Guidelines
 
