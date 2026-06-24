@@ -2,7 +2,7 @@
 Tests for Finnish timezone functionality.
 """
 
-from ..main import extract_game_time, format_finnish_date_time, format_finnish_time  # ty: ignore[unresolved-import]
+from ..main import extract_game_time, format_finnish_date_time, format_finnish_time
 
 
 class TestFinnishTimezone:

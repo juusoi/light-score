@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from ..main import _detect_fixture_name, _load_fixture, app  # ty: ignore[unresolved-import]
+from ..main import _detect_fixture_name, _load_fixture, app
 
 # Reusable patch decorator for mock mode tests
 mock_espn = patch("src.main.MOCK_ESPN", True)
