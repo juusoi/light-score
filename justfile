@@ -86,24 +86,24 @@ ensure-e2e-deps:
     #!/usr/bin/env bash
     if [ ! -d "e2e/node_modules" ]; then
         echo "📦 Installing E2E dependencies..."
-        cd e2e && bun install
+        cd e2e && pnpm install
     fi
 
 # Run E2E linting (ESLint)
 lint-e2e: ensure-e2e-deps
-    cd e2e && bun run lint
+    cd e2e && pnpm run lint
 
 # Format E2E code (Prettier)
 fmt-e2e: ensure-e2e-deps
-    cd e2e && bun run fmt
+    cd e2e && pnpm run fmt
 
 # Run E2E type checking (TypeScript)
 ty-e2e: ensure-e2e-deps
-    cd e2e && bun run type-check
+    cd e2e && pnpm run type-check
 
 # Run E2E tests (Playwright)
 test-e2e: ensure-e2e-deps
-    cd e2e && bun run test:ci
+    cd e2e && pnpm run test:ci
 
 # Run E2E CI pipeline (lint + type check + test)
 ci-e2e: lint-e2e ty-e2e test-e2e

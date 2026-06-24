@@ -72,9 +72,9 @@ test.describe('Home Page', () => {
 ## Test Execution Strategy
 
 1. **Start services**: Run `make up` to start backend and frontend containers
-2. **Initial Run**: Execute tests with `make test-e2e` or `cd e2e && bun run test`
-3. **Single browser**: Run `cd e2e && bunx playwright test --project=chromium` for faster iteration
-4. **Debug Failures**: Use `bunx playwright test --debug` or check `e2e/playwright-report/`
+2. **Initial Run**: Execute tests with `make test-e2e` or `cd e2e && pnpm run test`
+3. **Single browser**: Run `cd e2e && pnpm exec playwright test --project=chromium` for faster iteration
+4. **Debug Failures**: Use `pnpm exec playwright test --debug` or check `e2e/playwright-report/`
 5. **Iterate**: Refine locators, assertions, or test logic as needed
 6. **Validate**: Ensure tests pass consistently before pushing
 

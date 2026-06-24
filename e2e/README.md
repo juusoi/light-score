@@ -33,7 +33,7 @@ tests/
 
 ````bash
 # Install dependencies
-bun install
+pnpm install
 
 ### Environment Variables
 
@@ -50,7 +50,7 @@ export SERVICE_URL="https://<light-score-frontend-host>"
 # Leave BACKEND_URL unset to skip backend API specs
 ````
 
-> Tip: Prefix a command (`SERVICE_URL=... bun run test`) or source a local `.env` to avoid leaking the production URL into the repo.
+> Tip: Prefix a command (`SERVICE_URL=... pnpm run test`) or source a local `.env` to avoid leaking the production URL into the repo.
 
 ### Unified Environment Helper
 
@@ -84,16 +84,16 @@ This avoids drift between test files, centralizes defaults, and makes it easy to
 ### Code Quality
 
 ```bash
-bun run lint                # Run ESLint
-bun run lint:fix            # Fix auto-fixable issues
+pnpm run lint                # Run ESLint
+pnpm run lint:fix            # Fix auto-fixable issues
 
-bun run type-check          # Run TypeScript type checking
+pnpm run type-check          # Run TypeScript type checking
 
-bun run fmt                 # Format code with Prettier
-bun run fmt:check           # Check if code is formatted
+pnpm run fmt                 # Format code with Prettier
+pnpm run fmt:check           # Check if code is formatted
 
 # All quality checks
-bun run ci                  # Run linting and type checking
+pnpm run ci                  # Run linting and type checking
 ```
 
 ### Justfile Integration
@@ -113,29 +113,29 @@ just ci                     # Full project CI (includes E2E)
 
 ```bash
 # Run all tests
-bun test
+pnpm test
 
 # Run with UI (interactive mode)
-bun run test:ui
+pnpm run test:ui
 
 # Run specific test suites
-bun run test:local      # Local application tests only
-bun run test:api        # API tests only
-bun run test:external   # External site tests only
-bun run test:smoke      # Quick smoke tests
+pnpm run test:local      # Local application tests only
+pnpm run test:api        # API tests only
+pnpm run test:external   # External site tests only
+pnpm run test:smoke      # Quick smoke tests
 
 # Run on specific browsers
-bun run test:chromium
-bun run test:firefox
-bun run test:webkit
-bun run test:mobile
+pnpm run test:chromium
+pnpm run test:firefox
+pnpm run test:webkit
+pnpm run test:mobile
 
 # Debug tests
-bun run test:debug
-bun run test:headed
+pnpm run test:debug
+pnpm run test:headed
 
 # CI/CD optimized run
-bun run test:ci
+pnpm run test:ci
 ```
 
 ## Test Categories
@@ -201,9 +201,9 @@ Tests follow Playwright best practices:
 - name: Run E2E Tests
   run: |
     cd e2e
-    bun install
-    bun run install:browsers
-    bun run test:ci
+    pnpm install
+    pnpm run install:browsers
+    pnpm run test:ci
   env:
     SERVICE_URL: ${{ env.FRONTEND_URL }}
     BACKEND_URL: ${{ env.API_URL }}
@@ -212,7 +212,7 @@ Tests follow Playwright best practices:
 ### Local CI Simulation
 
 ```bash
-CI=true bun run test:ci
+CI=true pnpm run test:ci
 ```
 
 ## Debugging
@@ -222,18 +222,18 @@ CI=true bun run test:ci
 1. **View HTML Report**
 
    ```bash
-   bun run report
+   pnpm run report
    ```
 
 2. **Debug Specific Test**
 
    ```bash
-   bun run test:debug -- tests/home.spec.ts
+   pnpm run test:debug -- tests/home.spec.ts
    ```
 
 3. **Run with UI Mode**
    ```bash
-   bun run test:ui
+   pnpm run test:ui
    ```
 
 ### Common Issues
@@ -242,7 +242,7 @@ CI=true bun run test:ci
 
 ```bash
 export SERVICE_URL="http://localhost:5000"
-bun test
+pnpm test
 ```
 
 **Backend Connection Failures**
@@ -258,9 +258,9 @@ export BACKEND_URL="http://localhost:8000"
 **Browser Installation Issues**
 
 ```bash
-bun run install:browsers
+pnpm run install:browsers
 # On Linux/CI:
-bun run install:deps
+pnpm run install:deps
 ```
 
 ## Test Data and Expectations
@@ -295,8 +295,8 @@ Tests verify graceful degradation when:
 ### Updating Dependencies
 
 ```bash
-bun update @playwright/test
-bun run install:browsers  # Update browsers after Playwright updates
+pnpm update @playwright/test
+pnpm run install:browsers  # Update browsers after Playwright updates
 ```
 
 ### Performance Monitoring
