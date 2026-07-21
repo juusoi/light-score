@@ -42,6 +42,45 @@ test.describe('Light Score - Application Features', () => {
     });
   });
 
+  test('Next then Prev round-trip preserves the games list', async ({
+    page,
+  }) => {
+    // Regression: navigating Next then Prev must return to the same week with
+    // the same games. The bug dropped every game ("No games") because the
+    // backend sent ESPN `year=` (ignored, falls back to another season) instead
+    // of `dates=`, tripping the context-match guard on the explicit-params URL.
+    const realGames = page.locator(
+      '.ttx-panel:has(h2:text("Games")) .ttx-item:has(.ttx-teams)',
+    );
+
+    const startUrl = page.url();
+    const startCount = await realGames.count();
+
+    // Only meaningful when the landing week actually has games (skip off-season
+    // states where the slate is legitimately empty).
+    test.skip(
+      startCount === 0,
+      'Landing week has no games - round-trip check not applicable',
+    );
+
+    await test.step('navigate Next', async () => {
+      await page.getByRole('link', { name: /next/i }).click();
+      await page.waitForLoadState('networkidle');
+      expect(page.url()).not.toBe(startUrl);
+    });
+
+    await test.step('navigate Prev back to the original week', async () => {
+      await page.getByRole('link', { name: /prev/i }).click();
+      await page.waitForLoadState('networkidle');
+
+      // Prev lands on the explicit-params form of the original week
+      // (?year=...&seasonType=2&week=W), which is where the bug surfaced.
+      // The same logical week must show the same games, not "No games".
+      await expect(realGames).toHaveCount(startCount);
+      await expect(realGames.first()).toBeVisible();
+    });
+  });
+
   test('displays games with proper status indicators', async ({ page }) => {
     await test.step('verify live games display format', async () => {
       const livePanel = page.locator('.ttx-panel:has(h2:text("Live"))');

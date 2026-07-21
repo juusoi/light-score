@@ -340,10 +340,15 @@ def _get_weekly_games(
 
     now = time.monotonic()
     base_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
-    # Build URL with params only when provided
+    # Build URL with params only when provided.
+    # NOTE: the season year must be passed as `dates=YYYY`, not `year=`. ESPN's
+    # scoreboard endpoint ignores `year=` and falls back to the current season,
+    # returning a payload whose `season.year` differs from the request. That
+    # mismatch then trips `_scoreboard_matches_requested_context` and drops all
+    # games (the "No games" bug for explicit ?year=...&week=1 URLs).
     params: list[str] = []
     if year is not None:
-        params.append(f"year={year}")
+        params.append(f"dates={year}")
     if week is not None:
         params.append(f"week={week}")
     if season_type is not None:
@@ -530,9 +535,11 @@ def get_weekly_context(
         return {"year": 2024, "week": 1, "seasonType": 2}
 
     base_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+    # See _get_weekly_games: the season year must be sent as `dates=YYYY`, not
+    # `year=`, or ESPN falls back to the current season.
     params: list[str] = []
     if year is not None:
-        params.append(f"year={year}")
+        params.append(f"dates={year}")
     if week is not None:
         params.append(f"week={week}")
     if seasonType is not None:

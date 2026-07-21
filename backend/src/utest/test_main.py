@@ -1,6 +1,14 @@
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
-from ..main import _extract_weekly_context, _extract_weekly_games_from_scoreboard, app  # ty: ignore[unresolved-import]
+from ..main import (  # ty: ignore[unresolved-import]
+    _extract_weekly_context,
+    _extract_weekly_games_from_scoreboard,
+    _get_weekly_games,
+    _scoreboard_matches_requested_context,
+    app,
+)
 
 client = TestClient(app)
 
@@ -261,3 +269,83 @@ def test_extract_weekly_context_invalid_ranges():
 
     context = _extract_weekly_context(payload)
     assert context == {"year": 2026, "week": 1, "seasonType": 2}
+
+
+def test_scoreboard_matches_requested_context_year_mismatch():
+    """Guard rejects a payload whose season year differs from the request."""
+    # Mirrors ESPN's off-season fallback: requested 2026 but payload is 2025.
+    payload = {"season": {"year": 2025, "type": 2}, "week": {"number": 1}}
+    assert not _scoreboard_matches_requested_context(
+        payload, year=2026, week=1, season_type=2
+    )
+
+
+def test_scoreboard_matches_requested_context_year_match():
+    """Guard accepts a payload whose season context matches the request."""
+    payload = {"season": {"year": 2026, "type": 2}, "week": {"number": 1}}
+    assert _scoreboard_matches_requested_context(
+        payload, year=2026, week=1, season_type=2
+    )
+
+
+def _week1_scoreboard_payload(year: int):
+    """Minimal scoreboard payload for regular-season week 1 of the given year."""
+    return {
+        "season": {"year": year, "type": 2},
+        "week": {"number": 1},
+        "events": [
+            {
+                "date": "2026-09-10T23:00:00Z",
+                "competitions": [
+                    {
+                        "status": {"type": {"state": "pre"}},
+                        "competitors": [
+                            {"homeAway": "away", "team": {"displayName": "Away Team"}},
+                            {"homeAway": "home", "team": {"displayName": "Home Team"}},
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+
+
+@patch("src.main.MOCK_ESPN", False)
+@patch("httpx.get")
+def test_weekly_games_explicit_week1_sends_dates_param(mock_get):
+    """Regression: explicit ?year=2026&week=1 must send `dates=`, not `year=`.
+
+    ESPN ignores `year=` and falls back to the current season, which makes the
+    context guard drop every game ("No games" bug). Sending `dates=YYYY` returns
+    the requested season so the guard passes.
+    """
+    mock_get.return_value.json.return_value = _week1_scoreboard_payload(2026)
+    mock_get.return_value.raise_for_status.return_value = None
+
+    games = _get_weekly_games(year=2026, week=1, season_type=2, force_refresh=True)
+
+    # Games are returned rather than an empty "No games" list.
+    assert len(games) == 1
+    assert games[0]["team_a"] == "Away Team"
+    assert games[0]["team_b"] == "Home Team"
+
+    # The ESPN request carries the season year as `dates=`, never `year=`.
+    requested_url = mock_get.call_args.args[0]
+    assert "dates=2026" in requested_url
+    assert "year=2026" not in requested_url
+    assert "week=1" in requested_url
+    assert "seasontype=2" in requested_url
+
+
+@patch("src.main.MOCK_ESPN", False)
+@patch("httpx.get")
+def test_weekly_games_endpoint_returns_games_for_explicit_week1(mock_get):
+    """End-to-end via the API: explicit week-1 params return the slate."""
+    mock_get.return_value.json.return_value = _week1_scoreboard_payload(2026)
+    mock_get.return_value.raise_for_status.return_value = None
+
+    resp = client.get("/games/weekly?year=2026&week=1&seasonType=2")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["team_a"] == "Away Team"
