@@ -29,13 +29,20 @@ FINNISH_TZ = ZoneInfo("Europe/Helsinki")
 
 
 def _current_nfl_season_year() -> int:
-    """Return the current NFL season year.
+    """Return the current NFL season year (the year the season started).
 
-    The NFL season spans two calendar years (Sep-Feb).
-    Before September, we're still in the previous season.
+    A season spans two calendar years: it kicks off in September and ends with
+    the Super Bowl in early February. The following season becomes "current"
+    once the new NFL league year opens in March — which is also when ESPN's
+    scoreboard rolls its ``season.year`` forward. So Jan-Feb still belong to the
+    prior season; Mar-Dec belong to the season starting that calendar year.
+
+    This mirrors ESPN's live data (e.g. in mid-2026 ESPN already reports the
+    upcoming 2026 season), keeping offline fallbacks consistent with the rest
+    of the app rather than lagging a year behind through the off-season.
     """
     today = date.today()
-    return today.year if today.month >= 9 else today.year - 1
+    return today.year if today.month >= 3 else today.year - 1
 
 
 def format_finnish_time(iso_time_str: str) -> str:
@@ -340,10 +347,15 @@ def _get_weekly_games(
 
     now = time.monotonic()
     base_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
-    # Build URL with params only when provided
+    # Build URL with params only when provided.
+    # NOTE: the season year must be passed as `dates=YYYY`, not `year=`. ESPN's
+    # scoreboard endpoint ignores `year=` and falls back to the current season,
+    # returning a payload whose `season.year` differs from the request. That
+    # mismatch then trips `_scoreboard_matches_requested_context` and drops all
+    # games (the "No games" bug for explicit ?year=...&week=1 URLs).
     params: list[str] = []
     if year is not None:
-        params.append(f"year={year}")
+        params.append(f"dates={year}")
     if week is not None:
         params.append(f"week={week}")
     if season_type is not None:
@@ -530,9 +542,11 @@ def get_weekly_context(
         return {"year": 2024, "week": 1, "seasonType": 2}
 
     base_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+    # See _get_weekly_games: the season year must be sent as `dates=YYYY`, not
+    # `year=`, or ESPN falls back to the current season.
     params: list[str] = []
     if year is not None:
-        params.append(f"year={year}")
+        params.append(f"dates={year}")
     if week is not None:
         params.append(f"week={week}")
     if seasonType is not None:
