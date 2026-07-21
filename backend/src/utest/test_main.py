@@ -1,8 +1,11 @@
+from datetime import date
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from ..main import (  # ty: ignore[unresolved-import]
+    _current_nfl_season_year,
     _extract_weekly_context,
     _extract_weekly_games_from_scoreboard,
     _get_weekly_games,
@@ -269,6 +272,24 @@ def test_extract_weekly_context_invalid_ranges():
 
     context = _extract_weekly_context(payload)
     assert context == {"year": 2026, "week": 1, "seasonType": 2}
+
+
+@pytest.mark.parametrize(
+    ("today", "expected"),
+    [
+        (date(2026, 1, 15), 2025),  # Jan: prior season's playoffs still running
+        (date(2026, 2, 8), 2025),  # early Feb: Super Bowl of the prior season
+        (date(2026, 3, 1), 2026),  # Mar: new league year -> season rolls forward
+        (date(2026, 7, 21), 2026),  # off-season summer: upcoming season is current
+        (date(2026, 9, 10), 2026),  # in-season
+        (date(2026, 12, 31), 2026),  # late season
+    ],
+)
+def test_current_nfl_season_year_boundaries(today, expected):
+    """Season year flips to the new year in March, matching ESPN's rollover."""
+    with patch("src.main.date") as mock_date:
+        mock_date.today.return_value = today
+        assert _current_nfl_season_year() == expected
 
 
 def test_scoreboard_matches_requested_context_year_mismatch():

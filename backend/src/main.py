@@ -29,13 +29,20 @@ FINNISH_TZ = ZoneInfo("Europe/Helsinki")
 
 
 def _current_nfl_season_year() -> int:
-    """Return the current NFL season year.
+    """Return the current NFL season year (the year the season started).
 
-    The NFL season spans two calendar years (Sep-Feb).
-    Before September, we're still in the previous season.
+    A season spans two calendar years: it kicks off in September and ends with
+    the Super Bowl in early February. The following season becomes "current"
+    once the new NFL league year opens in March — which is also when ESPN's
+    scoreboard rolls its ``season.year`` forward. So Jan-Feb still belong to the
+    prior season; Mar-Dec belong to the season starting that calendar year.
+
+    This mirrors ESPN's live data (e.g. in mid-2026 ESPN already reports the
+    upcoming 2026 season), keeping offline fallbacks consistent with the rest
+    of the app rather than lagging a year behind through the off-season.
     """
     today = date.today()
-    return today.year if today.month >= 9 else today.year - 1
+    return today.year if today.month >= 3 else today.year - 1
 
 
 def format_finnish_time(iso_time_str: str) -> str:
