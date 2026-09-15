@@ -1,218 +1,93 @@
-# UpCloud Migration Plan: Rootless Podman + Caddy + UFW
+# UpCloud Migration Plan: Pull-Based Podman Auto-Update (Quadlets) + Caddy + UFW
 
 ## 1. Environment & Architecture Overview
 
 The target environment is a **1 vCPU / 1 GB RAM UpCloud Ubuntu Cloud Server**:
 - **Target OS**: Ubuntu Linux
-- **Resources**: 1 vCPU, 1 GB RAM (Strict memory & CPU budget: all image builds offloaded to GitHub Actions)
-- **Container Engine**: Rootless Podman running under the `deployer` user
+- **Resources**: 1 vCPU, 1 GB RAM (All image builds offloaded to GitHub Actions)
+- **Container Engine**: Rootless Podman Quadlets under the `deployer` user with `AutoUpdate=registry`
+- **Update Mechanism**: Native `podman-auto-update.timer` (pull-based, zero SSH keys in GitHub)
 - **Reverse Proxy / TLS**: Caddy (running on host, managing Let's Encrypt TLS)
 - **Firewall**: UFW (ports 22, 80, 443 open; ports 5000 & 8000 closed to public)
 - **AWS Lightsail**: Stays running in parallel during migration for zero risk.
 
 ```
-Internet (Ports 80, 443)
-       │
-       ▼
-   UFW Firewall (Allow 22, 80, 443; Deny direct access to 5000/8000)
-       │
-       ▼
-  Caddy Reverse Proxy (Host, Port 80/443)
-       │  Reverse proxy to http://127.0.0.1:5000
-       │  (Handles automatic Let's Encrypt TLS & HTTP->HTTPS redirect)
-       ▼
+GitHub Actions: Push to main → CI & Security pass → Build & Push to ghcr.io:latest
+                                                              │
+                                                              │ (Pull-based polling)
+                                                              ▼
+UpCloud Server (deployer @ Ubuntu)
 ┌─────────────────────────────────────────────────────────────┐
-│  Rootless Podman (deployer user)                            │
+│  podman-auto-update.timer (Checks ghcr.io for new digests)  │
+│                                                             │
+│  Rootless Podman Quadlets (~/.config/containers/systemd/)   │
 │  Network: light-score-net                                   │
 │                                                             │
-│   Frontend Container (Flask/Gunicorn, 2 workers)            │
-│   - Host Port: 127.0.0.1:5000 -> Container: 5000           │
-│   - Env: BACKEND_URL=http://backend:8000                    │
-│   - Memory footprint: ~60-80 MB                             │
+│   Frontend Container (Flask/Gunicorn)                       │
+│   - Image: ghcr.io/juusoi/light-score-frontend:latest       │
+│   - AutoUpdate: registry                                    │
+│   - Port: 127.0.0.1:5000:5000 (Loopback only)               │
+│   - Env: BACKEND_URL=http://light-score-backend:8000        │
 │         │                                                   │
 │         ▼                                                   │
 │   Backend Container (FastAPI/Uvicorn)                       │
-│   - Container Port: 8000 (No host port published)           │
-│   - Outbound: HTTPS to ESPN APIs                            │
-│   - Memory footprint: ~40-60 MB                             │
+│   - Image: ghcr.io/juusoi/light-score-backend:latest        │
+│   - AutoUpdate: registry                                    │
+│   - Port: 8000 (Internal only)                             │
 └─────────────────────────────────────────────────────────────┘
-  Total Stack Memory: ~150-180 MB (Well within 1 GB RAM budget)
+       ▲
+       │ Proxies 127.0.0.1:5000 (Automatic Let's Encrypt TLS)
+  Caddy Reverse Proxy (Host, /etc/caddy/Caddyfile)
+       ▲
+       │
+  UFW Firewall (Allows 80, 443, 22)
+       ▲
+       │
+  Internet
 ```
 
 ---
 
-## 2. Server Sizing & Resource Optimization Strategy
+## 2. Advantages of the Pull-Based Model for 1 CPU / 1 GB RAM
 
-Because the server has **1 CPU and 1 GB RAM**:
-1. **Never Build on Server**: Running `pip install`, compiling C-extensions, or building Docker images on 1 GB RAM frequently triggers the Linux OOM (Out Of Memory) killer or freezes the server.
-2. **Build in GitHub Actions**: GitHub Actions runners provide 2–4 vCPUs and 7–16 GB RAM. We build both backend and frontend images in CI, tag them with the commit SHA, and push them to GitHub Container Registry (`ghcr.io`).
-3. **Lightweight Deployment**: The UpCloud server only runs `podman pull` of compressed image layers and restarts the containers.
-4. **Log Constraints**: Configure container log rotation (`max-size: 10m`, `max-file: 3`) to prevent filling the disk.
+1. **Zero Build Workload on Host**: Building on 1 GB RAM can trigger Linux OOM. Pre-building in GitHub Actions solves this completely.
+2. **Zero Credentials in GitHub**: No SSH keys, no host IPs, and no deploy passwords exist in GitHub Secrets.
+3. **Zero Inbound Port Exposure for CI**: The server does not accept incoming SSH connections from CI.
+4. **Native Health & Rollback**: `podman auto-update` checks container health; if the updated container fails to start, Podman rolls back to the previous image automatically.
+5. **Systemd Native**: Containers are managed as first-class systemd services via Podman Quadlets (`light-score-frontend.service` and `light-score-backend.service`).
 
 ---
 
-## 3. Deployer User & Rootless Podman Configuration
+## 3. Server Setup Procedure (One-Time)
 
-### 3.1 Enable User Linger (Mandatory for Rootless Containers)
-By default, systemd terminates user processes and containers when an SSH session disconnects. Enabling linger ensures rootless Podman containers continue running in the background and auto-start on server boot:
-
+### 3.1 Enable Linger
 ```bash
 sudo loginctl enable-linger deployer
 ```
 
-### 3.2 Verify subuid and subgid
-Ensure the `deployer` user has subuids allocated for rootless namespaces:
+### 3.2 Install Quadlet Units
+Copy files from `deploy/quadlet/` to `~/.config/containers/systemd/`:
+- `light-score.network`
+- `light-score-backend.container`
+- `light-score-frontend.container`
+
 ```bash
-grep deployer /etc/subuid /etc/subgid
-# Expected output: deployer:100000:65536 (or similar range)
+mkdir -p ~/.config/containers/systemd
+cp deploy/quadlet/* ~/.config/containers/systemd/
 ```
 
-### 3.3 Port Binding Permissions
-Since port `5000` is unprivileged (> 1024), rootless Podman can bind to `127.0.0.1:5000` directly without requiring root privileges or sysctl adjustments.
-
----
-
-## 4. Production Stack Definition (`compose.prod.yaml`)
-
-Placed in `/home/deployer/light-score/compose.prod.yaml`:
-
-```yaml
-services:
-  backend:
-    image: ghcr.io/juusoi/light-score-backend:latest
-    container_name: light-score-backend
-    restart: unless-stopped
-    expose:
-      - "8000"
-    environment:
-      - MOCK_ESPN=false
-    networks:
-      - light-score-net
-    logging:
-      driver: "k8s-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  frontend:
-    image: ghcr.io/juusoi/light-score-frontend:latest
-    container_name: light-score-frontend
-    restart: unless-stopped
-    ports:
-      # Bound to loopback interface only — not accessible from outside the server
-      - "127.0.0.1:5000:5000"
-    environment:
-      - BACKEND_URL=http://backend:8000
-    depends_on:
-      - backend
-    networks:
-      - light-score-net
-    logging:
-      driver: "k8s-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-networks:
-  light-score-net:
-    name: light-score-net
-```
-
----
-
-## 5. Host Configuration: Caddy & UFW
-
-### 5.1 Caddyfile (`/etc/caddy/Caddyfile`)
-```caddyfile
-{$DOMAIN_NAME:light-score.com} {
-    encode gzip zstd
-
-    reverse_proxy 127.0.0.1:5000 {
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-    }
-
-    # Security headers
-    header {
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        Referrer-Policy "strict-origin-when-cross-origin"
-    }
-
-    log {
-        output file /var/log/caddy/light-score.access.log {
-            roll_size 10mb
-            roll_keep 3
-        }
-    }
-}
-```
-
-### 5.2 UFW Firewall Rules
-Verify UFW only allows ports 22, 80, and 443:
+### 3.3 Start Services & Enable Timer
 ```bash
-sudo ufw status verbose
+systemctl --user daemon-reload
+systemctl --user start light-score-frontend.service
+systemctl --user enable --now podman-auto-update.timer
 ```
-Direct access to ports `5000` and `8000` from the internet is completely prevented by both UFW and the loopback binding (`127.0.0.1:5000`).
 
 ---
 
-## 6. GitHub Actions CI/CD Pipeline (`deploy-upcloud.yaml`)
+## 4. GitHub Actions CI/CD (`deploy-upcloud.yaml`)
 
-Runs in parallel with Lightsail. Lightsail remains completely unaffected.
-
-```mermaid
-sequenceDiagram
-    participant Actions as GitHub Actions Runner (Builds images)
-    participant GHCR as GitHub Container Registry (ghcr.io)
-    participant UpCloud as UpCloud Server (deployer @ 127.0.0.1)
-
-    Actions->>Actions: Run CI & Security checks
-    Actions->>GHCR: Buildx build & push backend:sha, latest
-    Actions->>GHCR: Buildx build & push frontend:sha, latest
-    Actions->>UpCloud: SSH as deployer
-    Note over UpCloud: 1. podman compose pull<br/>2. podman compose up -d<br/>3. curl -sf http://127.0.0.1:5000/
-    UpCloud-->>Actions: Health check 200 OK
-    Actions->>Actions: Run Playwright smoke tests against target
-```
-
-### Required GitHub Secrets:
-- `UPCLOUD_HOST`: UpCloud server IP.
-- `UPCLOUD_USER`: `deployer`
-- `UPCLOUD_SSH_KEY`: SSH private key for `deployer`.
-
----
-
-## 7. Zero-Downtime Migration & Cutover Checklist
-
-1. **Step 1: One-time Server Prep** (as `deployer`):
-   ```bash
-   mkdir -p ~/light-score
-   # Verify linger is enabled
-   loginctl show-user deployer | grep Linger
-   ```
-2. **Step 2: Test ESPN API Outbound Connectivity**:
-   ```bash
-   curl -I "https://cdn.espn.com/core/nfl/standings?xhr=1"
-   ```
-3. **Step 3: Initial Manual Image Pull & Verification**:
-   ```bash
-   cd ~/light-score
-   podman compose -f compose.prod.yaml pull
-   podman compose -f compose.prod.yaml up -d
-   curl -I http://127.0.0.1:5000/
-   ```
-4. **Step 4: Caddy Staging / Direct Verification**:
-   - Test via Caddy with a test subdomain (e.g. `upcloud.domain.com`) or curl host header.
-   - Run Playwright E2E smoke tests against the UpCloud instance.
-5. **Step 5: DNS Cutover**:
-   - Lower DNS TTL to 300s.
-   - Update DNS A record to UpCloud IP.
-   - Caddy automatically secures Let's Encrypt certificates.
-   - Both Lightsail and UpCloud handle traffic gracefully during DNS propagation.
-6. **Step 6: Burn-In (48h) & Lightsail Decommission**:
-   - Monitor UpCloud performance.
-   - Instant rollback available by flipping DNS back to Lightsail if needed.
-   - Once validated, decommission Lightsail to stop AWS charges.
+Triggered on `main` after CI and Security pass:
+1. Builds backend and frontend multi-stage images on GitHub-hosted runners.
+2. Pushes `ghcr.io/juusoi/light-score-backend:latest` and `frontend:latest` (plus SHA tags).
+3. The UpCloud server's `podman-auto-update.timer` detects the new image digest and restarts the services automatically.

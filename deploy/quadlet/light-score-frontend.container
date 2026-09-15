@@ -1,0 +1,16 @@
+[Unit]
+Description=Light Score Frontend UI
+After=light-score-backend.service light-score-network.service
+Requires=light-score-backend.service
+
+[Container]
+ContainerName=light-score-frontend
+Image=ghcr.io/juusoi/light-score-frontend:latest
+AutoUpdate=registry
+Network=light-score.network
+PublishPort=127.0.0.1:5000:5000
+Environment=BACKEND_URL=http://light-score-backend:8000
+LogDriver=journald
+
+[Install]
+WantedBy=default.target

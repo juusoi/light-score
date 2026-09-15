@@ -7,6 +7,8 @@ services:
       - '8000'
     environment:
       - MOCK_ESPN=${MOCK_ESPN:-false}
+    labels:
+      - "io.containers.autoupdate=registry"
     networks:
       - light-score-net
     logging:
@@ -24,8 +26,11 @@ services:
       - '127.0.0.1:5000:5000'
     environment:
       - BACKEND_URL=http://backend:8000
+    labels:
+      - "io.containers.autoupdate=registry"
     depends_on:
       - backend
+
     networks:
       - light-score-net
     logging:

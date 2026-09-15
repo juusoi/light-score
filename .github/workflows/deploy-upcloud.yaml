@@ -1,11 +1,11 @@
-name: Deploy to UpCloud
+name: Build & Publish Images (GHCR)
 
 on:
   # Manual trigger OR automatic after security checks succeed on main
   workflow_dispatch:
     inputs:
-      force_deploy:
-        description: 'Force deployment regardless of changed files'
+      force_build:
+        description: 'Force building and publishing images regardless of changed files'
         required: false
         type: boolean
         default: false
@@ -20,7 +20,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: upcloud-deploy
+  group: ghcr-publish
   cancel-in-progress: false
 
 env:
@@ -34,7 +34,7 @@ jobs:
     name: Check if deployable files changed
     runs-on: ubuntu-latest
     outputs:
-      should-deploy: ${{ steps.changes.outputs.should_deploy || steps.manual.outputs.should_deploy }}
+      should-build: ${{ steps.changes.outputs.should_build || steps.manual.outputs.should_build }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -69,21 +69,21 @@ jobs:
               /^\.github\/workflows\/deploy-upcloud\.yaml$/,
             ];
 
-            const shouldDeploy = changedFiles.some(file =>
+            const shouldBuild = changedFiles.some(file =>
               deployPatterns.some(pattern => pattern.test(file))
             );
 
-            core.info(`\nShould deploy: ${shouldDeploy}`);
-            core.setOutput('should_deploy', String(shouldDeploy));
+            core.info(`\nShould build: ${shouldBuild}`);
+            core.setOutput('should_build', String(shouldBuild));
 
-            if (!shouldDeploy) {
-              core.info('ℹ️ No deployable changes detected. Skipping UpCloud deployment.');
+            if (!shouldBuild) {
+              core.info('ℹ️ No image-relevant changes detected. Skipping GHCR publish.');
             }
 
-      - name: Force deploy on manual trigger
+      - name: Force build on manual trigger
         id: manual
         if: github.event_name != 'workflow_run'
-        run: echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+        run: echo "should_build=true" >> "$GITHUB_OUTPUT"
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Prerequisites Check
@@ -93,14 +93,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect-changes]
     outputs:
-      deploy-ready: ${{ steps.check.outputs.ready || steps.manual_ready.outputs.ready }}
+      build-ready: ${{ steps.check.outputs.ready || steps.manual_ready.outputs.ready }}
     steps:
       - name: Check workflow prerequisites
         id: check
         if: |
           github.event_name == 'workflow_run' && 
           github.event.workflow_run.conclusion == 'success' &&
-          needs.detect-changes.outputs.should-deploy == 'true'
+          needs.detect-changes.outputs.should-build == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
@@ -143,8 +143,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' || 
       (github.event_name == 'workflow_run' && 
-       needs.detect-changes.outputs.should-deploy == 'true' &&
-       needs.check-prerequisites.outputs.deploy-ready == 'true')
+       needs.detect-changes.outputs.should-build == 'true' &&
+       needs.check-prerequisites.outputs.build-ready == 'true')
     outputs:
       sha_tag: ${{ steps.meta.outputs.sha_tag }}
     steps:
@@ -173,7 +173,6 @@ jobs:
         run: |
           SHA_TAG="${GITHUB_SHA:0:7}"
           echo "sha_tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
-          # Convert repository owner to lowercase for Docker image tags
           OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "backend_image=${{ env.REGISTRY }}/${OWNER_LC}/light-score-backend" >> "$GITHUB_OUTPUT"
           echo "frontend_image=${{ env.REGISTRY }}/${OWNER_LC}/light-score-frontend" >> "$GITHUB_OUTPUT"
@@ -203,60 +202,3 @@ jobs:
           # Rotate cache
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # Deploy to UpCloud via SSH
-  # ─────────────────────────────────────────────────────────────────────────────
-  deploy:
-    name: Deploy to UpCloud (Podman)
-    runs-on: ubuntu-latest
-    needs: [detect-changes, check-prerequisites, build-push]
-    if: |
-      github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'workflow_run' && 
-       needs.detect-changes.outputs.should-deploy == 'true' &&
-       needs.check-prerequisites.outputs.deploy-ready == 'true')
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Check UpCloud secrets configured
-        id: check-secrets
-        env:
-          UPCLOUD_HOST: ${{ secrets.UPCLOUD_HOST }}
-          UPCLOUD_SSH_KEY: ${{ secrets.UPCLOUD_SSH_KEY }}
-        run: |
-          if [[ -z "${UPCLOUD_HOST:-}" || -z "${UPCLOUD_SSH_KEY:-}" ]]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️ UPCLOUD_HOST or UPCLOUD_SSH_KEY secret not set. Skipping remote SSH deploy step."
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Deploy via SSH to UpCloud
-        if: steps.check-secrets.outputs.configured == 'true'
-        env:
-          UPCLOUD_HOST: ${{ secrets.UPCLOUD_HOST }}
-          UPCLOUD_USER: ${{ secrets.UPCLOUD_USER || 'deployer' }}
-          UPCLOUD_SSH_KEY: ${{ secrets.UPCLOUD_SSH_KEY }}
-          SHA_TAG: ${{ needs.build-push.outputs.sha_tag }}
-        run: |
-          set -euo pipefail
-
-          # Setup SSH Agent
-          eval "$(ssh-agent -s)"
-          echo "$UPCLOUD_SSH_KEY" | tr -d '\r' | ssh-add -
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          ssh-keyscan -H "$UPCLOUD_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-
-          # Ensure remote target directory exists
-          ssh "${UPCLOUD_USER}@${UPCLOUD_HOST}" "mkdir -p ~/light-score"
-
-          # Copy compose.prod.yaml and deploy script to remote host
-          scp compose.prod.yaml "${UPCLOUD_USER}@${UPCLOUD_HOST}:~/light-score/compose.prod.yaml"
-          scp scripts/deploy-upcloud.sh "${UPCLOUD_USER}@${UPCLOUD_HOST}:~/light-score/deploy.sh"
-
-          # Deploy with rootless Podman (SHA_TAG is intentionally client-side expanded)
-          # shellcheck disable=SC2029
-          ssh "${UPCLOUD_USER}@${UPCLOUD_HOST}" "IMAGE_TAG='${SHA_TAG}' bash ~/light-score/deploy.sh"
-
