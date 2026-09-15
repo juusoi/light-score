@@ -1,0 +1,15 @@
+[Unit]
+Description=Light Score Backend API
+After=network-online.target light-score-network.service
+Wants=network-online.target
+
+[Container]
+ContainerName=light-score-backend
+Image=ghcr.io/juusoi/light-score-backend:latest
+AutoUpdate=registry
+Network=light-score.network
+Environment=MOCK_ESPN=false
+LogDriver=journald
+
+[Install]
+WantedBy=default.target

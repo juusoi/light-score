@@ -1,0 +1,205 @@
+name: Build & Publish Images (GHCR)
+
+on:
+  # Manual trigger OR automatic after security checks succeed on main
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force building and publishing images regardless of changed files'
+        required: false
+        type: boolean
+        default: false
+  workflow_run:
+    workflows: ['Security checks']
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+  actions: read
+
+concurrency:
+  group: ghcr-publish
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Change Detection
+  # ─────────────────────────────────────────────────────────────────────────────
+  detect-changes:
+    name: Check if deployable files changed
+    runs-on: ubuntu-latest
+    outputs:
+      should-build: ${{ steps.changes.outputs.should_build || steps.manual.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect deployable changes
+        id: changes
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const sha = context.payload.workflow_run.head_sha;
+            const { owner, repo } = context.repo;
+
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner, repo, ref: sha
+            });
+
+            const changedFiles = commit.files?.map(f => f.filename) || [];
+            core.info(`Changed files in ${sha}:`);
+            changedFiles.forEach(f => core.info(`  - ${f}`));
+
+            const deployPatterns = [
+              /^backend\//,
+              /^frontend\//,
+              /^functions\//,
+              /^deploy\//,
+              /^compose\.yaml$/,
+              /^compose\.prod\.yaml$/,
+              /^pyproject\.toml$/,
+              /^uv\.lock$/,
+              /^\.github\/workflows\/push-ghcr\.yaml$/,
+            ];
+
+
+            const shouldBuild = changedFiles.some(file =>
+              deployPatterns.some(pattern => pattern.test(file))
+            );
+
+            core.info(`\nShould build: ${shouldBuild}`);
+            core.setOutput('should_build', String(shouldBuild));
+
+            if (!shouldBuild) {
+              core.info('ℹ️ No image-relevant changes detected. Skipping GHCR publish.');
+            }
+
+      - name: Force build on manual trigger
+        id: manual
+        if: github.event_name != 'workflow_run'
+        run: echo "should_build=true" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Prerequisites Check
+  # ─────────────────────────────────────────────────────────────────────────────
+  check-prerequisites:
+    name: Verify CI and Security passed
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    outputs:
+      build-ready: ${{ steps.check.outputs.ready || steps.manual_ready.outputs.ready }}
+    steps:
+      - name: Check workflow prerequisites
+        id: check
+        if: |
+          github.event_name == 'workflow_run' && 
+          github.event.workflow_run.conclusion == 'success' &&
+          needs.detect-changes.outputs.should-build == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.payload.workflow_run.head_sha;
+
+            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner, repo, head_sha: sha, status: 'completed', per_page: 50
+            });
+
+            const findByName = (name) => data.workflow_runs.find(r => r.name === name);
+            const ci = findByName('CI');
+            const security = findByName('Security checks');
+
+            const ciPassed = ci?.conclusion === 'success';
+            const securityPassed = security?.conclusion === 'success';
+
+            core.info(`CI passed: ${ciPassed}`);
+            core.info(`Security passed: ${securityPassed}`);
+
+            const ready = ciPassed && securityPassed;
+            core.setOutput('ready', String(ready));
+
+            if (!ready) {
+              core.setFailed('Prerequisites not met: Both CI and Security workflows must pass');
+            }
+
+      - name: Mark ready for manual trigger
+        id: manual_ready
+        if: github.event_name != 'workflow_run'
+        run: echo "ready=true" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Build and Push Container Images to GHCR
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-push:
+    name: Build and Push Images to GHCR
+    runs-on: ubuntu-latest
+    needs: [detect-changes, check-prerequisites]
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'workflow_run' && 
+       needs.detect-changes.outputs.should-build == 'true' &&
+       needs.check-prerequisites.outputs.build-ready == 'true')
+    outputs:
+      sha_tag: ${{ steps.meta.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+
+      - name: Cache Docker layers
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          SHA_TAG="${GITHUB_SHA:0:7}"
+          echo "sha_tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "backend_image=${{ env.REGISTRY }}/${OWNER_LC}/light-score-backend" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=${{ env.REGISTRY }}/${OWNER_LC}/light-score-frontend" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend image
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            -f backend/Dockerfile \
+            -t "${{ steps.meta.outputs.backend_image }}:${{ steps.meta.outputs.sha_tag }}" \
+            -t "${{ steps.meta.outputs.backend_image }}:latest" \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new \
+            --push .
+
+      - name: Build and push frontend image
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            -f frontend/Dockerfile \
+            -t "${{ steps.meta.outputs.frontend_image }}:${{ steps.meta.outputs.sha_tag }}" \
+            -t "${{ steps.meta.outputs.frontend_image }}:latest" \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new \
+            --push .
+
+          # Rotate cache
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache

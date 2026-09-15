@@ -1,0 +1,179 @@
+# Deployment (UpCloud Ubuntu Server - Pull-based Podman Auto-Update)
+
+This document describes deploying and operating Light Score on an UpCloud Ubuntu Cloud Server using **pull-based rootless Podman auto-update (Quadlets)** behind a **Caddy reverse proxy** and **UFW**.
+
+---
+
+## Architecture
+
+```
+GitHub Actions: Push to main → CI & Security pass → Build & Push to ghcr.io:latest
+                                                              │
+                                                              │ (Pull-based polling)
+                                                              ▼
+UpCloud Server (deployer @ Ubuntu)
+┌─────────────────────────────────────────────────────────────┐
+│  podman-auto-update.timer (Checks ghcr.io for new digests)  │
+│                                                             │
+│  Rootless Podman Quadlets (~/.config/containers/systemd/)   │
+│  Network: light-score-net                                   │
+│                                                             │
+│   Frontend Container (Flask/Gunicorn)                       │
+│   - Image: ghcr.io/juusoi/light-score-frontend:latest       │
+│   - AutoUpdate: registry                                    │
+│   - Port: 127.0.0.1:5000:5000 (Loopback only)               │
+│   - Env: BACKEND_URL=http://light-score-backend:8000        │
+│         │                                                   │
+│         ▼                                                   │
+│   Backend Container (FastAPI/Uvicorn)                       │
+│   - Image: ghcr.io/juusoi/light-score-backend:latest        │
+│   - AutoUpdate: registry                                    │
+│   - Port: 8000 (Internal only)                             │
+└─────────────────────────────────────────────────────────────┘
+       ▲
+       │ Proxies 127.0.0.1:5000 (Automatic Let's Encrypt TLS)
+  Caddy Reverse Proxy (Host, /etc/caddy/Caddyfile)
+       ▲
+       │
+  UFW Firewall (Allows 80, 443, 22)
+       ▲
+       │
+  Internet
+```
+
+### Why This Pull-Based Architecture Fits a 1 CPU / 1 GB Server:
+- **Zero Build Load on Host**: All builds happen in GitHub Actions (avoiding OOM crashes).
+- **Zero SSH / Deploy Credentials in GitHub**: No SSH keys, no deploy credentials leave GitHub.
+- **Zero Inbound Port Exposure for CI/CD**: The server never accepts inbound connections from CI.
+- **Native Automatic Rollback**: If a new image fails to start or exit cleanly, `podman auto-update` rolls back to the prior working image automatically.
+- **Low Memory Footprint**: Entire stack uses only ~150–180 MB of RAM.
+
+---
+
+## One-Time Server Setup
+
+### 1. Enable User Linger (Mandatory for Rootless Systemd)
+Ensure systemd keeps the `deployer` user slice running across reboots and SSH logouts:
+```bash
+sudo loginctl enable-linger deployer
+```
+
+Confirm status:
+```bash
+loginctl show-user deployer | grep Linger
+# Expected: Linger=yes
+```
+
+### 2. Configure GitHub Container Registry Access (if private)
+If the container images in GHCR are private, log in once as `deployer`:
+```bash
+podman login ghcr.io -u <github-username> -p <github-pat>
+```
+
+### 3. Install Quadlet Units
+Copy the Quadlet unit files from [`deploy/quadlet/`](file:///deploy/quadlet/) to `~/.config/containers/systemd/`:
+
+```bash
+mkdir -p ~/.config/containers/systemd
+cp deploy/quadlet/* ~/.config/containers/systemd/
+```
+
+Files installed:
+- `~/.config/containers/systemd/light-score.network`
+- `~/.config/containers/systemd/light-score-backend.container`
+- `~/.config/containers/systemd/light-score-frontend.container`
+
+### 4. Start the Application Stack
+Tell systemd to generate and start the services:
+```bash
+systemctl --user daemon-reload
+systemctl --user start light-score-frontend.service
+```
+
+Check status:
+```bash
+systemctl --user status light-score-frontend.service
+systemctl --user status light-score-backend.service
+podman ps
+```
+
+### 5. Enable Automated Updates
+Enable the native Podman auto-update timer:
+```bash
+systemctl --user enable --now podman-auto-update.timer
+```
+
+Verify timer status:
+```bash
+systemctl --user list-timers --all | grep podman
+```
+
+To manually trigger or test auto-update:
+```bash
+# Dry run: check if a newer image exists on ghcr.io
+podman auto-update --dry-run
+
+# Trigger update immediately
+podman auto-update
+```
+
+---
+
+## Caddy Reverse Proxy & Firewall
+
+### Caddyfile (`/etc/caddy/Caddyfile`)
+```caddyfile
+light-score.com {
+    encode gzip zstd
+
+    reverse_proxy 127.0.0.1:5000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    log {
+        output file /var/log/caddy/light-score.access.log {
+            roll_size 10mb
+            roll_keep 3
+        }
+    }
+}
+```
+
+Reload Caddy:
+```bash
+sudo systemctl reload caddy
+```
+
+---
+
+## Monitoring & Troubleshooting
+
+```bash
+# View logs from systemd
+journalctl --user -u light-score-frontend.service -f
+journalctl --user -u light-score-backend.service -f
+
+# View auto-update logs
+journalctl --user -u podman-auto-update.service
+
+# Check local frontend response
+curl -I http://127.0.0.1:5000/
+```
+
+---
+
+## Zero-Downtime Migration & Cutover
+
+Because AWS Lightsail remains completely untouched:
+1. **Verify UpCloud Out-of-Band**: Test with `curl -k -H "Host: light-score.com" https://<UPCLOUD_IP>/`.
+2. **DNS Cutover**: Lower TTL to 300s, point DNS A record to UpCloud IP. Caddy secures TLS automatically.
+3. **Burn-in & Decommission**: Keep Lightsail active as a warm standby for 48–72 hours, then decommission Lightsail.

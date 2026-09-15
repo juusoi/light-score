@@ -86,10 +86,11 @@ jobs:
               ;;
             pip-audit)
               echo "🔍 Running pip-audit dependency scan..."
-              .venv/bin/pip-audit --desc --output=json --output-file=pip-audit-report-pip-audit.json || true
+              .venv/bin/pip-audit --desc -f json -o pip-audit-report-pip-audit.json || true
               test -f pip-audit-report-pip-audit.json || echo '[]' > pip-audit-report-pip-audit.json
               .venv/bin/pip-audit --desc
               ;;
+
           esac
 
       - name: Upload security report
