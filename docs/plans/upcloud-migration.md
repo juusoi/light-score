@@ -85,7 +85,7 @@ systemctl --user enable --now podman-auto-update.timer
 
 ---
 
-## 4. GitHub Actions CI/CD (`deploy-upcloud.yaml`)
+## 4. GitHub Actions CI/CD (`push-ghcr.yaml`)
 
 Triggered on `main` after CI and Security pass:
 1. Builds backend and frontend multi-stage images on GitHub-hosted runners.

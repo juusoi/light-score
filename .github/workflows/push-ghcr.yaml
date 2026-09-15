@@ -66,8 +66,9 @@ jobs:
               /^compose\.prod\.yaml$/,
               /^pyproject\.toml$/,
               /^uv\.lock$/,
-              /^\.github\/workflows\/deploy-upcloud\.yaml$/,
+              /^\.github\/workflows\/push-ghcr\.yaml$/,
             ];
+
 
             const shouldBuild = changedFiles.some(file =>
               deployPatterns.some(pattern => pattern.test(file))
