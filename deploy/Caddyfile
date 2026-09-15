@@ -1,0 +1,27 @@
+# Caddyfile configuration for Light Score on UpCloud
+# Place in /etc/caddy/Caddyfile on the host and reload with:
+# sudo systemctl reload caddy
+
+{$DOMAIN_NAME:light-score.com} {
+    encode gzip zstd
+
+    reverse_proxy 127.0.0.1:5000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    log {
+        output file /var/log/caddy/light-score.access.log {
+            roll_size 10mb
+            roll_keep 3
+        }
+    }
+}

@@ -91,3 +91,13 @@ This log records lightweight architecture/product decisions for the current app.
 - Decision: Set the same `PYTHONPATH` in the `just ty` recipe so local type checks reproduce the CI gate exactly. Keep the `# ty: ignore[unresolved-import]` directives, which are required under that path layout.
 - Consequences: `just ci` is now a faithful local mirror of the CI type-check gate; the divergence that let mismatched changes slip through is closed.
 - Revisit Trigger: Restructuring the type-check path layout (e.g. dropping the CLI `PYTHONPATH` in favor of a `[tool.ty]` config) so the ignore directives are no longer needed.
+
+## DEC-011
+
+- Date: 2026-09-15
+- Status: accepted
+- Context: Deploying on an affordable 1 vCPU / 1 GB RAM UpCloud Ubuntu cloud server requires minimizing hosting costs, keeping memory usage well below 1 GB, and avoiding CPU/OOM spikes during deployment. At the same time, existing AWS Lightsail infrastructure must remain untouched during the transition for zero-downtime cutover and instant rollback.
+- Decision: Lift and shift the container stack to UpCloud using rootless Podman (`deployer` user with linger enabled) behind Caddy for automated TLS. Offload all container builds and layer caching to GitHub Actions pushing to GHCR (`ghcr.io`). Frontend binds strictly to `127.0.0.1:5000` while backend is internal on `light-score-net`. Deploy via SSH in a parallel GitHub Actions workflow (`deploy-upcloud.yaml`).
+- Consequences: Total stack runtime footprint is ~150-180 MB, well within the 1 GB RAM budget. No OOM risk on the server. Lightsail continues operating as a warm standby until DNS cutover and validation are complete.
+- Revisit Trigger: Upgrading server hardware, transitioning to multi-node orchestration, or completing the final decommissioning of Lightsail.
+

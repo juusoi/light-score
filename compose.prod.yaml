@@ -1,0 +1,39 @@
+services:
+  backend:
+    image: ghcr.io/juusoi/light-score-backend:${IMAGE_TAG:-latest}
+    container_name: light-score-backend
+    restart: unless-stopped
+    expose:
+      - '8000'
+    environment:
+      - MOCK_ESPN=${MOCK_ESPN:-false}
+    networks:
+      - light-score-net
+    logging:
+      driver: 'k8s-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  frontend:
+    image: ghcr.io/juusoi/light-score-frontend:${IMAGE_TAG:-latest}
+    container_name: light-score-frontend
+    restart: unless-stopped
+    ports:
+      # Bound strictly to loopback so Caddy reverse proxies it and external traffic cannot bypass UFW
+      - '127.0.0.1:5000:5000'
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - light-score-net
+    logging:
+      driver: 'k8s-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+networks:
+  light-score-net:
+    name: light-score-net
