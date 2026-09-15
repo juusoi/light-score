@@ -1,6 +1,6 @@
 # Light Score
 
-FastAPI backend + Flask frontend + parser functions (ESPN standings/games). Deployed to AWS Lightsail via Terraform + GitHub Actions OIDC (no static keys).
+FastAPI backend + Flask frontend + parser functions (ESPN standings/games). Deployed to UpCloud Ubuntu Cloud Server via GHCR + Rootless Podman Quadlets + Caddy.
 
 ## Structure
 
@@ -74,7 +74,7 @@ just security    # bandit + pip-audit
 
 ## Deployment
 
-CI → Security → Deploy (Lightsail). Terraform remote state (S3 + Dynamo, prefix scoped). Images built & pushed with `lightsailctl`; `BACKEND_URL` set to internal DNS. See `docs/aws-iam-permissions.md`.
+Push to main → CI & Security pass → Build & Push to GHCR (`ghcr.io/juusoi/light-score-*`). The UpCloud server's rootless `podman-auto-update.timer` pulls updated images and restarts services automatically with zero SSH keys in GitHub. See `docs/deploy-upcloud.md`.
 
 ## Canonical Product Docs
 
@@ -84,7 +84,7 @@ CI → Security → Deploy (Lightsail). Terraform remote state (S3 + Dynamo, pre
 
 ## Secrets
 
-GitHub: `AWS_ROLE_TO_ASSUME` (OIDC). No static AWS keys.
+No deploy secrets or cloud provider credentials required in GitHub Actions. Container registry authentication uses default `GITHUB_TOKEN`.
 
 ## Placeholders
 

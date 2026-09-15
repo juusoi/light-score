@@ -8,8 +8,6 @@
     reverse_proxy 127.0.0.1:5000 {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
     }
 
     header {
@@ -18,10 +16,5 @@
         Referrer-Policy "strict-origin-when-cross-origin"
     }
 
-    log {
-        output file /var/log/caddy/light-score.access.log {
-            roll_size 10mb
-            roll_keep 3
-        }
-    }
+    log
 }
