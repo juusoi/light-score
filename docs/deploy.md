@@ -1,38 +1,34 @@
-# Deployment (Lightsail)
+# Deployment
+
+Production deployment runs on an UpCloud Ubuntu Cloud Server using pull-based Rootless Podman Quadlets and Caddy.
+
+See [docs/deploy-upcloud.md](file:///Users/juuso/code/juusoi/light-score/docs/deploy-upcloud.md) for full architecture and operation details.
 
 ## Workflow
 
-CI → Security → Deploy (Lightsail container service). Images built, pushed via `lightsailctl`, deployed with health wait.
+1. Push to `main` → CI & Security workflows run and pass.
+2. `push-ghcr.yaml` builds multi-stage images and pushes to GitHub Container Registry (`ghcr.io/juusoi/light-score-*`).
+3. UpCloud server's `podman-auto-update.timer` polls for new digests, pulls images, and restarts the services automatically with zero downtime.
 
-## Prerequisites
-
-- OIDC role (`AWS_ROLE_TO_ASSUME`) with required policy
-- Terraform applied (service exists or created idempotently)
-
-## Deploy
-
-Merge to main triggers pipeline after security workflow success.
-
-## Backend ↔ Frontend
-
-`BACKEND_URL` injected as `http://LIGHTSAIL_SERVICE_NAME.service.local:8000`.
-
-## Local
+## Local Development
 
 Backend:
-
-```
+```bash
 uvicorn backend.src.main:app --reload --port 8000
 ```
 
 Frontend:
-
-```
+```bash
 BACKEND_URL=http://localhost:8000 flask --app frontend/src/app.py run -p 5000
 ```
 
-## Troubleshooting
+Or via containers:
+```bash
+just up
+# or with mock data:
+just mock-up
+```
 
-- Quota: delete unused container services
-- 403 state: check S3 key matches policy prefix
-- Connectivity: verify internal DNS pattern or fallback to 127.0.0.1
+## Legacy Deployment
+
+AWS Lightsail deployment has been decommissioned as of 2026-09-15 (see `docs/decision-log.md` DEC-011 and DEC-012).

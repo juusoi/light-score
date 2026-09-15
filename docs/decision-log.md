@@ -101,4 +101,14 @@ This log records lightweight architecture/product decisions for the current app.
 - Consequences: Total stack runtime footprint is ~150-180 MB, well within the 1 GB RAM budget. No OOM risk on the server. Zero credential exposure in CI. Built-in rollback via Podman if a new image fails. Lightsail continues operating as a warm standby until DNS cutover and validation are complete.
 - Revisit Trigger: Upgrading server hardware, transitioning to multi-node orchestration, or completing the final decommissioning of Lightsail.
 
+## DEC-012
+
+- Date: 2026-09-15
+- Status: accepted
+- Context: Following successful DNS cutover and verification of the UpCloud production environment, the AWS Lightsail container service was deleted via the AWS CLI. The legacy AWS deployment workflow (`deploy-lightsail.yaml`) and AWS IAM/Terraform infrastructure are now obsolete.
+- Decision: Decommission AWS Lightsail infrastructure permanently and retire `.github/workflows/deploy-lightsail.yaml`. The sole deployment pipeline is now `.github/workflows/push-ghcr.yaml` publishing to GHCR, with pull-based Podman Quadlet auto-updates on the UpCloud server. Update repository documentation, Caddy configuration, and deployment guides to reflect the active production architecture.
+- Consequences: AWS billing for Lightsail is eliminated. CI/CD workflow is simplified with zero external cloud deployment credentials needed in GitHub. Reduced maintenance overhead and smaller attack surface.
+- Revisit Trigger: Migration to a different hosting provider or orchestrator.
+
+
 

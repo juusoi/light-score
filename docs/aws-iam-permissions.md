@@ -4,7 +4,10 @@ Do NOT add real account IDs, bucket names, table names, ARNs, IPs, or secrets.
 All concrete identifiers are parameterised with ALL_CAPS placeholders.
 -->
 
-# AWS IAM Permissions (Terraform + Lightsail via GitHub Actions OIDC)
+# AWS IAM Permissions (Legacy - Lightsail Decommissioned)
+
+> [!NOTE]
+> AWS Lightsail deployment was decommissioned on 2026-09-15 (DEC-011, DEC-012) in favor of UpCloud + GHCR + Podman Quadlets. This document is retained for historical reference only.
 
 Terraform + Lightsail deploy via OIDC. Minimal combined policy.
 
