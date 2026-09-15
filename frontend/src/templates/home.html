@@ -164,6 +164,7 @@
               <h3 class="ttx-subtitle">Super Bowl</h3>
               {% for game in bracket.games if game.conference == 'Super Bowl' %}
               <div class="ttx-bracket-game ttx-superbowl-game">
+                <div class="ttx-bracket-round">{{ game.round }}</div>
                 <div class="ttx-bracket-matchup">
                   <div class="ttx-bracket-team {% if game.winner == game.away_team %}ttx-winner{% endif %}">
                     {{ team_logo(game.away_team) | safe }}
