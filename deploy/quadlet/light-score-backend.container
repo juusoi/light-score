@@ -10,6 +10,17 @@ AutoUpdate=registry
 Network=light-score.network
 Environment=MOCK_ESPN=false
 LogDriver=journald
+HealthCmd=curl -f http://localhost:8000/health || exit 1
+HealthInterval=30s
+HealthTimeout=5s
+HealthRetries=3
+HealthStartPeriod=10s
+HealthOnFailure=kill
+Notify=healthy
+
+[Service]
+TimeoutStartSec=60
+Restart=on-failure
 
 [Install]
 WantedBy=default.target

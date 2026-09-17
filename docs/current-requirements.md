@@ -63,6 +63,12 @@ It is intentionally scoped to what the app does today.
 - Unexpected payload types or error/detail payloads fall back to safe defaults.
 - Rendering continues with partial/empty data where necessary.
 
+### RR-003 Health Check Endpoints
+
+- Both backend (`GET /health`) and frontend (`GET /health`) serve dedicated, lightweight health endpoints returning `{"status": "ok"}` with HTTP 200.
+- Frontend `/health` responds without making downstream backend or external ESPN API calls, avoiding synthetic probe load on dependencies.
+- Health endpoints provide the readiness probes for container health checks and systemd `Notify=healthy` rollback automation.
+
 ## UI and Accessibility Baseline
 
 - UI uses teletext-inspired styling and a monospaced presentation.

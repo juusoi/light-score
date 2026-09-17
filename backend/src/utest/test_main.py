@@ -22,7 +22,14 @@ def test_read_main():
     payload = response.json()
     assert payload.get("service") == "light-score-backend"
     assert payload.get("status") == "ok"
+    assert "/health" in payload.get("endpoints", [])
     assert "/games/weekly" in payload.get("endpoints", [])
+
+
+def test_health():
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
 
 
 def test_get_standings():

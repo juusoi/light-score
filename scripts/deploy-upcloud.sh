@@ -16,8 +16,8 @@ podman compose -f compose.prod.yaml up -d --remove-orphans
 echo "⏳ Verifying service health..."
 HEALTHY=false
 for i in $(seq 1 15); do
-  if curl -sf http://127.0.0.1:5000/ > /dev/null 2>&1; then
-    echo "✅ Health check passed: http://127.0.0.1:5000/ is responding (attempt ${i}/15)"
+  if curl -sf http://127.0.0.1:5000/health > /dev/null 2>&1; then
+    echo "✅ Health check passed: http://127.0.0.1:5000/health is responding (attempt ${i}/15)"
     HEALTHY=true
     break
   fi

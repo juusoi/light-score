@@ -11,6 +11,17 @@ Network=light-score.network
 PublishPort=127.0.0.1:5000:5000
 Environment=BACKEND_URL=http://light-score-backend:8000
 LogDriver=journald
+HealthCmd=curl -f http://localhost:5000/health || exit 1
+HealthInterval=30s
+HealthTimeout=5s
+HealthRetries=3
+HealthStartPeriod=10s
+HealthOnFailure=kill
+Notify=healthy
+
+[Service]
+TimeoutStartSec=60
+Restart=on-failure
 
 [Install]
 WantedBy=default.target

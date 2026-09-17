@@ -9,6 +9,7 @@ WORKDIR /app
 # System dependencies in base stage
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Dependencies stage - install Python packages
@@ -35,6 +36,9 @@ ENV FLASK_APP=frontend.src.wsgi:app \
     BACKEND_URL=http://localhost:8000
 
 EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
 
 WORKDIR /app/frontend/src
 

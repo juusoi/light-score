@@ -157,9 +157,18 @@ class WeeklyGame(BaseModel):
     score_b: int | None = None
 
 
+class HealthStatus(BaseModel):
+    status: str
+
+
 class TeamInfo(BaseModel):
     team: str
     abbreviation: str
+
+
+@app.get("/health", response_model=HealthStatus)
+def health_check() -> HealthStatus:
+    return HealthStatus(status="ok")
 
 
 @app.get("/")
@@ -168,6 +177,7 @@ def read_root():
         "service": "light-score-backend",
         "status": "ok",
         "endpoints": [
+            "/health",
             "/games/weekly",
             "/games/weekly/context",
             "/games/weekly/navigation",
