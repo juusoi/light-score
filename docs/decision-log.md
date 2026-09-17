@@ -110,5 +110,14 @@ This log records lightweight architecture/product decisions for the current app.
 - Consequences: AWS billing for Lightsail is eliminated. CI/CD workflow is simplified with zero external cloud deployment credentials needed in GitHub. Reduced maintenance overhead and smaller attack surface.
 - Revisit Trigger: Migration to a different hosting provider or orchestrator.
 
+## DEC-013
+
+- Date: 2026-09-17
+- Status: accepted
+- Context: Containers lacked health checks, and rootless Podman Quadlets had no readiness signaling. Under default Podman behavior, systemd marks containers "active" immediately upon process spawn, causing `podman auto-update` to treat broken deployments as successful and preventing automatic rollback. Furthermore, frontend health probes hitting `/` incurred full HTML template rendering and backend API roundtrips.
+- Decision: Add dedicated lightweight `/health` JSON endpoints to both backend and frontend. Install `curl` and declare `HEALTHCHECK` directives in `backend/Dockerfile` and `frontend/Dockerfile`. Configure `Notify=healthy`, `HealthCmd`, `HealthOnFailure=kill`, and `TimeoutStartSec=60` on Quadlet container units. Add `healthcheck` specifications to `compose.yaml` and `compose.prod.yaml`.
+- Consequences: `podman auto-update` now reliably verifies application responsiveness before committing updates. If a newly pulled image from GHCR fails its health check within `TimeoutStartSec=60`, systemd marks the restart as failed, and Podman automatically rolls back to the prior working image from GHCR with zero downtime. Runtime container stalls trigger automatic restart via `HealthOnFailure=kill`. Health probes are lightweight and isolated from external API dependencies.
+- Revisit Trigger: Transition to Kubernetes/orchestrator with custom readiness/liveness probes or introduction of external synthetic monitoring probes.
+
 
 

@@ -3,7 +3,7 @@ import os
 from typing import Any, Type, TypeVar, cast
 
 import requests
-from flask import Flask, render_template, request
+from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
 
@@ -156,6 +156,11 @@ def team_logo_filter(team_name):
 @app.context_processor
 def inject_team_logo():
     return dict(team_logo=get_team_logo)
+
+
+@app.route("/health")
+def health():
+    return jsonify(status="ok")
 
 
 @app.route("/")

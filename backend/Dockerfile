@@ -9,6 +9,7 @@ WORKDIR /app
 # System dependencies in base stage
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Dependencies stage - install Python packages
@@ -34,6 +35,9 @@ COPY backend/src /app/backend/src
 ENV PYTHONPATH=/app/backend/src
 
 EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
 WORKDIR /app/backend/src
 

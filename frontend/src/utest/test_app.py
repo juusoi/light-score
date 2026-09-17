@@ -23,6 +23,12 @@ def test_home_route(client):
     )
 
 
+def test_health_route(client):
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "ok"}
+
+
 def test_static_favicon_is_served(client):
     response = client.get("/static/favicon.svg")
     assert response.status_code == 200

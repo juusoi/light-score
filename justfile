@@ -166,9 +166,9 @@ check-deps:
 health:
     #!/usr/bin/env bash
     echo "Backend health:"
-    curl -sf http://localhost:8000/ > /dev/null && echo "  ✅ Backend is healthy" || echo "  ❌ Backend is unhealthy"
+    curl -sf http://localhost:8000/health > /dev/null && echo "  ✅ Backend is healthy" || echo "  ❌ Backend is unhealthy"
     echo "Frontend health:"
-    curl -sf http://localhost:5000/ > /dev/null && echo "  ✅ Frontend is healthy" || echo "  ❌ Frontend is unhealthy"
+    curl -sf http://localhost:5000/health > /dev/null && echo "  ✅ Frontend is healthy" || echo "  ❌ Frontend is unhealthy"
 
 # --- Cleanup ---
 
