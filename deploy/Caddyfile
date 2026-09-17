@@ -1,8 +1,8 @@
-# Caddyfile configuration for Light Score on UpCloud
+# Caddyfile configuration for Light Score on Linux Cloud Server
 # Place in /etc/caddy/Caddyfile on the host and reload with:
 # sudo systemctl reload caddy
 
-{$DOMAIN_NAME:light-score.com} {
+{$DOMAIN_NAME:example.com} {
     encode gzip zstd
 
     reverse_proxy 127.0.0.1:5000 {

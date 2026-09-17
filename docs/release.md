@@ -3,7 +3,7 @@
 ## Preconditions
  
 - Main branch green (CI + security)
-- Images built and pushed to GHCR (`ghcr.io/juusoi/light-score-*`)
+- Images built and pushed to GHCR (`ghcr.io/<github-username>/light-score-*`)
  
 ## Tag
  
@@ -14,7 +14,7 @@ git push origin vX.Y.Z
 
 ## Deploy
 
-Automated deployment runs via `podman-auto-update.timer` pulling the latest digests on the UpCloud server. Manual update trigger:
+Automated deployment runs via `podman-auto-update.timer` pulling the latest digests on the cloud server. Manual update trigger:
 ```bash
 podman auto-update
 ```
@@ -26,6 +26,6 @@ podman auto-update
 
 ## Verify
 
-- `curl -I https://light-score.com/`
+- `curl -I https://example.com/health`
 - Check container status on host: `podman ps`
 - Check systemd unit logs: `journalctl --user -u light-score-frontend.service -n 50`

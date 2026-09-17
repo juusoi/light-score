@@ -1,6 +1,6 @@
 # Light Score
 
-FastAPI backend + Flask frontend + parser functions (ESPN standings/games). Deployed to UpCloud Ubuntu Cloud Server via GHCR + Rootless Podman Quadlets + Caddy.
+FastAPI backend + Flask frontend + parser functions (ESPN standings/games). Deployed to an Ubuntu Cloud Server via GHCR + Rootless Podman Quadlets + Caddy.
 
 ## Structure
 
@@ -74,7 +74,7 @@ just security    # bandit + pip-audit
 
 ## Deployment
 
-Push to main → CI & Security pass → Build & Push to GHCR (`ghcr.io/juusoi/light-score-*`). The UpCloud server's rootless `podman-auto-update.timer` pulls updated images and restarts services automatically with zero SSH keys in GitHub. See `docs/deploy-upcloud.md`.
+Push to main → CI & Security pass → Build & Push to GHCR (`ghcr.io/<github-username>/light-score-*`). The server's rootless `podman-auto-update.timer` pulls updated images and restarts services automatically with zero SSH keys in GitHub. See `docs/deploy-server.md`.
 
 ## Canonical Product Docs
 

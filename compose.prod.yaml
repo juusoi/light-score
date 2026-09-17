@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/juusoi/light-score-backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${REGISTRY_OWNER:-exampleuser}/light-score-backend:${IMAGE_TAG:-latest}
     container_name: light-score-backend
     restart: unless-stopped
     expose:
@@ -24,7 +24,7 @@ services:
         max-file: '3'
 
   frontend:
-    image: ghcr.io/juusoi/light-score-frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${REGISTRY_OWNER:-exampleuser}/light-score-frontend:${IMAGE_TAG:-latest}
     container_name: light-score-frontend
     restart: unless-stopped
     ports:

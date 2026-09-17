@@ -7,7 +7,7 @@ All concrete identifiers are parameterised with ALL_CAPS placeholders.
 # AWS IAM Permissions (Legacy - Lightsail Decommissioned)
 
 > [!NOTE]
-> AWS Lightsail deployment was decommissioned on 2026-09-15 (DEC-011, DEC-012) in favor of UpCloud + GHCR + Podman Quadlets. This document is retained for historical reference only.
+> AWS Lightsail deployment was decommissioned on 2026-09-15 (DEC-011, DEC-012) in favor of Linux Cloud Server + GHCR + Podman Quadlets. This document is retained for historical reference only.
 
 Terraform + Lightsail deploy via OIDC. Minimal combined policy.
 

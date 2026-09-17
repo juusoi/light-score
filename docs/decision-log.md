@@ -96,8 +96,8 @@ This log records lightweight architecture/product decisions for the current app.
 
 - Date: 2026-09-15
 - Status: accepted
-- Context: Deploying on an affordable 1 vCPU / 1 GB RAM UpCloud Ubuntu cloud server requires minimizing hosting costs, keeping memory usage well below 1 GB, and avoiding CPU/OOM spikes during deployment. At the same time, existing AWS Lightsail infrastructure must remain untouched during the transition for zero-downtime cutover and instant rollback.
-- Decision: Lift and shift the container stack to UpCloud using rootless Podman Quadlets (`deployer` user with linger enabled) with pull-based `podman auto-update` behind Caddy for automated TLS. Offload all container builds and layer caching to GitHub Actions pushing to GHCR (`ghcr.io`). The server runs `podman-auto-update.timer` to automatically detect new digests and restart units, requiring zero SSH keys or deploy credentials in GitHub Secrets and exposing zero inbound ports for CI/CD. Frontend binds strictly to `127.0.0.1:5000` while backend is internal on `light-score-net`.
+- Context: Deploying on an affordable 1 vCPU / 1 GB RAM Ubuntu cloud server requires minimizing hosting costs, keeping memory usage well below 1 GB, and avoiding CPU/OOM spikes during deployment. At the same time, existing AWS Lightsail infrastructure must remain untouched during the transition for zero-downtime cutover and instant rollback.
+- Decision: Lift and shift the container stack to an Ubuntu Cloud Server using rootless Podman Quadlets (`deployer` user with linger enabled) with pull-based `podman auto-update` behind Caddy for automated TLS. Offload all container builds and layer caching to GitHub Actions pushing to GHCR (`ghcr.io`). The server runs `podman-auto-update.timer` to automatically detect new digests and restart units, requiring zero SSH keys or deploy credentials in GitHub Secrets and exposing zero inbound ports for CI/CD. Frontend binds strictly to `127.0.0.1:5000` while backend is internal on `light-score-net`.
 - Consequences: Total stack runtime footprint is ~150-180 MB, well within the 1 GB RAM budget. No OOM risk on the server. Zero credential exposure in CI. Built-in rollback via Podman if a new image fails. Lightsail continues operating as a warm standby until DNS cutover and validation are complete.
 - Revisit Trigger: Upgrading server hardware, transitioning to multi-node orchestration, or completing the final decommissioning of Lightsail.
 
@@ -105,8 +105,8 @@ This log records lightweight architecture/product decisions for the current app.
 
 - Date: 2026-09-15
 - Status: accepted
-- Context: Following successful DNS cutover and verification of the UpCloud production environment, the AWS Lightsail container service was deleted via the AWS CLI. The legacy AWS deployment workflow (`deploy-lightsail.yaml`) and AWS IAM/Terraform infrastructure are now obsolete.
-- Decision: Decommission AWS Lightsail infrastructure permanently and retire `.github/workflows/deploy-lightsail.yaml`. The sole deployment pipeline is now `.github/workflows/push-ghcr.yaml` publishing to GHCR, with pull-based Podman Quadlet auto-updates on the UpCloud server. Update repository documentation, Caddy configuration, and deployment guides to reflect the active production architecture.
+- Context: Following successful DNS cutover and verification of the production environment, the AWS Lightsail container service was deleted via the AWS CLI. The legacy AWS deployment workflow (`deploy-lightsail.yaml`) and AWS IAM/Terraform infrastructure are now obsolete.
+- Decision: Decommission AWS Lightsail infrastructure permanently and retire `.github/workflows/deploy-lightsail.yaml`. The sole deployment pipeline is now `.github/workflows/push-ghcr.yaml` publishing to GHCR, with pull-based Podman Quadlet auto-updates on the production cloud server. Update repository documentation, Caddy configuration, and deployment guides to reflect the active production architecture.
 - Consequences: AWS billing for Lightsail is eliminated. CI/CD workflow is simplified with zero external cloud deployment credentials needed in GitHub. Reduced maintenance overhead and smaller attack surface.
 - Revisit Trigger: Migration to a different hosting provider or orchestrator.
 
@@ -118,6 +118,16 @@ This log records lightweight architecture/product decisions for the current app.
 - Decision: Add dedicated lightweight `/health` JSON endpoints to both backend and frontend. Install `curl` and declare `HEALTHCHECK` directives in `backend/Dockerfile` and `frontend/Dockerfile`. Configure `Notify=healthy`, `HealthCmd`, `HealthOnFailure=kill`, and `TimeoutStartSec=60` on Quadlet container units. Add `healthcheck` specifications to `compose.yaml` and `compose.prod.yaml`.
 - Consequences: `podman auto-update` now reliably verifies application responsiveness before committing updates. If a newly pulled image from GHCR fails its health check within `TimeoutStartSec=60`, systemd marks the restart as failed, and Podman automatically rolls back to the prior working image from GHCR with zero downtime. Runtime container stalls trigger automatic restart via `HealthOnFailure=kill`. Health probes are lightweight and isolated from external API dependencies.
 - Revisit Trigger: Transition to Kubernetes/orchestrator with custom readiness/liveness probes or introduction of external synthetic monitoring probes.
+
+## DEC-014
+
+- Date: 2026-09-17
+- Status: accepted
+- Context: Deployment documentation, Quadlet units, Compose files, and scripts contained real deployment identifiers (specific cloud provider names, live domain names, personal GitHub account names). These tied configuration templates directly to a specific deployment environment and exposed live infrastructure details in repository source.
+- Decision: Genericize all deployment templates, Quadlet files, and documentation. Use `${REGISTRY_OWNER:-exampleuser}` in `compose.prod.yaml`, `ghcr.io/<github-username>/...` in Quadlets and docs, `example.com` in Caddyfile and testing examples, and generic "Ubuntu Cloud Server" terminology throughout. Renamed `deploy-upcloud.md` to `deploy-server.md` and `deploy-upcloud.sh` to `deploy-server.sh`.
+- Consequences: Configurations and docs are now clean, portable, and reusable across any Linux hosting environment without exposing personal or infrastructure identifiers.
+- Revisit Trigger: Introduction of multi-environment automated deployment tooling (e.g., Helm, Ansible, Terraform).
+
 
 
 

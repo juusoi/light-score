@@ -89,7 +89,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ghcr.io/juusoi/light-score-backend:latest
+          image: ghcr.io/<github-username>/light-score-backend:latest
           ports:
             - containerPort: 8000
           resources:
@@ -146,7 +146,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/juusoi/light-score-frontend:latest
+          image: ghcr.io/<github-username>/light-score-frontend:latest
           ports:
             - containerPort: 5000
           env:
@@ -237,9 +237,9 @@ kind: Kustomization
 resources:
   - ../../base
 images:
-  - name: ghcr.io/juusoi/light-score-backend
+  - name: ghcr.io/<github-username>/light-score-backend
     newTag: SHA_TAG
-  - name: ghcr.io/juusoi/light-score-frontend
+  - name: ghcr.io/<github-username>/light-score-frontend
     newTag: SHA_TAG
 ```
 

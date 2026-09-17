@@ -1,14 +1,14 @@
 # Deployment
 
-Production deployment runs on an UpCloud Ubuntu Cloud Server using pull-based Rootless Podman Quadlets and Caddy.
+Production deployment runs on an Ubuntu Cloud Server using pull-based Rootless Podman Quadlets and Caddy.
 
-See [docs/deploy-upcloud.md](file:///Users/juuso/code/juusoi/light-score/docs/deploy-upcloud.md) for full architecture and operation details.
+See [docs/deploy-server.md](deploy-server.md) for full architecture and operation details.
 
 ## Workflow
 
 1. Push to `main` → CI & Security workflows run and pass.
-2. `push-ghcr.yaml` builds multi-stage images and pushes to GitHub Container Registry (`ghcr.io/juusoi/light-score-*`).
-3. UpCloud server's `podman-auto-update.timer` polls for new digests, pulls images, and restarts the services automatically with zero downtime.
+2. `push-ghcr.yaml` builds multi-stage images and pushes to GitHub Container Registry (`ghcr.io/<github-username>/light-score-*`).
+3. The server's `podman-auto-update.timer` polls for new digests, pulls images, and restarts the services automatically with zero downtime.
 
 ## Local Development
 

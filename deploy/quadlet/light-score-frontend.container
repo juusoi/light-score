@@ -5,7 +5,7 @@ Requires=light-score-backend.service
 
 [Container]
 ContainerName=light-score-frontend
-Image=ghcr.io/juusoi/light-score-frontend:latest
+Image=ghcr.io/<github-username>/light-score-frontend:latest
 AutoUpdate=registry
 Network=light-score.network
 PublishPort=127.0.0.1:5000:5000
