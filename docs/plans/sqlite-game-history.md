@@ -221,7 +221,7 @@ spec:
 ```yaml
 initContainers:
   - name: init-db
-    image: ghcr.io/juusoi/light-score-backend:latest
+    image: ghcr.io/<github-username>/light-score-backend:latest
     command: ["python", "-c", "from db import init_db; import asyncio; asyncio.run(init_db())"]
     volumeMounts:
       - name: data
@@ -247,7 +247,7 @@ spec:
         spec:
           containers:
             - name: collector
-              image: ghcr.io/juusoi/light-score-backend:latest
+              image: ghcr.io/<github-username>/light-score-backend:latest
               command: ["python", "-m", "scripts.collect_games"]
               env:
                 - name: DB_PATH

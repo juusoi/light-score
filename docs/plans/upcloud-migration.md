@@ -1,8 +1,8 @@
-# UpCloud Migration Plan: Pull-Based Podman Auto-Update (Quadlets) + Caddy + UFW
+# Cloud Server Migration Plan: Pull-Based Podman Auto-Update (Quadlets) + Caddy + UFW
 
 ## 1. Environment & Architecture Overview
 
-The target environment is a **1 vCPU / 1 GB RAM UpCloud Ubuntu Cloud Server**:
+The target environment is a **1 vCPU / 1 GB RAM Ubuntu Cloud Server**:
 - **Target OS**: Ubuntu Linux
 - **Resources**: 1 vCPU, 1 GB RAM (All image builds offloaded to GitHub Actions)
 - **Container Engine**: Rootless Podman Quadlets under the `deployer` user with `AutoUpdate=registry`
@@ -16,7 +16,7 @@ GitHub Actions: Push to main → CI & Security pass → Build & Push to ghcr.io:
                                                               │
                                                               │ (Pull-based polling)
                                                               ▼
-UpCloud Server (deployer @ Ubuntu)
+Linux Cloud Server (deployer @ Ubuntu)
 ┌─────────────────────────────────────────────────────────────┐
 │  podman-auto-update.timer (Checks ghcr.io for new digests)  │
 │                                                             │
@@ -24,14 +24,14 @@ UpCloud Server (deployer @ Ubuntu)
 │  Network: light-score-net                                   │
 │                                                             │
 │   Frontend Container (Flask/Gunicorn)                       │
-│   - Image: ghcr.io/juusoi/light-score-frontend:latest       │
+│   - Image: ghcr.io/<github-username>/light-score-frontend   │
 │   - AutoUpdate: registry                                    │
 │   - Port: 127.0.0.1:5000:5000 (Loopback only)               │
 │   - Env: BACKEND_URL=http://light-score-backend:8000        │
 │         │                                                   │
 │         ▼                                                   │
 │   Backend Container (FastAPI/Uvicorn)                       │
-│   - Image: ghcr.io/juusoi/light-score-backend:latest        │
+│   - Image: ghcr.io/<github-username>/light-score-backend    │
 │   - AutoUpdate: registry                                    │
 │   - Port: 8000 (Internal only)                             │
 └─────────────────────────────────────────────────────────────┘
@@ -89,5 +89,5 @@ systemctl --user enable --now podman-auto-update.timer
 
 Triggered on `main` after CI and Security pass:
 1. Builds backend and frontend multi-stage images on GitHub-hosted runners.
-2. Pushes `ghcr.io/juusoi/light-score-backend:latest` and `frontend:latest` (plus SHA tags).
-3. The UpCloud server's `podman-auto-update.timer` detects the new image digest and restarts the services automatically.
+2. Pushes `ghcr.io/<github-username>/light-score-backend:latest` and `frontend:latest` (plus SHA tags).
+3. The server's `podman-auto-update.timer` detects the new image digest and restarts the services automatically.

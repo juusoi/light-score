@@ -32,5 +32,5 @@ if [ "$HEALTHY" = false ]; then
   exit 1
 fi
 
-echo "✅ UpCloud deployment successful!"
+echo "✅ Server deployment successful!"
 podman ps --filter "name=light-score"

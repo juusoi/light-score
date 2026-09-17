@@ -1,6 +1,6 @@
-# Deployment (UpCloud Ubuntu Server - Pull-based Podman Auto-Update)
+# Deployment (Ubuntu Cloud Server - Pull-based Podman Auto-Update)
 
-This document describes deploying and operating Light Score on an UpCloud Ubuntu Cloud Server using **pull-based rootless Podman auto-update (Quadlets)** behind a **Caddy reverse proxy** and **UFW**.
+This document describes deploying and operating Light Score on an Ubuntu Cloud Server using **pull-based rootless Podman auto-update (Quadlets)** behind a **Caddy reverse proxy** and **UFW**.
 
 ---
 
@@ -11,7 +11,7 @@ GitHub Actions: Push to main → CI & Security pass → Build & Push to ghcr.io:
                                                               │
                                                               │ (Pull-based polling)
                                                               ▼
-UpCloud Server (deployer @ Ubuntu)
+Linux Cloud Server (deployer @ Ubuntu)
 ┌─────────────────────────────────────────────────────────────┐
 │  podman-auto-update.timer (Checks ghcr.io for new digests)  │
 │                                                             │
@@ -19,14 +19,14 @@ UpCloud Server (deployer @ Ubuntu)
 │  Network: light-score-net                                   │
 │                                                             │
 │   Frontend Container (Flask/Gunicorn)                       │
-│   - Image: ghcr.io/juusoi/light-score-frontend:latest       │
+│   - Image: ghcr.io/<github-username>/light-score-frontend   │
 │   - AutoUpdate: registry                                    │
 │   - Port: 127.0.0.1:5000:5000 (Loopback only)               │
 │   - Env: BACKEND_URL=http://light-score-backend:8000        │
 │         │                                                   │
 │         ▼                                                   │
 │   Backend Container (FastAPI/Uvicorn)                       │
-│   - Image: ghcr.io/juusoi/light-score-backend:latest        │
+│   - Image: ghcr.io/<github-username>/light-score-backend    │
 │   - AutoUpdate: registry                                    │
 │   - Port: 8000 (Internal only)                             │
 └─────────────────────────────────────────────────────────────┘
@@ -140,7 +140,7 @@ journalctl --user -u podman-auto-update.service -n 50
 
 ### Caddyfile (`/etc/caddy/Caddyfile`)
 ```caddyfile
-light-score.com {
+example.com {
     encode gzip zstd
 
     reverse_proxy 127.0.0.1:5000 {
@@ -189,9 +189,8 @@ curl -i http://127.0.0.1:5000/
 
 ---
 
-## Zero-Downtime Migration & Cutover
+## Verification & Cutover
 
-Because AWS Lightsail remains completely untouched:
-1. **Verify UpCloud Out-of-Band**: Test with `curl -k -H "Host: light-score.com" https://<UPCLOUD_IP>/`.
-2. **DNS Cutover**: Lower TTL to 300s, point DNS A record to UpCloud IP. Caddy secures TLS automatically.
-3. **Burn-in & Decommission**: Keep Lightsail active as a warm standby for 48–72 hours, then decommission Lightsail.
+1. **Verify Out-of-Band**: Test with `curl -k -H "Host: example.com" https://<SERVER_IP>/`.
+2. **DNS Cutover**: Lower TTL to 300s, point DNS A record to server IP. Caddy secures TLS automatically.
+
