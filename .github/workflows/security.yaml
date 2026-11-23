@@ -60,17 +60,6 @@ jobs:
           uv venv --allow-existing
           uv sync --dev --all-extras
 
-      - name: Install security tools
-        run: |
-          case "${{ matrix.tool }}" in
-            bandit)
-              uv pip install bandit
-              ;;
-            pip-audit)
-              uv pip install pip-audit
-              ;;
-          esac
-
       - name: Run security scan - ${{ matrix.tool }}
         run: |
           case "${{ matrix.tool }}" in

@@ -15,7 +15,6 @@ default:
 dev-setup:
     uv venv --allow-existing
     uv sync --dev --all-extras
-    uv pip install 'bandit[toml]>=1.8.0' 'pip-audit>=2.7.0'
     @echo "✅ Development environment ready!"
     @echo "💡 Activate with: source .venv/bin/activate"
 
