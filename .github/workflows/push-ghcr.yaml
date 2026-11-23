@@ -106,18 +106,22 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const sha = context.payload.workflow_run.head_sha;
+            const workflowRun = context.payload.workflow_run;
+            const sha = workflowRun.head_sha;
+
+            // Trust the triggering workflow_run payload for "Security checks" to avoid
+            // GitHub API eventual-consistency races immediately after completion.
+            const securityPassed =
+              workflowRun.name === 'Security checks' &&
+              workflowRun.conclusion === 'success';
 
             const { data } = await github.rest.actions.listWorkflowRunsForRepo({
               owner, repo, head_sha: sha, status: 'completed', per_page: 50
             });
 
-            const findByName = (name) => data.workflow_runs.find(r => r.name === name);
-            const ci = findByName('CI');
-            const security = findByName('Security checks');
-
-            const ciPassed = ci?.conclusion === 'success';
-            const securityPassed = security?.conclusion === 'success';
+            const ciPassed = data.workflow_runs.some(
+              r => r.name === 'CI' && r.conclusion === 'success'
+            );
 
             core.info(`CI passed: ${ciPassed}`);
             core.info(`Security passed: ${securityPassed}`);
