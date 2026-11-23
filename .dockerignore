@@ -52,7 +52,6 @@ node_modules/
 # Scripts and tools not needed in containers
 scripts/
 Makefile
-uv.lock
 
 # Service-specific ignores (each service only needs its own files)
 # Uncomment these in service-specific .dockerignore files
