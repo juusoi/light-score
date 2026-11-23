@@ -15,24 +15,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Dependencies stage - install Python packages
 FROM base AS dependencies
 
-# Copy project metadata first to leverage Docker layer caching
-COPY pyproject.toml ./
+COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /usr/local/bin/uv
 
-# Install runtime dependencies from pyproject.toml
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e .[backend]
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
+
+# Copy project metadata and lockfile first to leverage Docker layer caching
+COPY pyproject.toml uv.lock ./
+
+# Install locked runtime dependencies from uv.lock
+RUN uv sync --locked --no-dev --no-install-project --extra backend
 
 # Production stage
 FROM base AS production
 
-# Copy installed packages from dependencies stage
-COPY --from=dependencies /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=dependencies /usr/local/bin /usr/local/bin
+# Copy virtual environment from dependencies stage (root-owned, read-only to appuser)
+COPY --from=dependencies /opt/venv /opt/venv
 
 # Copy backend source
 COPY backend/src /app/backend/src
 
-ENV PYTHONPATH=/app/backend/src
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH=/app/backend/src
 
 EXPOSE 8000
 

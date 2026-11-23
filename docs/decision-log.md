@@ -128,6 +128,15 @@ This log records lightweight architecture/product decisions for the current app.
 - Consequences: Configurations and docs are now clean, portable, and reusable across any Linux hosting environment without exposing personal or infrastructure identifiers.
 - Revisit Trigger: Introduction of multi-environment automated deployment tooling (e.g., Helm, Ansible, Terraform).
 
+## DEC-015
+
+- Date: 2026-11-23
+- Status: accepted
+- Context: `backend/Dockerfile` and `frontend/Dockerfile` installed dependencies via `pip install -e .[backend]` / `.[frontend]` using only `pyproject.toml` (with `uv.lock` excluded in `.dockerignore`). Because `pyproject.toml` declares `>=` lower bounds while CI tests against `uv.lock`, container builds could pull newer, untested direct or transitive package versions than what CI verified.
+- Decision: Include `uv.lock` in the Docker build context and install locked runtime dependencies in `backend/Dockerfile` and `frontend/Dockerfile` using `uv sync --locked --no-dev --no-install-project --extra <service>` from `ghcr.io/astral-sh/uv:0.13.9`, copying `/opt/venv` (root-owned, outside `/app`) into the production stage.
+- Consequences: Container images now install the exact hashed package versions tested in CI and local dev, eliminating version drift between `uv.lock` and production images while keeping `>=` ranges in `pyproject.toml`.
+- Revisit Trigger: Migrating container builds to a different Python packaging tool or dropping `uv.lock`.
+
 
 
 
