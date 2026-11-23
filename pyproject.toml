@@ -22,8 +22,8 @@ frontend = [
     "urllib3>=2.8.0",  # CVE floor (transitive via requests)
 ]
 functions = [
-    "pydantic==2.13.4",
-    "httpx==0.28.1",
+    "pydantic>=2.13.4",
+    "httpx>=0.28.1",
 ]
 security = ["bandit[toml]==1.9.4", "pip-audit==2.10.1"]
 

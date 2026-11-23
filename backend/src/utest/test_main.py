@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from ..main import (  # ty: ignore[unresolved-import]
+from ..main import (  # ty: ignore[import-not-found]
     _current_nfl_season_year,
     _extract_weekly_context,
     _extract_weekly_games_from_scoreboard,

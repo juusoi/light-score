@@ -87,8 +87,8 @@ This log records lightweight architecture/product decisions for the current app.
 
 - Date: 2026-06-24
 - Status: accepted
-- Context: CI's type-check step runs `ty` with `PYTHONPATH=backend/src:frontend/src:functions/src`, which makes `..main` imports in backend tests unresolvable (hence their `# ty: ignore[unresolved-import]` directives). The local `just ty` recipe omitted that PYTHONPATH, so `just ci` and CI disagreed: each could pass while the other failed.
-- Decision: Set the same `PYTHONPATH` in the `just ty` recipe so local type checks reproduce the CI gate exactly. Keep the `# ty: ignore[unresolved-import]` directives, which are required under that path layout.
+- Context: CI's type-check step runs `ty` with `PYTHONPATH=backend/src:frontend/src:functions/src`, which makes `..main` imports in backend tests unresolvable (hence their `# ty: ignore[import-not-found]` directives, formerly `unresolved-import` before `ty` 0.0.108). The local `just ty` recipe omitted that PYTHONPATH, so `just ci` and CI disagreed: each could pass while the other failed.
+- Decision: Set the same `PYTHONPATH` in the `just ty` recipe so local type checks reproduce the CI gate exactly. Keep the `# ty: ignore[import-not-found]` directives, which are required under that path layout.
 - Consequences: `just ci` is now a faithful local mirror of the CI type-check gate; the divergence that let mismatched changes slip through is closed.
 - Revisit Trigger: Restructuring the type-check path layout (e.g. dropping the CLI `PYTHONPATH` in favor of a `[tool.ty]` config) so the ignore directives are no longer needed.
 
