@@ -82,13 +82,13 @@ print_runtime_deps() {
         return 0
     fi
     echo "🐳 Runtime dependencies in container: ${name}";
-    # Use exec + pip freeze; tolerate absence of pip
-    if ! ${DOCKER_BIN} exec "${name}" sh -c 'command -v pip >/dev/null'; then
-        echo "  ⚠️  pip not available inside container"
+    # Query active Python environment (e.g. /opt/venv) via importlib.metadata
+    if ! ${DOCKER_BIN} exec "${name}" sh -c 'command -v python >/dev/null'; then
+        echo "  ⚠️  python not available inside container"
         echo
         return 0
     fi
-    match_output=$(${DOCKER_BIN} exec "${name}" pip freeze 2>/dev/null | grep -E "${grep_expr}" || true)
+    match_output=$(${DOCKER_BIN} exec "${name}" python -c 'import importlib.metadata as m; print("\n".join(sorted(f"{d.name}=={d.version}" for d in m.distributions())))' 2>/dev/null | grep -E "${grep_expr}" || true)
     if [[ -z "${match_output}" ]]; then
         echo "  (no matching packages found)"
     else
