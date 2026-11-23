@@ -113,7 +113,7 @@ cd e2e && pnpm run test -- -g "navigation"
 - Keep standings cache schema stable for backend consumers.
 - Do not remove stale-cache fallback behavior in backend fetch flows.
 - Run quality checks via the `just` recipes (`just ty`/`just ci`); they mirror CI. A bare `ty check .` omits the CI `PYTHONPATH` and gives misleading results.
-- Keep the `# ty: ignore[unresolved-import]` directives on `..main` imports in backend tests; they are required under CI's `PYTHONPATH` layout (see DEC-010).
+- Keep the `# ty: ignore[import-not-found]` directives on `..main` imports in backend tests; they are required under CI's `PYTHONPATH` layout (see DEC-010).
 
 ## Python Style Guidelines
 

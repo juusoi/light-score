@@ -121,11 +121,13 @@ import aiosqlite
 
 DB_PATH = Path(os.getenv("DB_PATH", "/data/lightscore.db"))
 
+
 async def get_db():
     """Get async database connection."""
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
     return db
+
 
 async def init_db():
     """Initialize database schema."""
@@ -141,7 +143,8 @@ async def init_db():
 async def upsert_game(game: dict) -> None:
     """Insert or update game from ESPN data."""
     async with await get_db() as db:
-        await db.execute("""
+        await db.execute(
+            """
             INSERT INTO games (id, season, week, season_type, home_team, away_team,
                               home_score, away_score, status, game_date, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
@@ -150,20 +153,26 @@ async def upsert_game(game: dict) -> None:
                 away_score = excluded.away_score,
                 status = excluded.status,
                 updated_at = datetime('now')
-        """, (...))
+        """,
+            (...),
+        )
         await db.commit()
+
 
 async def get_head_to_head(team_a: str, team_b: str, season: int) -> list[dict]:
     """Get all games between two teams in a season."""
     async with await get_db() as db:
-        cursor = await db.execute("""
+        cursor = await db.execute(
+            """
             SELECT * FROM games
             WHERE season = ?
               AND season_type = 2
               AND ((home_team = ? AND away_team = ?) 
                    OR (home_team = ? AND away_team = ?))
               AND status = 'final'
-        """, (season, team_a, team_b, team_b, team_a))
+        """,
+            (season, team_a, team_b, team_b, team_a),
+        )
         return [dict(row) for row in await cursor.fetchall()]
 ```
 
@@ -175,19 +184,20 @@ async def get_head_to_head(team_a: str, team_b: str, season: int) -> list[dict]:
 # Before: fetch from ESPN, cache in memory
 # After: fetch from ESPN, store in DB, serve from DB
 
+
 @app.get("/games/weekly")
 async def get_weekly_games(week: int = None, season_type: int = 2):
     # 1. Check DB for recent data
     cached = await games_repo.get_cached_week(week, season_type)
     if cached and not is_stale(cached):
         return cached
-    
+
     # 2. Fetch from ESPN
     fresh = await fetch_from_espn(week, season_type)
-    
+
     # 3. Store in DB
     await games_repo.upsert_games(fresh)
-    
+
     return fresh
 ```
 
@@ -267,23 +277,26 @@ spec:
 ```python
 # backend/src/tiebreakers.py
 
+
 async def calculate_tiebreaker(team_a: str, team_b: str, season: int) -> dict:
     """Calculate NFL tiebreaker between two teams."""
-    
+
     # 1. Head-to-head
     h2h = await games_repo.get_head_to_head(team_a, team_b, season)
     if h2h:
         a_wins = sum(1 for g in h2h if winner(g) == team_a)
         b_wins = sum(1 for g in h2h if winner(g) == team_b)
         if a_wins != b_wins:
-            return {"winner": team_a if a_wins > b_wins else team_b, 
-                    "reason": "head-to-head"}
-    
+            return {
+                "winner": team_a if a_wins > b_wins else team_b,
+                "reason": "head-to-head",
+            }
+
     # 2. Division record (already have from standings)
     # 3. Common games
     common = await games_repo.get_common_opponents(team_a, team_b, season)
     # ... continue tiebreaker chain
-    
+
     return {"winner": None, "reason": "coin-flip"}
 ```
 
