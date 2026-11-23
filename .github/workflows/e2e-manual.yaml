@@ -76,7 +76,7 @@ jobs:
     # Version: keep in sync with e2e/package.json @playwright/test
     container: ${{ inputs.target != 'localhost' && 'mcr.microsoft.com/playwright:v1.61.0-noble' || '' }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
 
@@ -103,7 +103,7 @@ jobs:
 
       - name: Set up Docker Buildx
         if: steps.url.outputs.NEED_SERVICES == 'true'
-        uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Start local services
         if: steps.url.outputs.NEED_SERVICES == 'true'
@@ -125,14 +125,14 @@ jobs:
       # For localhost: install pnpm + Node with dependency caching
       - name: Setup pnpm (localhost)
         if: steps.url.outputs.NEED_SERVICES == 'true'
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: e2e/package.json
 
 
       - name: Setup Node (localhost)
         if: steps.url.outputs.NEED_SERVICES == 'true'
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: e2e/.nvmrc
           cache: pnpm
@@ -145,7 +145,7 @@ jobs:
       # Only install browsers for localhost (Playwright image has them pre-installed)
       - name: Cache Playwright browsers
         if: steps.url.outputs.NEED_SERVICES == 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-manual-${{ hashFiles('e2e/pnpm-lock.yaml') }}-${{ inputs.browser }}
@@ -193,7 +193,7 @@ jobs:
 
       - name: Upload test artifacts
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report-${{ inputs.target }}-${{ inputs.test_suite }}
           path: e2e/playwright-report/
