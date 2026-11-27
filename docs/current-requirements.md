@@ -50,6 +50,15 @@ It is intentionally scoped to what the app does today.
 - If bracket data is available and valid, a `Playoff Bracket` panel is rendered.
 - If bracket data is unavailable, the app degrades safely and still renders the page.
 
+### FR-007 Spoiler-Free Upcoming Games View (`/no-scores`)
+
+- The frontend serves a spoiler-free page at `/no-scores`.
+- The page shows only the current week's `upcoming` games (`status == "upcoming"`) with team badges and kickoff times, or an empty state (`No upcoming games`).
+- Final results, live games, scores, game clocks, standings, playoff brackets, and week navigation links (`Prev`/`Next`) are excluded.
+- Query parameters are ignored; the endpoint always requests the current week from the backend (`/games/weekly` and `/games/weekly/context`).
+- The landing page (`/`) does not link to `/no-scores`.
+- Network-level backend failures render `home_no_api.html`, and non-OK or malformed backend payloads fall back to safe defaults.
+
 ## Resilience Requirements
 
 ### RR-001 Offline UI Fallback
@@ -90,7 +99,7 @@ It is intentionally scoped to what the app does today.
 
 ## Traceability
 
-- Frontend behavior: `frontend/src/app.py`, `frontend/src/templates/home.html`, `frontend/src/templates/home_no_api.html`.
+- Frontend behavior: `frontend/src/app.py`, `frontend/src/templates/home.html`, `frontend/src/templates/no_scores.html`, `frontend/src/templates/home_no_api.html`.
 - Frontend unit tests: `frontend/src/utest/test_app.py`.
-- E2E behavior checks: `e2e/tests/home.spec.ts`, `e2e/tests/application.spec.ts`, `e2e/tests/playoff-bracket.spec.ts`, `e2e/tests/error-handling.spec.ts`.
+- E2E behavior checks: `e2e/tests/home.spec.ts`, `e2e/tests/no-scores.spec.ts`, `e2e/tests/application.spec.ts`, `e2e/tests/playoff-bracket.spec.ts`, `e2e/tests/error-handling.spec.ts`.
 - Backend dependency surface: `backend/src/main.py` (`/games/weekly`, `/games/weekly/context`, `/games/weekly/navigation`, `/standings`, `/standings/live`, `/playoffs/bracket`).

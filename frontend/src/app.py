@@ -1,3 +1,4 @@
+import html
 import logging
 import os
 from typing import Any, Type, TypeVar, cast
@@ -41,6 +42,64 @@ def _parse_response_json(
 
     logging.warning("%s responded with unexpected type %s", label, type(data).__name__)
     return default
+
+
+def _to_int(value: Any, default: int) -> int:
+    """Safely coerce a value to int, falling back to `default`."""
+    if value is None or isinstance(value, bool):
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError, OverflowError):
+        return default
+
+
+def _extract_valid_games(response: requests.Response | None) -> list[dict[str, Any]]:
+    """Parse and filter weekly game records defensively."""
+    games_payload = cast(
+        list[dict[str, Any]],
+        (
+            _parse_response_json(
+                response,
+                expected_type=list,
+                default=[],
+                label="games/weekly",
+            )
+            if response is not None
+            else []
+        ),
+    )
+    return [
+        g
+        for g in games_payload
+        if isinstance(g, dict)
+        and isinstance(g.get("team_a"), str)
+        and isinstance(g.get("team_b"), str)
+        and isinstance(g.get("status"), str)
+    ]
+
+
+def _extract_context(response: requests.Response | None) -> dict[str, Any]:
+    """Parse and validate weekly context payload defensively."""
+    ctx_payload = cast(
+        dict[str, Any],
+        (
+            _parse_response_json(
+                response,
+                expected_type=dict,
+                default=DEFAULT_CONTEXT,
+                label="weekly/context",
+            )
+            if response is not None
+            else DEFAULT_CONTEXT
+        ),
+    )
+    return (
+        ctx_payload
+        if isinstance(ctx_payload, dict)
+        and {"year", "week", "seasonType"}.issubset(ctx_payload.keys())
+        else DEFAULT_CONTEXT
+    )
 
 
 def season_type_name(season_type: int | None) -> str:
@@ -115,11 +174,12 @@ def _badge_text_color(bg_hex: str) -> str:
 def _badge_svg(abbr: str, bg_hex: str) -> str:
     """Build a teletext badge: solid color tile + monospace abbreviation."""
     fg = _badge_text_color(bg_hex)
+    safe_abbr = html.escape(abbr)
     return (
         '<svg class="ttx-logo" viewBox="0 0 24 16" xmlns="http://www.w3.org/2000/svg">'
         f'<rect width="24" height="16" rx="2" fill="{bg_hex}"/>'
         '<text x="12" y="11.5" font-size="8" font-family="monospace" '
-        f'font-weight="bold" text-anchor="middle" fill="{fg}">{abbr}</text>'
+        f'font-weight="bold" text-anchor="middle" fill="{fg}">{safe_abbr}</text>'
         "</svg>"
     )
 
@@ -262,26 +322,7 @@ def home():
         logging.exception("Network error while fetching data from backend")
         return render_template("home_no_api.html")
 
-    games_payload = cast(
-        list[dict[str, Any]],
-        (
-            _parse_response_json(
-                weekly_response,
-                expected_type=list,
-                default=[],
-                label="games/weekly",
-            )
-            if weekly_response is not None
-            else []
-        ),
-    )
-
-    # Filter out any non-dict entries defensively
-    games = [
-        g
-        for g in games_payload
-        if isinstance(g, dict) and {"team_a", "team_b", "status"}.issubset(g.keys())
-    ]
+    games = _extract_valid_games(weekly_response)
     history = [g for g in games if g.get("status") == "final"]
     live = [g for g in games if g.get("status") == "live"]
     upcoming = [g for g in games if g.get("status") == "upcoming"]
@@ -305,42 +346,15 @@ def home():
         if isinstance(row, dict) and {"team", "wins", "losses"}.issubset(row.keys())
     ]
 
-    ctx_payload = cast(
-        dict[str, Any],
-        (
-            _parse_response_json(
-                ctx_resp,
-                expected_type=dict,
-                default=DEFAULT_CONTEXT,
-                label="weekly/context",
-            )
-            if ctx_resp is not None
-            else DEFAULT_CONTEXT
-        ),
-    )
-    ctx = (
-        ctx_payload
-        if isinstance(ctx_payload, dict)
-        and {"year", "week", "seasonType"}.issubset(ctx_payload.keys())
-        else DEFAULT_CONTEXT
-    )
+    ctx = _extract_context(ctx_resp)
 
-    # Compute navigation targets from context (always derive defaults)
-    def to_int(v, default: int) -> int:
-        if v is None:
-            return default
-        try:
-            return int(v)
-        except Exception:
-            return default
-
-    cur_year = to_int(ctx.get("year"), DEFAULT_CONTEXT["year"])
-    cur_week = to_int(ctx.get("week"), DEFAULT_CONTEXT["week"])
+    cur_year = _to_int(ctx.get("year"), DEFAULT_CONTEXT["year"])
+    cur_week = _to_int(ctx.get("week"), DEFAULT_CONTEXT["week"])
     # Respect user's explicit seasonType request (ESPN might return different value)
     cur_type = (
         season_val
         if season_val is not None
-        else to_int(ctx.get("seasonType"), DEFAULT_CONTEXT["seasonType"])
+        else _to_int(ctx.get("seasonType"), DEFAULT_CONTEXT["seasonType"])
     )
 
     try:
@@ -425,6 +439,42 @@ def home():
         divisions=divisions,
         season_type_name=season_type_name(cur_type),
         bracket=bracket_data,
+    )
+
+
+@app.route("/no-scores")
+def no_scores():
+    try:
+        weekly_response = requests.get(
+            f"{BACKEND_URL}/games/weekly", params={}, timeout=10
+        )
+        ctx_resp = requests.get(
+            f"{BACKEND_URL}/games/weekly/context", params={}, timeout=10
+        )
+    except requests.RequestException:
+        logging.exception("Network error while fetching data from backend")
+        return render_template("home_no_api.html")
+
+    if not weekly_response.ok:
+        logging.warning(
+            "No-scores weekly games request failed (%s)", weekly_response.status_code
+        )
+    if not ctx_resp.ok:
+        logging.warning("No-scores context request failed (%s)", ctx_resp.status_code)
+
+    games = _extract_valid_games(weekly_response if weekly_response.ok else None)
+    upcoming = [g for g in games if g.get("status") == "upcoming"]
+
+    ctx = _extract_context(ctx_resp if ctx_resp.ok else None)
+    cur_year = _to_int(ctx.get("year"), DEFAULT_CONTEXT["year"])
+    cur_week = _to_int(ctx.get("week"), DEFAULT_CONTEXT["week"])
+    cur_type = _to_int(ctx.get("seasonType"), DEFAULT_CONTEXT["seasonType"])
+
+    return render_template(
+        "no_scores.html",
+        upcoming_games=upcoming,
+        ctx={"year": cur_year, "week": cur_week, "seasonType": cur_type},
+        season_type_name=season_type_name(cur_type),
     )
 
 
