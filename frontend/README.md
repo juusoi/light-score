@@ -51,12 +51,15 @@ just mock-up
 | `/?seasonType=2` | Regular season view |
 | `/?seasonType=3` | Postseason view |
 | `/?week=N` | Specific week navigation |
+| `/no-scores` | Spoiler-free view of this week's upcoming games only |
+| `/health` | Lightweight JSON health check |
 
 ## Templates
 
 | Template | Purpose |
 |----------|---------|
 | `home.html` | Main scoreboard with games grid + standings or postseason bracket |
+| `no_scores.html` | Spoiler-free upcoming games view for the current week |
 | `home_no_api.html` | Fallback when backend is unavailable |
 
 ## Testing

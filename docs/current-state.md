@@ -27,19 +27,21 @@ It describes what exists in code and tests, without proposing redesign work.
 ## Frontend State
 
 - Entry point: `frontend/src/app.py`.
-- Main route: `/`.
+- Routes: `/`, `/no-scores`, `/health`.
 - Templates currently in use:
   - `frontend/src/templates/home.html`
+  - `frontend/src/templates/no_scores.html`
   - `frontend/src/templates/home_no_api.html`
 - Static styling: `frontend/src/static/teletext.css`.
 
 Current UI behavior:
 
-- Header shows season context and week navigation links.
+- Header shows season context and week navigation links on `/` (and season context + current week label only on `/no-scores`).
 - `Live` panel shows in-progress games or empty-state message.
 - `Games` panel shows final/upcoming games with status-specific rendering.
 - Regular season path renders standings grouped by division.
 - Postseason path renders playoff bracket when bracket data is available.
+- `/no-scores` renders a spoiler-free single panel (`Upcoming Games`) for the current week only, filtering strictly to `upcoming` games with no scores, live/final games, standings, brackets, or week navigation links (not linked from `/`).
 
 ## Backend Dependency Surface Used by Frontend
 
@@ -73,11 +75,13 @@ Current UI behavior:
   - query/nav behavior
   - offline fallback page
   - postseason bracket panel path
+  - `/no-scores` spoiler-free upcoming-only view and fallbacks
 - E2E tests verify:
   - core page structure and branding
   - week navigation links and interactions
   - standings and game state display behaviors
   - postseason bracket UI structure
+  - `/no-scores` spoiler-free upcoming games view (live + mock fixtures)
   - basic responsiveness/accessibility expectations
 
 ## CI and Workflow Hygiene

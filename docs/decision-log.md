@@ -137,6 +137,15 @@ This log records lightweight architecture/product decisions for the current app.
 - Consequences: Container images now install the exact hashed package versions tested in CI and local dev, eliminating version drift between `uv.lock` and production images while keeping `>=` ranges in `pyproject.toml`.
 - Revisit Trigger: Migrating container builds to a different Python packaging tool or dropping `uv.lock`.
 
+## DEC-016
+
+- Date: 2026-11-27
+- Status: accepted
+- Context: Users who watch NFL games delayed want a spoiler-free way to check this week's remaining upcoming games without seeing final results, live scores, standings, or playoff brackets.
+- Decision: Add a dedicated Flask route `/no-scores` with its own template (`no_scores.html`) rather than adding a query flag to `/`. The route fetches only `/games/weekly` and `/games/weekly/context` for the current week (ignoring query parameters), filters strictly to `status == "upcoming"`, uses English UI labels consistent with the rest of the app, and is not yet linked from `/`.
+- Consequences: Zero backend or proxy changes needed; no accidental spoiler leakage via shared template conditionals, standings, or links back to `/`; minimal backend request fan-out.
+- Revisit Trigger: Product need to link `/no-scores` from `/` or support browsing upcoming games for other weeks.
+
 
 
 

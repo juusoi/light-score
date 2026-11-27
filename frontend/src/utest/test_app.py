@@ -519,5 +519,316 @@ def test_fallback_abbr_derivation():
     assert "#555555" in single
 
 
+@patch("requests.get")
+def test_no_scores_shows_only_upcoming_games(mock_get, client):
+    """Test /no-scores shows only this week's upcoming games with no spoilers."""
+    weekly = [
+        {
+            "team_a": "Kansas City Chiefs",
+            "team_b": "Las Vegas Raiders",
+            "status": "final",
+            "start_time": "2026-11-26T17:30:00Z",
+            "start_time_finnish": None,
+            "start_date_time_finnish": None,
+            "game_time": None,
+            "score_a": 27,
+            "score_b": 14,
+        },
+        {
+            "team_a": "Green Bay Packers",
+            "team_b": "Seattle Seahawks",
+            "status": "live",
+            "start_time": "2026-11-27T18:00:00Z",
+            "start_time_finnish": None,
+            "start_date_time_finnish": None,
+            "game_time": "Q3 7:42",
+            "score_a": 21,
+            "score_b": 17,
+        },
+        {
+            "team_a": "San Francisco 49ers",
+            "team_b": "Los Angeles Rams",
+            "status": "upcoming",
+            "start_time": "2026-11-29T18:00:00Z",
+            "start_time_finnish": "20:00",
+            "start_date_time_finnish": "Sun 29.11. 20:00",
+            "game_time": None,
+            "score_a": None,
+            "score_b": None,
+        },
+        {
+            "team_a": "Dallas Cowboys",
+            "team_b": "Carolina Panthers",
+            "status": "upcoming",
+            "start_time": "2026-11-30T01:20:00Z",
+            "start_time_finnish": "03:20",
+            "start_date_time_finnish": "Mon 30.11. 03:20",
+            "game_time": None,
+            "score_a": None,
+            "score_b": None,
+        },
+    ]
+    ctx_json = {"year": 2026, "week": 13, "seasonType": 2}
+    requested_urls: list[str] = []
+
+    def side_effect(url, **kwargs):
+        requested_urls.append(url)
+        if url.endswith("/games/weekly"):
+            r = MagicMock(ok=True)
+            r.json.return_value = weekly
+            return r
+        if url.endswith("/games/weekly/context"):
+            r = MagicMock(ok=True)
+            r.json.return_value = ctx_json
+            return r
+        raise AssertionError(f"Unexpected backend call: {url}")
+
+    mock_get.side_effect = side_effect
+    resp = client.get("/no-scores")
+    assert resp.status_code == 200
+    text = resp.data.decode("utf-8")
+
+    # Header and upcoming panel rendered
+    assert "Light Score" in text
+    assert "Regular Season" in text
+    assert "2026" in text
+    assert "Week 13" in text
+    assert "Upcoming Games" in text
+
+    # Upcoming games and kickoff times shown
+    assert "San Francisco 49ers" in text
+    assert "Los Angeles Rams" in text
+    assert "Sun 29.11. 20:00" in text
+    assert "Dallas Cowboys" in text
+    assert "Carolina Panthers" in text
+    assert "Mon 30.11. 03:20" in text
+
+    # Final and live games, scores, clocks, and spoiler panels excluded
+    assert "Kansas City Chiefs" not in text
+    assert "Las Vegas Raiders" not in text
+    assert "Green Bay Packers" not in text
+    assert "Seattle Seahawks" not in text
+    assert "Q3 7:42" not in text
+    assert "27" not in text
+    assert "ttx-score" not in text
+    assert "ttx-status-live" not in text
+    assert "ttx-status-final" not in text
+    assert "<h2>Live</h2>" not in text
+    assert "<h2>Standings</h2>" not in text
+    assert "Playoff Bracket" not in text
+    assert "Prev" not in text
+    assert "Next" not in text
+    assert 'href="/"' not in text
+
+    # Only games/weekly and games/weekly/context called
+    assert len(requested_urls) == 2
+    assert any(u.endswith("/games/weekly") for u in requested_urls)
+    assert any(u.endswith("/games/weekly/context") for u in requested_urls)
+
+
+@patch("requests.get")
+def test_no_scores_empty_when_no_upcoming_games(mock_get, client):
+    """Test /no-scores renders empty state when only final/live games exist."""
+    weekly = [
+        {
+            "team_a": "Buffalo Bills",
+            "team_b": "Detroit Lions",
+            "status": "final",
+            "start_time": "2026-11-26T18:00:00Z",
+            "start_time_finnish": None,
+            "start_date_time_finnish": None,
+            "game_time": None,
+            "score_a": 42,
+            "score_b": 35,
+        },
+        {
+            "team_a": "Philadelphia Eagles",
+            "team_b": "Pittsburgh Steelers",
+            "status": "live",
+            "start_time": "2026-11-27T18:00:00Z",
+            "start_time_finnish": None,
+            "start_date_time_finnish": None,
+            "game_time": "Q2 2:05",
+            "score_a": 14,
+            "score_b": 10,
+        },
+    ]
+    ctx_json = {"year": 2026, "week": 13, "seasonType": 2}
+
+    def side_effect(url, **kwargs):
+        r = MagicMock(ok=True)
+        r.json.return_value = ctx_json if url.endswith("/context") else weekly
+        return r
+
+    mock_get.side_effect = side_effect
+    resp = client.get("/no-scores")
+    assert resp.status_code == 200
+    text = resp.data.decode("utf-8")
+
+    assert "No upcoming games" in text
+    assert "Buffalo Bills" not in text
+    assert "Philadelphia Eagles" not in text
+    assert "42" not in text
+    assert "Q2 2:05" not in text
+
+
+@patch("requests.get")
+def test_no_scores_ignores_query_params(mock_get, client):
+    """Test /no-scores always fetches current week and ignores query params."""
+    seen_params: list[dict] = []
+
+    def side_effect(url, **kwargs):
+        seen_params.append(kwargs.get("params", {}))
+        r = MagicMock(ok=True)
+        if url.endswith("/context"):
+            r.json.return_value = {"year": 2026, "week": 13, "seasonType": 2}
+        else:
+            r.json.return_value = []
+        return r
+
+    mock_get.side_effect = side_effect
+    resp = client.get("/no-scores?year=2024&week=5&seasonType=3")
+    assert resp.status_code == 200
+    assert seen_params == [{}, {}]
+    text = resp.data.decode("utf-8")
+    assert "Week 13" in text
+    assert "Regular Season" in text
+
+
+@patch("requests.get", side_effect=requests.RequestException("backend down"))
+def test_no_scores_offline_fallback_on_backend_error(_mock_get, client):
+    """Test /no-scores renders offline fallback page on network failure."""
+    resp = client.get("/no-scores")
+    assert resp.status_code == 200
+    text = resp.data.decode("utf-8")
+    assert "Offline" in text
+    assert "No Data" in text
+
+
+@patch("requests.get")
+def test_no_scores_handles_error_or_malformed_backend_payload(mock_get, client):
+    """Test /no-scores degrades safely on non-OK or malformed backend payloads."""
+
+    def side_effect(url, **kwargs):
+        if url.endswith("/games/weekly"):
+            r = MagicMock(ok=False, status_code=502)
+            r.json.return_value = {"detail": "ESPN API error"}
+            return r
+        r = MagicMock(ok=False, status_code=504)
+        r.json.return_value = {"detail": "timeout"}
+        return r
+
+    mock_get.side_effect = side_effect
+    resp = client.get("/no-scores")
+    assert resp.status_code == 200
+    text = resp.data.decode("utf-8")
+    assert "Upcoming Games" in text
+    assert "No upcoming games" in text
+    assert "Regular Season" in text
+    assert "Week 1" in text
+
+
+@patch("requests.get")
+def test_no_scores_filters_malformed_game_entries(mock_get, client):
+    """Test /no-scores ignores non-dict or non-string game entries without crashing."""
+    weekly = [
+        "not-a-dict",
+        {"team_a": 123, "team_b": "Valid Team", "status": "upcoming"},
+        {"team_a": None, "team_b": "Valid Team", "status": "upcoming"},
+        {"team_a": "Missing Status", "team_b": "Other"},
+        {
+            "team_a": "A&B <Club>",
+            "team_b": "Chicago Bears",
+            "status": "upcoming",
+            "start_date_time_finnish": "Sun 29.11. 20:00",
+        },
+    ]
+
+    def side_effect(url, **kwargs):
+        r = MagicMock(ok=True)
+        if url.endswith("/context"):
+            r.json.return_value = {"unexpected": "shape"}
+        else:
+            r.json.return_value = weekly
+        return r
+
+    mock_get.side_effect = side_effect
+    resp = client.get("/no-scores")
+    assert resp.status_code == 200
+    text = resp.data.decode("utf-8")
+    assert "Chicago Bears" in text
+    assert "A&amp;B &lt;Club&gt;" in text
+    assert ">A&lt;<" in text
+    assert "Regular Season" in text
+    assert "Week 1" in text
+
+
+@patch("requests.get")
+def test_no_scores_kickoff_time_fallbacks(mock_get, client):
+    """Test kickoff time fallback order: date_time -> time -> iso -> scheduled."""
+    weekly = [
+        {
+            "team_a": "Miami Dolphins",
+            "team_b": "New York Jets",
+            "status": "upcoming",
+            "start_time": "2026-11-29T18:00:00Z",
+            "start_time_finnish": "20:00",
+            "start_date_time_finnish": None,
+        },
+        {
+            "team_a": "Chicago Bears",
+            "team_b": "Minnesota Vikings",
+            "status": "upcoming",
+            "start_time": "2026-11-29T21:25:00Z",
+            "start_time_finnish": None,
+            "start_date_time_finnish": None,
+        },
+        {
+            "team_a": "Atlanta Falcons",
+            "team_b": "New Orleans Saints",
+            "status": "upcoming",
+            "start_time": None,
+            "start_time_finnish": None,
+            "start_date_time_finnish": None,
+        },
+    ]
+
+    def side_effect(url, **kwargs):
+        r = MagicMock(ok=True)
+        if url.endswith("/context"):
+            r.json.return_value = {"year": 2026, "week": 13, "seasonType": 2}
+        else:
+            r.json.return_value = weekly
+        return r
+
+    mock_get.side_effect = side_effect
+    resp = client.get("/no-scores")
+    assert resp.status_code == 200
+    text = resp.data.decode("utf-8")
+    assert "20:00" in text
+    assert "2026-11-29T21:25:00Z" in text
+    assert "scheduled" in text
+
+
+@patch("requests.get")
+def test_home_does_not_link_to_no_scores(mock_get, client):
+    """Test landing page does not link to /no-scores yet."""
+
+    def side_effect(url, **kwargs):
+        r = MagicMock(ok=True)
+        if url.endswith("/context"):
+            r.json.return_value = {"year": 2026, "week": 13, "seasonType": 2}
+        elif "/navigation" in url:
+            r.json.return_value = {"year": 2026, "week": 12, "seasonType": 2}
+        else:
+            r.json.return_value = []
+        return r
+
+    mock_get.side_effect = side_effect
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert b"/no-scores" not in resp.data
+
+
 if __name__ == "__main__":
     pytest.main()
